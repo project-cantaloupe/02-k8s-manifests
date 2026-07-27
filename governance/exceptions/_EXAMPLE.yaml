@@ -1,0 +1,20 @@
+# 예외를 만들 때 이 파일을 복사한다. 파일명은 <정책>-<대상>.yaml.
+# 이 파일 자체는 예시라 적용되지 않는다.
+apiVersion: kyverno.io/v2beta1
+kind: PolicyException
+metadata:
+  name: example-exception
+  namespace: kyverno
+  annotations:
+    exception.reason: "왜 필요한지 한 문장"
+    exception.approved-by: "승인자"
+    exception.review-by: "2026-12-31"
+spec:
+  exceptions:
+    - policyName: require-run-as-nonroot
+      ruleNames: [check-run-as-nonroot]
+  match:
+    any:
+      - resources:
+          kinds: [Pod]
+          namespaces: [example-namespace]

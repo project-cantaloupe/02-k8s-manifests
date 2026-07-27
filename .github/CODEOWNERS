@@ -1,0 +1,8 @@
+# 거버넌스 경로는 SecOps·FinOps 승인 없이 바꿀 수 없다.
+# @org/... 을 실제 GitHub 팀 이름으로 바꾼다.
+
+/governance/                @org/secops @org/finops
+/platform/*/policies/       @org/secops @org/finops
+/apps/*/policies/           @org/secops @org/finops
+
+*                           @org/platform
