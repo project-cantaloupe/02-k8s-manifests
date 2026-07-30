@@ -1,62 +1,51 @@
 # k8s-manifests
 
-클러스터 위에 뜨는 것 전부. **ArgoCD가 이 리포를 보고 동기화한다.**
-
-`kubectl apply`를 손으로 하지 않는다. 여기 커밋한 것만 클러스터에 반영된다.
+클러스터 워크로드의 GitOps 원본이다. Argo CD가 이 저장소를 동기화하며,
+일상적인 변경은 `kubectl apply`가 아니라 PR로 반영한다.
 
 ## 구조
 
+```text
+governance/             Kyverno 보안·FinOps 정책과 예외
+platform/
+  aws/                  AWS 배치 플랫폼 구성
+  gcp/                  GCP 배치 플랫폼 구성
+  onp/                  On-prem 배치 플랫폼 구성
+apps/                   사용자 서비스
 ```
-governance/     전 클러스터 공통 보안·비용 규칙
-platform/       영역별 도구
-  aws/          area=aws 노드
-  gcp/          area=gcp 노드
-  onprem/       area=onprem 노드
-apps/           고객 서비스
-```
 
-## 규칙 — 디렉터리 이름 = 영역 = 노드 라벨
+## 라벨과 배치
 
-`platform/gcp/` 아래 있는 건 전부 `area=gcp` 노드에 뜬다.
+기준 문서는
+[`00-cantaloupe-resources/k8s-labeling-convention.md`](../00-cantaloupe-resources/k8s-labeling-convention.md)다.
 
-**`nodeSelector`를 매니페스트에 직접 쓰지 않는다.** 영역 디렉터리의
-`kustomization.yaml`이 한 번에 주입한다. 새 도구를 추가하는 사람은 이 존재를
-몰라도 된다.
+- 일반 Pod template: `app`, `area`, `platform`
+- 여러 플랫폼에 뜨는 DaemonSet: `app`, `area`
+- Node: `platform=aws|gcp|onp`, `role=<역할>`
+- 팀 워크로드는 `default` Namespace를 사용하지 않는다.
 
-### 새 도구 추가하기
+직접 작성한 매니페스트의 `nodeSelector`는 플랫폼 Kustomization에서 공통
+주입한다. Helm chart는 각 `values.yaml`에서 설정한다.
 
-```bash
-# 1. 영역 디렉터리 안에 폴더를 만든다
-mkdir platform/gcp/loki
+| 위치 | 배치 |
+|---|---|
+| `apps/audio/`, `platform/aws/` | `platform=aws`, `role=service` |
+| `platform/gcp/kube-prometheus-stack/`, `opencost/` | `platform=gcp`, `role=monitoring` |
+| `platform/onp/` | `platform=onp`, `role=devops` |
 
-# 2. 매니페스트를 넣는다 (nodeSelector 는 적지 않는다)
-vi platform/gcp/loki/deployment.yaml
+Kafka 등 배치가 확정되지 않은 구성요소는 임의로 특정 플랫폼에 넣지 않는다.
 
-# 3. 영역 kustomization 의 resources 에 한 줄 추가
-vi platform/gcp/kustomization.yaml
-```
+## 모니터링
+
+Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics는
+`platform/gcp/kube-prometheus-stack/`에서 하나의 Helm release로 관리한다.
+OpenCost는 별도 release로 두되 같은 Prometheus를 데이터 원본으로 사용한다.
 
 ## 거버넌스
 
-`governance/`는 SecOps·FinOps가 소유한다. CODEOWNERS로 승인이 강제된다.
+`governance/secops/`와 `governance/finops/`는 공통 강제 정책,
+`governance/exceptions/`는 승인된 임시 예외다. 예외에는 사유·승인자·
+재검토일을 기록한다.
 
-| 디렉터리 | 용도 |
-|---|---|
-| `governance/secops/` | 전 클러스터 보안 규칙 |
-| `governance/finops/` | 전 클러스터 비용 규칙 |
-| `governance/exceptions/` | 규칙에서 빼는 것 |
-| `platform/*/policies/` | 그 영역에만 **더** 거는 규칙 |
-| `apps/*/policies/` | 그 앱에만 **더** 거는 규칙 |
-
-**빼기와 더하기를 다른 곳에 둔다.** `ls governance/exceptions/` 하나로
-"기준에서 벗어난 게 뭐가 있나"에 답할 수 있어야 하기 때문이다.
-
-정책 엔진은 Kyverno다. 정책을 YAML로 쓰고, 예외는 `PolicyException` 리소스로
-남는다 — 문서에 적어둔 예외와 실제가 어긋나지 않는다.
-
-## 클라우드 자원 쪽 거버넌스는 여기 없다
-
-EC2 태그나 IAM 정책 같은 건 클러스터가 아니라 클라우드에 거는 것이라
-[`infra-provisioning/terraform/modules/`](../infra-provisioning/) 에 있다.
-
-같은 정책 의도가 두 리포에 나뉘어 구현된다. 한쪽만 고치면 반쪽만 적용된다.
+클라우드 태그·IAM·보안그룹은 이 저장소가 아니라
+[`01-infra-provisioning`](../01-infra-provisioning/)에서 관리한다.

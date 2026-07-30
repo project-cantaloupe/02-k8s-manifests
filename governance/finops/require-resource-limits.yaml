@@ -1,5 +1,4 @@
-# requests·limits 가 없으면 Opencost 가 비용을 워크로드에 귀속시키지 못한다.
-# 비용 가시성이 목표라면 이건 선택이 아니다.
+# CPU·Memory requests와 Memory limit은 스케줄링·용량·비용 분석의 기준이다.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -13,11 +12,26 @@ spec:
         any:
           - resources:
               kinds: [Pod]
+              namespaces:
+                - apps
+                - devops
+                - monitoring
+                - messaging
+                - logging
+                - finops
       validate:
-        message: "모든 컨테이너에 resources.requests 와 limits 가 필요하다."
+        message: >-
+          모든 컨테이너에 CPU·Memory requests와 Memory limit이 필요하다.
         pattern:
           spec:
             containers:
+              - resources:
+                  requests:
+                    memory: "?*"
+                    cpu: "?*"
+                  limits:
+                    memory: "?*"
+            =(initContainers):
               - resources:
                   requests:
                     memory: "?*"
