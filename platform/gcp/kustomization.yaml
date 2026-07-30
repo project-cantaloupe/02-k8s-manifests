@@ -1,33 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# 이 디렉터리 아래 있는 건 전부 area=gcp 노드에 뜬다.
-# 개별 매니페스트에 nodeSelector 를 적지 않는다. 여기 한 곳만 고친다.
-patches:
-  # Deployment 만 적으면 안 된다. Prometheus·OpenSearch·Kafka 는
-  # StatefulSet 이고 로그 수집기는 DaemonSet 이라, 빠지면 조용히
-  # 아무 노드에나 뜬다 (에러가 나지 않아서 알아채기 어렵다).
-  - target:
-      kind: "(Deployment|StatefulSet|DaemonSet|Job)"
-    patch: |
-      - op: add
-        path: /spec/template/spec/nodeSelector
-        value:
-          area: gcp
-  # CronJob 은 template 이 jobTemplate 아래라 경로가 한 단계 깊다.
-  - target:
-      kind: CronJob
-    patch: |
-      - op: add
-        path: /spec/jobTemplate/spec/template/spec/nodeSelector
-        value:
-          area: gcp
-
-resources:
-  - policies
-  - prometheus
-  - grafana
-  - opensearch
-  - opensearch-dashboards
-  - kafka
-  - opencost
+# 빈 골격은 렌더링 대상에 넣지 않는다. 각 디렉터리에 실제 Kustomization 또는
+# Argo CD Application이 생긴 뒤 resources에 추가한다.
+resources: []
