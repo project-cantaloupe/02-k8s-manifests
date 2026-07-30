@@ -1,0 +1,91 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: harbor
+  namespace: devops
+spec:
+  project: default
+  source:
+    repoURL: https://helm.goharbor.io
+    chart: harbor
+    targetRevision: 1.14.0
+    helm:
+      values: |
+        x-node-selector: &devops-node
+          platform: onp
+          role: devops
+        x-pod-labels: &devops-labels
+          app: harbor
+          area: devops
+          platform: onp
+        x-resources: &default-resources
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+        expose:
+          type: clusterIP
+          tls:
+            enabled: false
+        externalURL: http://harbor.devops.svc.cluster.local
+        persistence:
+          enabled: true
+          persistentVolumeClaim:
+            registry:
+              size: 10Gi
+        nginx:
+          nodeSelector: *devops-node
+          podLabels: *devops-labels
+          resources: *default-resources
+        portal:
+          nodeSelector: *devops-node
+          podLabels: *devops-labels
+          resources: *default-resources
+        core:
+          nodeSelector: *devops-node
+          podLabels: *devops-labels
+          resources: *default-resources
+        jobservice:
+          nodeSelector: *devops-node
+          podLabels: *devops-labels
+          resources: *default-resources
+        registry:
+          nodeSelector: *devops-node
+          podLabels: *devops-labels
+          registry:
+            resources: *default-resources
+          controller:
+            resources: *default-resources
+        trivy:
+          nodeSelector: *devops-node
+          podLabels: *devops-labels
+          resources: *default-resources
+        database:
+          internal:
+            nodeSelector: *devops-node
+            resources: *default-resources
+            initContainer:
+              migrator:
+                resources: *default-resources
+              permissions:
+                resources: *default-resources
+          podLabels: *devops-labels
+        redis:
+          internal:
+            nodeSelector: *devops-node
+            resources: *default-resources
+          podLabels: *devops-labels
+        exporter:
+          nodeSelector: *devops-node
+          podLabels: *devops-labels
+          resources: *default-resources
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 직접 작성한 DevOps 워크로드를 On-prem devops 노드에 배치한다.
+patches:
+  - target:
+      kind: "(Deployment|StatefulSet|Job)"
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          platform: onp
+          role: devops
+  - target:
+      kind: CronJob
+    patch: |
+      - op: add
+        path: /spec/jobTemplate/spec/template/spec/nodeSelector
+        value:
+          platform: onp
+          role: devops
+
+resources:
+  - harbor
+  - jenkins

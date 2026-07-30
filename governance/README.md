@@ -13,12 +13,19 @@
 빼기(`exceptions/`)와 더하기(`*/policies/`)를 다른 곳에 둔다.
 `ls exceptions/` 하나로 "기준에서 벗어난 게 뭐냐"에 답할 수 있어야 한다.
 
-## 정책은 Enforce 로 쓴다
+## 정책은 Enforce로 쓴다
 
-`validationFailureAction: Audit` 은 위반을 기록만 하고 통과시킨다.
+`validationFailureAction: Audit`은 위반을 기록만 하고 통과시킨다.
 그건 규칙이 아니라 통계다. 새 정책을 넣을 때 이유 없이 Audit 로 두지 않는다.
+
+현재 FinOps 정책은 팀 Namespace의 container와 initContainer에
+CPU·Memory requests와 Memory limit이 있는지 검사한다. CPU limit은 전역
+강제하지 않는다.
+
+일반 워크로드의 `app`, `area`, `platform`과 다중 플랫폼 DaemonSet의
+`app`, `area` 라벨 검사는 팀 워크로드가 작성된 뒤 별도 정책으로 추가한다.
 
 ## 예외를 추가할 때
 
-`exceptions/` 에 파일을 만들고 **사유와 재검토 시점**을 적는다.
+`exceptions/`에 파일을 만들고 **사유·승인자·재검토 시점**을 적는다.
 만료 없는 예외는 영구 면제가 된다.
