@@ -6,6 +6,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: local-path  # <--- 이 줄을 반드시 추가해주세요!
   resources:
     requests:
       storage: 10Gi

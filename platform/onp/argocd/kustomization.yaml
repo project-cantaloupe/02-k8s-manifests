@@ -4,22 +4,165 @@ kind: Kustomization
 namespace: devops
 
 resources:
+  - namespace.yaml
   - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
+# 1. Pod 라벨 규칙 적용 (area, platform)
+labels:
+  - pairs:
+      area: devops
+      platform: onp
+    includeSelectors: false
+
+# 2. NodeSelector 및 FinOps 자원 주입
 patches:
+  # 모든 Deployment & StatefulSet에 nodeSelector 주입
+  - target:
+      kind: (Deployment|StatefulSet)
+    patch: |-
+      kind: Dummy
+      metadata:
+        name: dummy
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              platform: onp
+              role: devops
+
+  # argocd-redis에도 nodeSelector 및 resource 주입
   - target:
       kind: Deployment
+      name: argocd-redis
     patch: |-
-      - op: add
-        path: /spec/template/spec/nodeSelector
-        value:
-          platform: onp
-          role: devops
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-redis
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              platform: onp
+              role: devops
+            initContainers:
+            - name: secret-init
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 32Mi
+            containers:
+            - name: redis
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+
+  # argocd-server 리소스 설정
+  - target:
+      kind: Deployment
+      name: argocd-server
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-server
+      spec:
+        template:
+          spec:
+            containers:
+            - name: argocd-server
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+
+  # argocd-repo-server 리소스 설정
+  - target:
+      kind: Deployment
+      name: argocd-repo-server
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-repo-server
+      spec:
+        template:
+          spec:
+            containers:
+            - name: argocd-repo-server
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  memory: 1Gi
+
+  # argocd-applicationset-controller 리소스 설정
+  - target:
+      kind: Deployment
+      name: argocd-applicationset-controller
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-applicationset-controller
+      spec:
+        template:
+          spec:
+            containers:
+            - name: argocd-applicationset-controller
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+
+  # argocd-notifications-controller 리소스 설정
+  - target:
+      kind: Deployment
+      name: argocd-notifications-controller
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-notifications-controller
+      spec:
+        template:
+          spec:
+            containers:
+            - name: argocd-notifications-controller
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+
+  # argocd-application-controller 리소스 설정
   - target:
       kind: StatefulSet
+      name: argocd-application-controller
     patch: |-
-      - op: add
-        path: /spec/template/spec/nodeSelector
-        value:
-          platform: onp
-          role: devops
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: argocd-application-controller
+      spec:
+        template:
+          spec:
+            containers:
+            - name: argocd-application-controller
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+                limits:
+                  memory: 2Gi

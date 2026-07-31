@@ -3,6 +3,10 @@ kind: Deployment
 metadata:
   name: jenkins
   namespace: devops
+  labels:
+    app: jenkins
+    area: devops
+    platform: onp
 spec:
   replicas: 1
   selector:
@@ -15,6 +19,10 @@ spec:
         area: devops
         platform: onp
     spec:
+      # Cantaloupe 조직 표준 노드 타겟팅 추가
+      nodeSelector:
+        platform: onp
+        role: devops
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -48,6 +56,10 @@ kind: Service
 metadata:
   name: jenkins
   namespace: devops
+  labels:
+    app: jenkins
+    area: devops
+    platform: onp
 spec:
   type: ClusterIP
   selector:

@@ -33,6 +33,7 @@ spec:
           enabled: true
           persistentVolumeClaim:
             registry:
+              storageClass: "local-path"
               size: 10Gi
         nginx:
           nodeSelector: *devops-node
