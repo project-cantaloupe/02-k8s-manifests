@@ -16,6 +16,16 @@ labels:
 
 # 2. NodeSelector 및 FinOps 자원 주입
 patches:
+  # Argo CD는 devops Namespace에 설치되므로 cluster-scoped binding의
+  # ServiceAccount 참조도 명시적으로 devops로 맞춘다.
+  - target:
+      kind: ClusterRoleBinding
+      name: argocd-(application-controller|applicationset-controller|server)
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: devops
+
   # 모든 Deployment & StatefulSet에 nodeSelector 주입
   - target:
       kind: (Deployment|StatefulSet)
