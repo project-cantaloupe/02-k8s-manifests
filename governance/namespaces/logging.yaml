@@ -1,15 +1,24 @@
-# OpenSearch · OpenSearch Dashboards.
+# OpenSearch · OpenSearch Dashboards · Fluent Bit
+# (구성요소 목록은 00-cantaloupe-resources/k8s-labeling-convention.md 1절)
 #
-# baseline 인 이유 — OpenSearch 는 `vm.max_map_count` 를 올려야 뜨고, 보통
-# 특권 initContainer 로 sysctl 을 만진다. 노드에서 미리 설정해 두면 이
-# initContainer 를 없앨 수 있고, 그러면 restricted 로 올릴 수 있다.
-# → 그 판정은 logging 스택을 세울 때 한다.
+# ⚠️ **privileged 는 이 네임스페이스에 파드 하드닝이 없다는 뜻이다.**
+#
+# Fluent Bit 이 노드의 `/var/log` 를 hostPath 로 마운트한다. 컨테이너 로그를
+# 읽는 일이라 우회할 방법이 없고, **hostPath 는 baseline 이 금지하는 항목**이다.
+# OpenSearch 도 `vm.max_map_count` 를 특권 initContainer 로 올리는 구성이 흔하다.
+#
+# **줄이는 길** — Fluent Bit 을 별도 네임스페이스로 가르면 나머지(OpenSearch,
+# Dashboards)는 baseline 이나 restricted 로 올릴 수 있다. 다만 규약 1절이
+# 둘을 같은 네임스페이스에 두므로, 가르려면 규약을 먼저 고쳐야 한다
+# → 00-cantaloupe-resources 소관. logging 스택을 세울 때 판정한다.
+#
+# OpenSearch 의 sysctl 은 노드에서 미리 설정해 두면 initContainer 를 없앨 수
+# 있다 (`ansible/roles/common`). 그쪽을 먼저 하면 특권 사유가 하나 준다.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: logging
   labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/enforce-version: v1.36
-    pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: baseline
+    pod-security.kubernetes.io/audit: baseline

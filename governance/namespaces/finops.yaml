@@ -1,16 +1,24 @@
-# OpenCost · Kepler.
+# FinOps 전용 Job/API
+# (00-cantaloupe-resources/k8s-labeling-convention.md 1절)
 #
-# ⚠️ **privileged 는 "이 네임스페이스에 파드 하드닝이 없다"는 뜻이다.**
-# Kepler 가 전력 카운터(RAPL)를 읽으려면 특권과 hostPath 가 필요하다.
-# → tasks/todo/002_bootstrap-blockers.md 2번이 이미 지목한 항목이다.
+# **OpenCost 는 여기가 아니라 `monitoring` 이다.** 규약 1절이 Prometheus·
+# Grafana·Alertmanager 와 함께 묶어뒀다. 리포의 `platform/gcp/opencost/` 도
+# 배치는 GCP 지만 네임스페이스는 monitoring 이다.
 #
-# OpenCost 는 특권이 필요 없다. Kepler 를 별도 네임스페이스로 가르면
-# privileged 범위가 Kepler 하나로 좁아진다 — finops 스택을 세울 때 판정한다.
+# 여기 사는 것은 우리가 쓴 Job/API 라 특권이 필요 없다. restricted 로 둔다.
+#
+# ⚠️ **Kepler 는 규약의 네임스페이스 표에 없다.** 전력 카운터(RAPL)를 읽으려면
+# 특권과 hostPath 가 필요하고(→ tasks/todo/002_bootstrap-blockers.md 2번),
+# 어느 네임스페이스에 넣느냐에 따라 그곳 등급이 privileged 로 내려간다.
+# **Kepler 는 전용 네임스페이스를 주는 것이 맞다** — 그래야 특권 범위가
+# Kepler 하나로 갇힌다. 도입 시 규약에 네임스페이스를 추가하고 여기에도
+# 파일을 하나 더 만든다.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: finops
   labels:
-    pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/warn: baseline
-    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

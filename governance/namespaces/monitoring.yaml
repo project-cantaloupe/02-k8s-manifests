@@ -1,5 +1,7 @@
-# kube-prometheus-stack (Prometheus · Alertmanager · Grafana ·
-# node-exporter · kube-state-metrics).
+# Prometheus · Grafana · Alertmanager · node-exporter · kube-state-metrics ·
+# **OpenCost**
+# (구성요소 목록은 00-cantaloupe-resources/k8s-labeling-convention.md 1절.
+#  OpenCost 는 배치가 GCP 지만 네임스페이스는 여기다 — finops 가 아니다)
 #
 # ⚠️ **privileged 는 "이 네임스페이스에 파드 하드닝이 없다"는 뜻이다.**
 # node-exporter 가 hostPath·hostNetwork·hostPID 를 전부 쓴다. 노드 메트릭을

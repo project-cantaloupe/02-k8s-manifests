@@ -1,0 +1,46 @@
+# 팀 워크로드를 `default` 네임스페이스에 두지 않는다.
+#
+# 규약이 이미 문장으로 적어뒀다 — "팀 워크로드는 `default` Namespace에
+# 배포하지 않는다" (00-cantaloupe-resources/k8s-labeling-convention.md 1절).
+# **문장을 규칙으로 만든다.**
+#
+# `default` 에 뜬 파드는 세 가지가 동시에 안 걸린다.
+#
+# 1. **PSA 등급이 없다.** `governance/namespaces/` 가 만드는 일곱 곳에만
+#    라벨이 붙는다. `default` 는 라벨이 없어 아무 제약도 안 받는다
+#    → references/20260803_secops-admission-and-network-policy.md 1절
+# 2. **NetworkPolicy 가 없다.** generate 정책이 네임스페이스 *생성* 시점에
+#    거는데 `default` 는 클러스터가 만들어질 때 이미 있었다
+# 3. **비용이 귀속되지 않는다.** FinOps 정책의 대상 목록에도 없고
+#    `area` 라벨도 없다
+#
+# `kubectl run` 이 기본으로 여기 뜨기 때문에 사고는 대개 손으로 난다.
+#
+# ⚠️ 이 정책은 파드 자체를 막는다. `default` 에 뭔가 띄워야 하면
+# 네임스페이스를 만드는 것이 답이지 예외를 쓰는 것이 아니다.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-default-namespace
+  annotations:
+    policies.kyverno.io/description: >-
+      default 네임스페이스에는 파드를 만들지 않는다.
+      PSA 등급·NetworkPolicy·비용 귀속이 전부 안 걸리는 곳이다.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: no-pods-in-default
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [default]
+      validate:
+        message: >-
+          `default` 네임스페이스에는 배포하지 않는다.
+          여기는 PSA 등급도 NetworkPolicy 도 비용 귀속도 걸리지 않는다.
+          알맞은 네임스페이스를 쓴다 (apps · devops · monitoring ·
+          messaging · logging · finops).
+        # 조건 없는 deny. 매치된 것을 전부 거부한다.
+        deny: {}

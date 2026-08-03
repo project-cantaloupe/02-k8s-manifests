@@ -37,6 +37,26 @@ PSA 는 네임스페이스 라벨 세 줄이고 설치할 것도 유지할 것�
 ⚠️ **PSA 는 파드 생성 시점에만 본다.** 이미 도는 파드에 소급되지 않는다.
 등급을 올릴 때는 그 네임스페이스의 파드를 다시 띄워야 실제로 적용된다.
 
+**같은 규칙을 두 곳에서 걸지 않는다.** `require-run-as-nonroot` 를 지운 것이
+그래서다. PSA `restricted` 가 같은 것을 더 강하게 한다 — Kyverno 쪽은 파드
+레벨에 `true` 를 적고 컨테이너가 `false` 로 덮어쓰는 경우를 pattern 문법으로
+막지 못했다. 두 곳에 두면 고칠 곳이 둘이고 약한 쪽이 진실처럼 보인다.
+
+## 현재 정책 목록
+
+| 정책 | 대상 | 하는 일 |
+|---|---|---|
+| `namespaces/` | 7개 네임스페이스 | PSA 등급 (파드 하드닝) |
+| `secops/generate-default-network-policies` | 새 네임스페이스 | default-deny + 같은 ns 허용 생성 |
+| `secops/require-image-registry` | `apps` | ECR 에서만 당긴다 |
+| `secops/disallow-latest-tag` | 팀 ns 6개 | 태그 필수, `latest` 금지 |
+| `secops/disallow-default-namespace` | `default` | 파드 생성 금지 |
+| `finops/require-resource-limits` | 팀 ns 6개 | CPU·Mem requests, Mem limit |
+
+대상 범위는 규약 7절을 따른다 — 팀 네임스페이스 여섯. 시스템 네임스페이스와
+`kyverno` 는 제외한다
+(`00-cantaloupe-resources/k8s-labeling-convention.md`).
+
 ## 정책은 Enforce로 쓴다
 
 `validationFailureAction: Audit`은 위반을 기록만 하고 통과시킨다.

@@ -1,0 +1,64 @@
+# 우리 이미지는 ECR 에서만 당긴다.
+#
+# `decisions/20260803_registry-harbor-to-ecr.md` 를 **어드미션에서 강제한다.**
+# 그 결정은 Harbor 가 원본이자 스캔 지점이고 ECR 이 런타임 pull 대상이라고
+# 정했다. 문서로만 두면 급할 때 사람이 Harbor 에서 직접 당기고, 그 이미지는
+# Trivy 를 통과하지 않은 것이다.
+#
+# ── 왜 apps 네임스페이스만인가 ──────────────────────────────────
+#
+# 이 규칙이 강제하는 것은 **우리가 빌드한 이미지**의 출처다.
+# `platform/*` 의 ArgoCD·Harbor·Jenkins·Prometheus 는 업스트림 차트에서 오고
+# docker.io·quay.io·registry.k8s.io 를 당긴다. 거기에 ECR 을 요구하면
+# 플랫폼이 전부 막힌다.
+#
+# 지금 우리 이미지를 쓰는 것은 `apps/audio/` 뿐이고 `platform: aws` 에
+# 고정돼 있다 → 위 결정문 「그 외」 3번째 항목.
+#
+# **온프렘 워크로드가 우리 이미지를 당기게 되면 이 정책을 고쳐야 한다.**
+# 그때는 Harbor 도 허용 목록에 들어간다 (결정문 본문).
+#
+# ── 계정 ID 를 안 박은 이유 ─────────────────────────────────────
+#
+# `*.dkr.ecr.ap-northeast-2.amazonaws.com/*` 로 **계정을 와일드카드**로 뒀다.
+# AWS 계정 ID 는 이 프로젝트가 의도적으로 git 밖에 두는 값이다
+# (`terraform.tfvars` 는 gitignore, `.example` 은 `123456789012` 플레이스홀더).
+#
+# 대가 — 같은 리전의 *다른* 계정 ECR 도 통과한다. 좁히려면 계정 ID 를 넣어야
+# 하고, 그건 이 리포의 기존 방침을 뒤집는 일이다. **판단이 필요하면 여기다.**
+# 좁히기로 하면 ConfigMap 참조나 kustomize replacement 로 값을 주입하는 방법이
+# 있다 — 어느 쪽이든 값이 어딘가에는 커밋된다.
+#
+# → references/20260803_secops-admission-and-network-policy.md 3절
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-image-registry
+  annotations:
+    policies.kyverno.io/description: >-
+      apps 네임스페이스의 이미지는 ECR 에서만 온다.
+      Harbor 는 빌드 경로 전용이고 런타임 pull 대상이 아니다.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: images-from-ecr-only
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [apps]
+      validate:
+        message: >-
+          apps 의 이미지는 ECR 에서만 당긴다
+          (*.dkr.ecr.ap-northeast-2.amazonaws.com).
+          Harbor 는 빌드 경로 전용이다
+          → decisions/20260803_registry-harbor-to-ecr.md
+        pattern:
+          spec:
+            containers:
+              - image: "*.dkr.ecr.ap-northeast-2.amazonaws.com/*"
+            =(initContainers):
+              - image: "*.dkr.ecr.ap-northeast-2.amazonaws.com/*"
+            =(ephemeralContainers):
+              - image: "*.dkr.ecr.ap-northeast-2.amazonaws.com/*"
