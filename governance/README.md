@@ -1,22 +1,62 @@
 # governance
 
-전 클러스터에 공통으로 거는 보안·비용 규칙. 정책 엔진은 **Kyverno**다.
+전 클러스터에 공통으로 거는 보안·비용 규칙.
 
-## 규칙이 적용되는 세 경로
+**집행 주체가 둘이다.** 파드 하드닝 기본선은 Kubernetes 내장 기능인
+**Pod Security Admission(PSA)** 이 맡고, 그 밖의 전부를 **Kyverno** 가 맡는다.
 
-| 경로 | 하는 일 |
-|---|---|
-| `secops/`, `finops/` | 전체에 **강제** (ClusterPolicy) |
-| `exceptions/` | 특정 대상만 **면제** (PolicyException) |
-| `platform/*/policies/`, `apps/*/policies/` | 특정 대상에만 **추가** |
+## 규칙이 적용되는 네 경로
+
+| 경로 | 하는 일 | 집행 |
+|---|---|---|
+| `namespaces/` | 네임스페이스별 **파드 하드닝 등급** | PSA (API 서버 내장) |
+| `secops/`, `finops/` | 전체에 **강제** (ClusterPolicy) | Kyverno |
+| `exceptions/` | 특정 대상만 **면제** (PolicyException) | Kyverno |
+| `platform/*/policies/`, `apps/*/policies/` | 특정 대상에만 **추가** | Kyverno |
 
 빼기(`exceptions/`)와 더하기(`*/policies/`)를 다른 곳에 둔다.
 `ls exceptions/` 하나로 "기준에서 벗어난 게 뭐냐"에 답할 수 있어야 한다.
+`ls namespaces/` 하나로 "각 네임스페이스가 몇 등급이냐"에 답할 수 있어야 한다.
+
+## 왜 둘로 나누나
+
+특권 컨테이너·호스트 네임스페이스·hostPath·권한 상승·capability 추가·root 실행
+여섯 가지는 **Pod Security Standards 의 `restricted` 등급이 정확히 그대로
+정의한다.** 같은 것을 Kyverno 로 쓰면 정책 여섯 장을 우리가 쓰고 테스트하고
+유지해야 하고, 어드미션 웹훅을 한 번 더 왕복한다.
+
+PSA 는 네임스페이스 라벨 세 줄이고 설치할 것도 유지할 것도 없다.
+
+**Kyverno 는 PSA 가 표현할 수 없는 것을 맡는다** — 이미지 레지스트리 제한,
+라벨 규약 강제, 자원 요청·제한, 네임스페이스 생성 시 NetworkPolicy 자동 생성
+(`generate`), nodeSelector 주입(`mutate`).
+
+세 등급의 정확한 항목과 앵커 문법은
+`references/20260803_secops-admission-and-network-policy.md` 에 있다.
+
+⚠️ **PSA 는 파드 생성 시점에만 본다.** 이미 도는 파드에 소급되지 않는다.
+등급을 올릴 때는 그 네임스페이스의 파드를 다시 띄워야 실제로 적용된다.
 
 ## 정책은 Enforce로 쓴다
 
 `validationFailureAction: Audit`은 위반을 기록만 하고 통과시킨다.
 그건 규칙이 아니라 통계다. 새 정책을 넣을 때 이유 없이 Audit 로 두지 않는다.
+
+**이유가 있는 경우가 하나 있다 — 아직 안 세운 서드파티 스택.**
+Harbor·ArgoCD·Jenkins·Prometheus 같은 차트는 위반 목록을 미리 알 수 없다.
+모르는 채로 Enforce 를 켜면 클러스터가 자기 배포를 막는다
+(→ `tasks/todo/002_bootstrap-blockers.md` 2번). 그럴 때만 이 순서를 쓴다.
+
+```
+Audit 배포 → PolicyReport 확인 → exceptions/ 작성 → Enforce 전환
+```
+
+**Enforce 전환이 그 정책의 완료 조건이다.** Audit 로 남아 있는 정책은
+미완료로 본다. PSA 쪽도 같은 구조다 — `enforce` 는 안전한 등급에 두고
+`warn`/`audit` 을 한 단계 높게 둬서 격차가 계속 보이게 한다.
+
+`background: true` 인 정책은 이미 존재하는 자원도 주기적으로 스캔한다.
+결과는 `kubectl get polr -A` 와 `kubectl get cpolr` 로 본다.
 
 현재 FinOps 정책은 팀 Namespace의 container와 initContainer에
 CPU·Memory requests와 Memory limit이 있는지 검사한다. CPU limit은 전역

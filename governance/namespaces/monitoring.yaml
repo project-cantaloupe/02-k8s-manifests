@@ -1,0 +1,21 @@
+# kube-prometheus-stack (Prometheus · Alertmanager · Grafana ·
+# node-exporter · kube-state-metrics).
+#
+# ⚠️ **privileged 는 "이 네임스페이스에 파드 하드닝이 없다"는 뜻이다.**
+# node-exporter 가 hostPath·hostNetwork·hostPID 를 전부 쓴다. 노드 메트릭을
+# 읽는 일이라 우회할 방법이 없고, 이 셋은 baseline 이 금지하는 항목이다.
+#
+# **그래서 이 네임스페이스에는 그것을 실제로 필요로 하는 것만 둔다.**
+# Grafana 와 Alertmanager 는 특권이 필요 없으므로 나중에 별도 네임스페이스로
+# 가르면 privileged 범위가 node-exporter 로 좁아진다.
+#
+# warn/audit 을 baseline 으로 둔 이유 — restricted 로 두면 경고가 너무 많이
+# 나와 아무도 안 읽는다. baseline 위반만 보면 "특권이 정말 필요한 것"이 남는다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: baseline
+    pod-security.kubernetes.io/audit: baseline

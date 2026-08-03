@@ -1,4 +1,18 @@
-# 예시 정책. 실제로 적용된다.
+# 컨테이너를 root 로 띄우지 못하게 한다.
+#
+# ⚠️ **앵커 주의.** `=(...)` 는 "있으면 검사한다"는 뜻이지 "필수"가 아니다.
+# 이전 판이 `=(securityContext)` / `=(runAsNonRoot)` 를 써서, securityContext
+# 를 아예 안 적은 파드를 통과시켰다. 이름은 require- 인데 아무것도 요구하지
+# 않는 상태였다. 필수 필드에는 앵커를 붙이지 않는다.
+#
+# 반대로 `=(initContainers)` 의 앵커는 **맞다.** 그 목록 자체가 없는 파드가
+# 정상이기 때문이다. "리스트가 있으면 원소 전부가 만족해야 한다"는 뜻이다.
+# 필드에 붙는 앵커와 리스트에 붙는 앵커를 구분한다.
+#
+# ephemeralContainers 를 넣은 이유 — `kubectl debug` 가 여기에 붙는다.
+# 빼두면 디버그 컨테이너로 우회할 수 있다.
+#
+# → references/20260803_secops-admission-and-network-policy.md 3절
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -13,9 +27,31 @@ spec:
           - resources:
               kinds: [Pod]
       validate:
-        message: "컨테이너는 runAsNonRoot: true 로 실행해야 한다."
-        pattern:
-          spec:
-            containers:
-              - =(securityContext):
-                  =(runAsNonRoot): true
+        message: >-
+          모든 컨테이너는 runAsNonRoot: true 로 실행해야 한다.
+          파드 레벨(spec.securityContext) 또는 컨테이너마다 지정한다.
+        # 두 가지 쓰는 법을 다 받는다. 파드 레벨로 한 번에 지정하는 것이
+        # 흔하고, 그걸 거부하면 정상 매니페스트가 막힌다.
+        anyPattern:
+          # 1) 파드 레벨에서 한 번에
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+
+          # 2) 컨테이너마다
+          - spec:
+              containers:
+                - securityContext:
+                    runAsNonRoot: true
+              =(initContainers):
+                - securityContext:
+                    runAsNonRoot: true
+              =(ephemeralContainers):
+                - securityContext:
+                    runAsNonRoot: true
+
+# 남아 있는 구멍 — 파드 레벨에 true 를 적고 컨테이너 하나가
+# runAsNonRoot: false 로 덮어쓰면 위 1번 패턴이 통과시킨다.
+# pattern 문법으로는 "상속값을 덮어쓰지 마라"를 깔끔하게 못 쓴다.
+# 이 구멍은 Pod Security Admission 의 restricted 등급이 구조적으로 막는다.
+# → tasks/todo/007_secops-governance.md 1단계에서 PSA 도입을 판정하며 닫는다

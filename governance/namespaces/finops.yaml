@@ -1,0 +1,16 @@
+# OpenCost · Kepler.
+#
+# ⚠️ **privileged 는 "이 네임스페이스에 파드 하드닝이 없다"는 뜻이다.**
+# Kepler 가 전력 카운터(RAPL)를 읽으려면 특권과 hostPath 가 필요하다.
+# → tasks/todo/002_bootstrap-blockers.md 2번이 이미 지목한 항목이다.
+#
+# OpenCost 는 특권이 필요 없다. Kepler 를 별도 네임스페이스로 가르면
+# privileged 범위가 Kepler 하나로 좁아진다 — finops 스택을 세울 때 판정한다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: finops
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: baseline
+    pod-security.kubernetes.io/audit: baseline

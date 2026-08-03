@@ -6,7 +6,8 @@
 ## 구조
 
 ```text
-governance/             Kyverno 보안·FinOps 정책과 예외
+governance/             네임스페이스 보안 등급, Kyverno 정책과 예외
+  namespaces/           네임스페이스와 Pod Security Admission 등급
 platform/
   aws/                  AWS 배치 플랫폼 구성
   gcp/                  GCP 배치 플랫폼 구성
@@ -43,9 +44,17 @@ OpenCost는 별도 release로 두되 같은 Prometheus를 데이터 원본으로
 
 ## 거버넌스
 
+집행 주체가 둘이다. 파드 하드닝 기본선은 Kubernetes 내장 **Pod Security
+Admission** 이 `governance/namespaces/` 의 네임스페이스 라벨로 걸고,
+그 밖의 전부는 **Kyverno** 가 맡는다. 나눈 이유는 `governance/README.md`.
+
 `governance/secops/`와 `governance/finops/`는 공통 강제 정책,
 `governance/exceptions/`는 승인된 임시 예외다. 예외에는 사유·승인자·
 재검토일을 기록한다.
+
+**적용 순서가 있다.** `governance/` 가 `platform/`·`apps/` 보다 먼저다.
+네임스페이스가 없으면 그 안에 넣는 자원이 전부 실패하고, PSA 라벨은
+파드가 뜬 뒤에 붙이면 그 파드에는 적용되지 않는다.
 
 클라우드 태그·IAM·보안그룹은 이 저장소가 아니라
 [`01-infra-provisioning`](../01-infra-provisioning/)에서 관리한다.

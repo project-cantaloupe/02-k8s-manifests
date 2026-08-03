@@ -3,8 +3,10 @@ kind: Kustomization
 
 namespace: devops
 
+# devops 네임스페이스는 여기서 만들지 않는다. Pod Security Admission 등급을
+# 한 곳에서 보려고 governance/namespaces/devops.yaml 로 옮겼다.
+# → governance 가 platform 보다 먼저 적용돼야 한다
 resources:
-  - namespace.yaml
   - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # 1. Pod 라벨 규칙 적용 (area, platform)

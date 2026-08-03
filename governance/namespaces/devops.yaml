@@ -1,0 +1,17 @@
+# ArgoCD · Jenkins · Harbor.
+#
+# baseline 인 이유 — Jenkins 가 이미지를 빌드한다. 빌드 방식에 따라
+# restricted 를 못 지킨다. Harbor 차트도 restricted 를 그대로 통과하지 않는
+# 구성요소를 갖는다.
+#
+# warn/audit 을 restricted 로 둬서 **얼마나 못 미치는지는 계속 보인다.**
+# 목표는 위반 목록을 좁혀 restricted 로 올리는 것이다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
