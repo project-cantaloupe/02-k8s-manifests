@@ -1,0 +1,119 @@
+# 네임스페이스가 생기면 기본 NetworkPolicy 두 장을 자동으로 만든다.
+#
+# **왜 generate 냐** — 네임스페이스마다 파일을 두면 새 네임스페이스를 만들 때
+# 반드시 빼먹는다. 빼먹은 곳은 그냥 전부 열려 있고, 열려 있다는 사실이
+# 아무 데도 안 나타난다. 정책 하나가 전부를 덮고, `synchronize: true` 라
+# 누가 지워도 되살아난다. Pod Security Admission 이 못 하는 일이다.
+#
+# **왜 두 장이냐** — NetworkPolicy 는 화이트리스트다. "거부" 규칙이 없고,
+# 아무 정책도 안 고른 파드가 곧 거부다. default-deny 만 깔면 같은 네임스페이스
+# 안에서 파드끼리도 못 본다. 그게 가장 흔한 혼란의 원인이라 짝으로 깐다.
+#
+#   default-deny-ingress   들어오는 것 전부 차단
+#   allow-same-namespace   같은 네임스페이스 안은 허용
+#
+# 결과: **네임스페이스가 격리 단위가 된다.** 교차 네임스페이스 통신만 막힌다.
+#
+# **추가 허용은 이 두 장을 고치지 않는다.** NetworkPolicy 는 누적이라
+# 새 파일을 옆에 두면 합집합으로 허용된다. 생성된 것은 건드릴 일이 없다.
+#
+# ── 알아야 할 것 ────────────────────────────────────────────────
+#
+# 1. **Ingress 만 막는다. Egress 는 안 막는다.** egress 를 막으면 DNS(53)도
+#    막혀서 이름 해석이 전부 실패하는데, 증상이 "네트워크 장애"가 아니라
+#    "호스트를 못 찾음"으로 나와 원인이 안 드러난다. egress 차단은 CoreDNS
+#    허용 규칙을 같이 설계해야 하므로 별도 단계다
+#
+# 2. **교차 네임스페이스로 오는 것은 전부 막힌다.** 세울 때 허용 규칙이
+#    같이 필요한 것들:
+#      - Prometheus 가 다른 네임스페이스의 파드를 스크레이프한다
+#      - ingress-nginx 가 apps 의 파드로 프록시한다
+#      - ArgoCD 가 클러스터 API 를 통해 배포하는 것은 영향 없음(API 서버 경유)
+#
+# 3. **제외한 네임스페이스** — kube-system·kube-public·kube-node-lease 는
+#    CNI 와 컨트롤플레인 구성요소가 산다. kyverno 는 **어드미션 웹훅이
+#    API 서버로부터 호출을 받아야 해서** 막으면 정책 엔진이 자기를 죽인다.
+#    API 서버는 컨트롤플레인 노드의 호스트 네트워크에서 오므로 파드 셀렉터로
+#    허용되지 않는다
+#
+# 4. **집행은 CNI 가 한다.** Calico 가 깔려 있어야 실제로 막힌다
+#    (`ansible/roles/cni-calico`). CNI 가 지원 안 하면 객체만 생기고
+#    조용히 무시된다
+#
+# 5. Kyverno 백그라운드 컨트롤러에 NetworkPolicy 생성 RBAC 이 필요하다.
+#    Kyverno 배포 시 확인한다 → tasks/todo/002_bootstrap-blockers.md 1번
+#
+# → references/20260803_secops-admission-and-network-policy.md 2·3절
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: generate-default-network-policies
+  annotations:
+    policies.kyverno.io/description: >-
+      네임스페이스 생성 시 default-deny-ingress 와 allow-same-namespace 를
+      만든다. 네임스페이스를 격리 단위로 만드는 것이 목적이다.
+spec:
+  # generate 규칙에는 validationFailureAction 이 의미 없다. 거부하지 않고
+  # 자원을 만든다.
+  background: true
+  rules:
+    - name: default-deny-ingress
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              # Namespace 는 클러스터 범위라 names 로 고른다.
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: default-deny-ingress
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            # 이 네임스페이스의 모든 파드
+            podSelector: {}
+            policyTypes: [Ingress]
+
+    - name: allow-same-namespace
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: allow-same-namespace
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+            ingress:
+              # from 에 podSelector 만 쓰면 "같은 네임스페이스의 모든 파드"다.
+              # namespaceSelector 를 안 붙이는 것이 그 의미를 만든다.
+              - from:
+                  - podSelector: {}
