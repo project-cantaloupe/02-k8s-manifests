@@ -71,6 +71,15 @@ spec:
                 - kube-public
                 - kube-node-lease
                 - kyverno
+                # CNI. tigera-operator 로 깔려서 네임스페이스가 셋이다
+                # (ansible/roles/cni-calico). calico-node·typha 는
+                # hostNetwork 라 정책이 안 걸리지만 **calico-apiserver 는
+                # 일반 파드**이고 kube-apiserver 가 컨트롤플레인의 호스트
+                # 네트워크에서 aggregated APIService 를 호출한다 —
+                # kyverno 와 같은 이유로 파드 셀렉터로 허용할 수 없다.
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -94,11 +103,19 @@ spec:
       exclude:
         any:
           - resources:
+              # ⚠️ **세 규칙의 제외 목록은 반드시 같아야 한다.**
+              # NetworkPolicy 는 파드를 고르는 정책이 하나라도 있으면 그
+              # 방향이 기본 차단이 된다. 즉 여기만 제외가 빠지면 allow 정책
+              # 하나만으로도 그 네임스페이스가 차단된다 — default-deny 를
+              # 안 넣었는데 차단되는, 가장 찾기 어려운 형태다.
               names:
                 - kube-system
                 - kube-public
                 - kube-node-lease
                 - kyverno
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -117,3 +134,56 @@ spec:
               # namespaceSelector 를 안 붙이는 것이 그 의미를 만든다.
               - from:
                   - podSelector: {}
+
+    - name: allow-from-mesh
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: allow-from-mesh
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+            ingress:
+              - from:
+                  # Tailscale CGNAT 대역. **파드 셀렉터로는 못 잡는 출처가
+                  # 둘 있어서 필요하다.**
+                  #
+                  # 1. **서브넷 라우터를 지나온 트래픽.** tailnet → 파드는
+                  #    라우터 노드가 자기 IP 로 SNAT 해서 보낸다
+                  #    (`--snat-subnet-routes` 기본값). 파드에는 노드의
+                  #    tailnet IP 에서 온 것으로 보인다
+                  #    → tasks/todo/002_bootstrap-blockers.md 2번
+                  # 2. **노드 자신.** kubeadm 이 `node-ip` 를 tailscale IP 로
+                  #    세운다 (kubeadm-init.yaml.j2). 즉 노드 IP 가 이 대역
+                  #    안이고, kubelet 의 liveness·readiness 프로브도 여기서
+                  #    온다. 막히면 파드가 계속 재시작한다
+                  #
+                  # ⚠️ **대가 — 메시에 있는 것은 무엇이든 어느 파드에나 닿는다.**
+                  # 네임스페이스 격리는 파드 간에만 남는다. 접속 모델이
+                  # "팀원이 메시에 참여한다" 라서 의도한 경로이긴 하지만
+                  # (decisions/20260728_network-connectivity-and-access.md),
+                  # 메시가 곧 신뢰 경계라는 뜻이다. 좁히려면 노드 IP 만
+                  # 열거하는 방향이고 그건 노드가 늘 때마다 손이 간다.
+                  - ipBlock:
+                      cidr: 100.64.0.0/10
