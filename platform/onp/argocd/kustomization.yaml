@@ -5,7 +5,8 @@ namespace: devops
 
 resources:
   - namespace.yaml
-  - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  # 재구축 시 의도하지 않은 Argo CD 버전 변경을 막는다.
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.6/manifests/install.yaml
 
 # 1. Pod 라벨 규칙 적용 (area, platform)
 labels:
@@ -25,6 +26,38 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: devops
+
+  # Argo CD가 자체 TLS로 UI를 제공하도록 명시한다.
+  - target:
+      kind: ConfigMap
+      name: argocd-cmd-params-cm
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-cmd-params-cm
+      data:
+        server.insecure: "false"
+
+  # Tailscale Serve가 전달할 Argo CD HTTPS backend를 NodePort로 고정한다.
+  - target:
+      kind: Service
+      name: argocd-server
+    patch: |-
+      - op: add
+        path: /spec/type
+        value: NodePort
+      - op: add
+        path: /spec/externalTrafficPolicy
+        value: Local
+      - op: replace
+        path: /spec/ports
+        value:
+          - name: https
+            port: 443
+            protocol: TCP
+            targetPort: 8080
+            nodePort: 31430
 
   # 모든 Deployment & StatefulSet에 nodeSelector 주입
   - target:
