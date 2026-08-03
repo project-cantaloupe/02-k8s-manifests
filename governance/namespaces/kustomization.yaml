@@ -29,3 +29,4 @@ resources:
   - logging.yaml
   - messaging.yaml
   - monitoring.yaml
+  - secops.yaml

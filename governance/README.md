@@ -46,14 +46,14 @@ PSA 는 네임스페이스 라벨 세 줄이고 설치할 것도 유지할 것�
 
 | 정책 | 대상 | 하는 일 |
 |---|---|---|
-| `namespaces/` | 7개 네임스페이스 | PSA 등급 (파드 하드닝) |
+| `namespaces/` | 8개 네임스페이스 | PSA 등급 (파드 하드닝) |
 | `secops/generate-default-network-policies` | 새 네임스페이스 | default-deny + 같은 ns 허용 생성 |
 | `secops/require-image-registry` | `apps` | ECR 에서만 당긴다 |
-| `secops/disallow-latest-tag` | 팀 ns 6개 | 태그 필수, `latest` 금지 |
+| `secops/disallow-latest-tag` | 팀 ns 7개 | 태그 필수, `latest` 금지 |
 | `secops/disallow-default-namespace` | `default` | 파드 생성 금지 |
-| `finops/require-resource-limits` | 팀 ns 6개 | CPU·Mem requests, Mem limit |
+| `finops/require-resource-limits` | 팀 ns 7개 | CPU·Mem requests, Mem limit |
 
-대상 범위는 규약 7절을 따른다 — 팀 네임스페이스 여섯. 시스템 네임스페이스와
+대상 범위는 규약 7절을 따른다 — 팀 네임스페이스 일곱. 시스템 네임스페이스와
 `kyverno` 는 제외한다
 (`00-cantaloupe-resources/k8s-labeling-convention.md`).
 

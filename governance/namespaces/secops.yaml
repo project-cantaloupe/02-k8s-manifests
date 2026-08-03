@@ -1,0 +1,30 @@
+# Keycloak · External Secrets Operator
+# (00-cantaloupe-resources/k8s-labeling-convention.md 1절)
+#
+# 신원과 시크릿 전달이 사는 곳이다. 둘 다 특권이 필요 없어 restricted 로 둔다.
+#
+# ⚠️ **Falco 를 여기 넣지 않는다.** eBPF·커널 모듈로 붙어야 해서 특권이
+# 필요하고, PSA 등급은 네임스페이스 단위라 넣는 순간 **Keycloak 이 하드닝
+# 없는 곳에서 돌게 된다.** 신원 서버는 클러스터에서 가치가 가장 높은 표적이다.
+# Falco 는 전용 네임스페이스를 받는다 — 규약 1절 「특권이 필요한 워크로드」.
+#
+# ⚠️ **Kyverno 는 여기가 아니다.** 차트 기본값대로 `kyverno` 네임스페이스를
+# 쓰고 규약 7절이 강제 대상에서 제외한다. 다만 파드의 `area` 라벨은 `secops`
+# 다 — 네임스페이스와 area 가 항상 1:1 은 아니다.
+#
+# ── Keycloak 이 여기 살면 생기는 순환 ──────────────────────────
+#
+# K8s API 로그인이 Keycloak 에 의존하고 Keycloak 이 K8s 에서 돈다.
+# **break-glass kubeconfig 가 선택이 아니라 조건이다.** K8s API 에 OIDC 를
+# 붙이기 *전에* `/etc/kubernetes/admin.conf` 보관 절차를 정한다.
+# Vault 에 넣으면 또 순환이다 (Vault UI 로그인도 Keycloak 이므로).
+# → tasks/todo/008_identity-and-sso.md 0단계·2단계
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: secops
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

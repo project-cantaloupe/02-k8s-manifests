@@ -19,6 +19,7 @@ spec:
                 - messaging
                 - logging
                 - finops
+                - secops
       validate:
         message: >-
           모든 컨테이너에 CPU·Memory requests와 Memory limit이 필요하다.

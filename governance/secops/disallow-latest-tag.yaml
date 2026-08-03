@@ -7,7 +7,7 @@
 # 태그를 아예 안 적어도 같은 문제다 — 컨테이너 런타임이 `:latest` 로 채운다.
 # 그래서 규칙이 둘이다.
 #
-# 대상 범위는 규약 7절의 Kyverno 강제 대상과 같다 — 팀 네임스페이스 여섯.
+# 대상 범위는 규약 7절의 Kyverno 강제 대상과 같다 — 팀 네임스페이스 일곱.
 # `kube-system` 등 시스템 네임스페이스와 `kyverno` 는 제외한다
 # (00-cantaloupe-resources/k8s-labeling-convention.md 7절).
 #
@@ -36,6 +36,7 @@ spec:
                 - messaging
                 - logging
                 - finops
+                - secops
       validate:
         message: "이미지에 태그를 명시한다. 태그가 없으면 런타임이 latest 로 채운다."
         pattern:
