@@ -9,9 +9,23 @@ resources:
   - registry-config.yaml
   - portal.yaml
   - registry.yaml
-  - harbor-service.yaml
 
 patches:
+  # 1. Harbor Service 라우팅 및 ExternalTrafficPolicy 패치
+  - target:
+      kind: Service
+      name: harbor
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: harbor
+      spec:
+        externalTrafficPolicy: Cluster
+        selector:
+          app: harbor-portal
+
+  # 2. Harbor Core 패치
   - target:
       kind: Deployment
       name: harbor-core
@@ -63,6 +77,7 @@ patches:
                 configMap:
                   name: harbor-core-config
 
+  # 3. Harbor Registry 패치
   - target:
       kind: Deployment
       name: harbor-registry
