@@ -3,4 +3,6 @@ kind: Kustomization
 
 # Root Application은 이 목록에 명시된 운영 Application만 생성한다.
 # platform/ 전체를 재귀적으로 스캔하지 않는다.
-resources: []
+resources:
+  - jenkins.yaml
+  - harbor.yaml
