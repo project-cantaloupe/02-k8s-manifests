@@ -43,6 +43,12 @@ patches:
                     value: "registry"
                   - name: REGISTRY_URL
                     value: "http://harbor-registry:5000"
+                  - name: CORE_SECRET
+                    value: "HARBOR_CORE_SECRET_123456"
+                  - name: JOBSERVICE_SECRET
+                    value: "HARBOR_JOBSERVICE_SECRET_123456"
+                  - name: CSRF_KEY
+                    value: "12345678901234567890123456789012"
                 volumeMounts:
                   - name: config-volume
                     mountPath: /etc/harbor/core/app.conf
