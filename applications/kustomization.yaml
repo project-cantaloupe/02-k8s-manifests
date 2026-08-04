@@ -7,3 +7,6 @@ resources:
   - istio-base.yaml
   - istiod.yaml
   - gcp-storage.yaml
+  - monitoring-foundation.yaml
+  - monitoring-stack.yaml
+  - opencost.yaml

@@ -1,0 +1,73 @@
+fullnameOverride: opencost
+clusterName: cluster.local
+
+podLabels:
+  app: opencost
+  area: monitoring
+  platform: gcp
+  cost-allocation: shared
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+service:
+  type: ClusterIP
+
+opencost:
+  nodeSelector:
+    platform: gcp
+    role: monitoring
+  exporter:
+    defaultClusterId: cantaloupe
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000
+      capabilities:
+        drop:
+          - ALL
+  metrics:
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: monitoring
+      scrapeInterval: 60s
+      scrapeTimeout: 10s
+  prometheus:
+    internal:
+      enabled: true
+      serviceName: monitoring-prometheus
+      namespaceName: monitoring
+      port: 9090
+      scheme: http
+  cloudCost:
+    enabled: false
+  ui:
+    enabled: true
+    useIPv6: false
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000
+      capabilities:
+        drop:
+          - ALL
