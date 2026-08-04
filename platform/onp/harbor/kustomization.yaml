@@ -1,32 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: devops
-
 resources:
-  - harbor-components.yaml
-  - harbor-core-config.yaml
-
-labels:
-  - pairs:
-      area: devops
-      platform: onp
-    includeSelectors: false
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+  - redis.yaml
 
 patches:
-  - target:
-      kind: (Deployment|StatefulSet)
-    patch: |-
-      kind: Dummy
-      metadata:
-        name: dummy
-      spec:
-        template:
-          spec:
-            nodeSelector:
-              platform: onp
-              role: devops
-
   - target:
       kind: Deployment
       name: harbor-core
@@ -48,9 +29,9 @@ patches:
                   - name: CACHE_TYPE
                     value: "redis"
                   - name: REDIS_URL
-                    value: "redis://argocd-redis:6379/0"
+                    value: "redis://harbor-redis:6379/0"
                   - name: _REDIS_URL_CORE
-                    value: "redis://argocd-redis:6379/0"
+                    value: "redis://harbor-redis:6379/0"
                 volumeMounts:
                   - name: config-volume
                     mountPath: /etc/harbor/core/app.conf
