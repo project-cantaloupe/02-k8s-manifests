@@ -3,7 +3,6 @@ fullnameOverride: monitoring
 commonLabels:
   area: monitoring
   cost-allocation: shared
-  app.kubernetes.io/part-of: cantaloupe-platform
 
 alertmanager:
   enabled: false
