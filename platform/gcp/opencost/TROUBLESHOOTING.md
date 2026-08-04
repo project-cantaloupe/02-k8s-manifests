@@ -56,7 +56,9 @@ On-Demand 가격이다.
 AWS CSV publication date는 `2026-08-03T19:42:46Z`, version은
 `20260803194246`, 가격 effective date는 `2026-08-01`이었다. GCP SKU 페이지는
 조회 시점의 현재 USD 가격을 표시한다. 가격 갱신 시 URL과 조회일, AWS version을
-함께 변경한다.
+함께 변경하고 `podAnnotations.finops.opencost.io/pricing-version`도 증가시킨다.
+그러면 Argo CD가 OpenCost Pod를 즉시 교체하며, 이 값이 바뀌지 않아도 Provider가
+마운트된 CSV를 60분마다 다시 읽는다.
 
 ## 검증 명령
 
