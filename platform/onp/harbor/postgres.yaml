@@ -13,6 +13,8 @@ spec:
       labels:
         app: postgresql
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: cntlp-onp-wk-01  # 온프레미스 노드로 고정
       containers:
         - name: postgresql
           image: postgres:13-alpine

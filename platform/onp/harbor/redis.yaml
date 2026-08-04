@@ -13,11 +13,14 @@ spec:
       labels:
         app: harbor-redis
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: cntlp-onp-wk-01  # 온프레미스 노드로 고정
       containers:
         - name: redis
           image: redis:6.2-alpine
           ports:
             - containerPort: 6379
+          command: ["redis-server", "--protected-mode", "no"]
 ---
 apiVersion: v1
 kind: Service
