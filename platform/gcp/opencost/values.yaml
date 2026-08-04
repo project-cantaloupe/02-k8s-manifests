@@ -38,6 +38,9 @@ opencost:
       capabilities:
         drop:
           - ALL
+    extraVolumeMounts:
+      - name: opencost-configs
+        mountPath: /var/configs
   metrics:
     serviceMonitor:
       enabled: true
@@ -65,9 +68,14 @@ opencost:
         memory: 256Mi
     securityContext:
       allowPrivilegeEscalation: false
-      readOnlyRootFilesystem: true
+      # The upstream UI rewrites its runtime base URL under /var/www at start.
+      readOnlyRootFilesystem: false
       runAsNonRoot: true
       runAsUser: 1000
       capabilities:
         drop:
           - ALL
+
+extraVolumes:
+  - name: opencost-configs
+    emptyDir: {}
