@@ -24,6 +24,13 @@ opencost:
     role: monitoring
   exporter:
     defaultClusterId: cantaloupe
+    # A single CSV provider is required because this Kubernetes cluster mixes
+    # AWS, GCP, and on-premises nodes. The stock cloud-provider detection picks
+    # one provider for the entire OpenCost process and cannot price this layout.
+    extraEnv:
+      USE_CUSTOM_PROVIDER: "true"
+      USE_CSV_PROVIDER: "true"
+      CSV_PATH: /var/configs/node-pricing.csv
     resources:
       requests:
         cpu: 100m
@@ -57,14 +64,14 @@ opencost:
       scheme: http
   cloudCost:
     enabled: false
-  # Cross-platform FinOps baseline. These are deliberately normalized project
-  # rates, not AWS/GCP invoice prices. Provider list-price comparison remains a
-  # separate metric so unlike cost models are never added together.
+  # CSV rows provide the authoritative total node price. CPU and RAM below are
+  # retained as a 7.5:1 allocation ratio and as fallback prices only; OpenCost
+  # normalizes the split back to each CSV node total.
   customPricing:
     enabled: true
     provider: custom
     costModel:
-      description: Cantaloupe normalized allocation rates (USD, not cloud billing)
+      description: Cantaloupe mixed-provider public list-price allocation (USD)
       customPricesEnabled: true
       CPU: 0.03
       spotCPU: 0.03
@@ -97,4 +104,30 @@ opencost:
 
 extraVolumes:
   - name: opencost-configs
-    emptyDir: {}
+    configMap:
+      name: opencost-node-pricing
+
+# The chart owns the price table so Argo CD applies the ConfigMap and Deployment
+# atomically. Node names are used as stable mixed-provider keys; every node must
+# have one exact row. AWS/GCP prices are public on-demand list prices captured on
+# 2026-08-05. On-premises uses the documented project benchmark because it has
+# no public cloud price.
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: opencost-node-pricing
+      namespace: monitoring
+      labels:
+        app: opencost
+        area: monitoring
+        cost-model: mixed-provider-public-list
+    data:
+      node-pricing.csv: |-
+        EndTimestamp,InstanceID,Region,AssetClass,InstanceIDField,InstanceType,MarketPriceHourly,Version
+        ,cntlp-aws-cp-01,,node,metadata.name,m7i-flex.large,0.117710000,aws-20260803194246
+        ,cntlp-aws-wk-01,,node,metadata.name,t3.small,0.026000000,aws-20260803194246
+        ,cntlp-gcp-wk-01,,node,metadata.name,e2-custom-4-8192,0.149119488,gcp-20260805
+        ,cntlp-gcp-wk-02,,node,metadata.name,e2-standard-4,0.171931440,gcp-20260805
+        ,cntlp-onp-wk-01,,node,metadata.name,custom-8vcpu-16gib,0.304000000,cantaloupe-benchmark-v1
+        ,gcp-pd-sc,,pv,spec.storageClassName,pd-standard,0.000071233,gcp-20260805
