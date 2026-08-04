@@ -65,6 +65,7 @@ opencost:
     provider: custom
     costModel:
       description: Cantaloupe normalized allocation rates (USD, not cloud billing)
+      customPricesEnabled: true
       CPU: 0.03
       spotCPU: 0.03
       RAM: 0.004
