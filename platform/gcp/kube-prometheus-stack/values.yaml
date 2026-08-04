@@ -35,6 +35,9 @@ grafana:
   # Remove datasources that were previously provisioned by this chart but are
   # no longer present in Git (for example the disabled Alertmanager source).
   prune: true
+  deleteDatasources:
+    - name: Alertmanager
+      orgId: 1
   defaultDashboardsTimezone: Asia/Seoul
   defaultDashboardsEditable: true
   testFramework:
