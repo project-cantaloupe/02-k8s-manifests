@@ -22,6 +22,9 @@ kubeScheduler:
 grafana:
   enabled: true
   fullnameOverride: grafana
+  # Remove datasources that were previously provisioned by this chart but are
+  # no longer present in Git (for example the disabled Alertmanager source).
+  prune: true
   defaultDashboardsTimezone: Asia/Seoul
   defaultDashboardsEditable: true
   testFramework:
