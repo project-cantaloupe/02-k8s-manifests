@@ -41,13 +41,13 @@ patches:
             containers:
               - name: harbor-core
                 env:
-                  - name: CONFIG_PATH
-                    value: "/etc/harbor/core"
                   - name: PORT
                     value: "8080"
                 volumeMounts:
                   - name: config-volume
-                    mountPath: /etc/harbor/core
+                    mountPath: /etc/core
+                  - name: config-volume
+                    mountPath: /harbor/conf
             volumes:
               - name: config-volume
                 configMap:
