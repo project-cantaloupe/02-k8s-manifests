@@ -5,3 +5,4 @@ resources:
   - jenkins.yaml
   - harbor.yaml
   - istio-base.yaml
+  - istiod.yaml

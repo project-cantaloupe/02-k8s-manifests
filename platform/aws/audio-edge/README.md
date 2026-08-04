@@ -38,6 +38,11 @@ kubectl get crd gateways.networking.istio.io
 kubectl get crd virtualservices.networking.istio.io
 ```
 
+Base chart가 생성하는 `istiod-default-validator`는 다음 단계에서 생성할
+`istio-system/istiod` Service를 참조한다. 따라서 Base만 설치된 동안
+Application Health가 `Degraded`로 표시될 수 있다. 동기화 작업 성공과 필수 CRD의
+`Established` 상태를 Base 단계 완료 조건으로 사용한다.
+
 ### 2. Istiod
 
 Base CRD가 확인된 뒤 `istiod.yaml`을 추가하고 병합한다.
