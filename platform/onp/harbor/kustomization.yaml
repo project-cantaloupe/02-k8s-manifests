@@ -2,9 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - deployment.yaml
-  - service.yaml
-  - configmap.yaml
+  - harbor-components.yaml
+  - harbor-core-config.yaml
   - redis.yaml
 
 patches:
