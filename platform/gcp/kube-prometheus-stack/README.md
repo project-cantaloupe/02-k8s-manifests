@@ -10,6 +10,8 @@ Worker에 배치된다. node-exporter는 모든 Linux Node의 공용 `node_*` �
 - Grafana: 5Gi
 - Grafana Tailnet URL: `http://cntlp-gcp-wk-01:30300`
 - Prometheus: ClusterIP 전용
+- 초기 자원 절약을 위해 Alertmanager와 이에 종속된 상시 경고는 비활성화한다.
+  실제 알림 채널과 운영 수신자가 정해지면 별도 변경으로 활성화한다.
 
 Grafana 관리자 계정은 Git에 저장하지 않는다. 배포 전에 `monitoring`
 Namespace에 `grafana-admin-credentials` Secret을 별도로 준비한다.

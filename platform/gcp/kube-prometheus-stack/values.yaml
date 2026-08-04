@@ -7,6 +7,16 @@ commonLabels:
 alertmanager:
   enabled: false
 
+# Alertmanager is intentionally deferred in the initial resource-constrained
+# deployment. Keep real target alerts, but omit rules that only make sense when
+# an Alertmanager and a dead-man-switch receiver are configured.
+defaultRules:
+  disabled:
+    PrometheusNotConnectedToAlertmanagers: true
+    Watchdog: true
+  rules:
+    alertmanager: false
+
 # kubeadm control-plane components bind their metrics locally in the current
 # cluster. Keep false targets out until those endpoints are intentionally
 # exposed and secured.
