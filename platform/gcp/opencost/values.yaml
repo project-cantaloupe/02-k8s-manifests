@@ -124,7 +124,7 @@ extraObjects:
         cost-model: mixed-provider-public-list
     data:
       node-pricing.csv: |-
-        EndTimestamp,InstanceID,Region,AssetClass,InstanceIDField,InstanceType,MarketPriceHourly,Version
+        # schema: EndTimestamp | InstanceID | Region | AssetClass | InstanceIDField | InstanceType | MarketPriceHourly | Version
         ,cntlp-aws-cp-01,,node,metadata.name,m7i-flex.large,0.117710000,aws-20260803194246
         ,cntlp-aws-wk-01,,node,metadata.name,t3.small,0.026000000,aws-20260803194246
         ,cntlp-gcp-wk-01,,node,metadata.name,e2-custom-4-8192,0.149119488,gcp-20260805

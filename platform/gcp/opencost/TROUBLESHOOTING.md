@@ -20,6 +20,8 @@ CSV_PATH: /var/configs/node-pricing.csv
 
 `values.yaml`의 `opencost-node-pricing` ConfigMap이 가격표를 제공하고 같은 Helm
 release가 이를 `/var/configs/node-pricing.csv`에 read-only로 마운트한다.
+OpenCost `1.121.0`은 CSV schema header를 코드에서 직접 주입하므로 파일 첫 줄은
+쉼표가 없는 설명 주석이며, 실제 header 행을 중복해서 넣지 않는다.
 
 ## 2026-08-05 가격 근거
 
@@ -74,7 +76,9 @@ kubectl -n monitoring port-forward svc/opencost 9003:9003
 curl -s http://127.0.0.1:9003/metrics | \
   grep -E '^node_(total|cpu|ram)_hourly_cost'
 
-curl -s 'http://127.0.0.1:9003/model/allocation?window=1h&aggregate=node' | jq .
+curl -s 'http://127.0.0.1:9003/allocation/compute?window=1h&aggregate=node' | jq .
+
+curl -s http://127.0.0.1:9003/pricingSourceCounts | jq .
 ```
 
 정상 기준:
