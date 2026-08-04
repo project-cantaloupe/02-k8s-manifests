@@ -1,35 +1,45 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: harbor-redis
+  name: harbor-registry
   namespace: devops
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: harbor-redis
+      app: harbor-registry
   template:
     metadata:
       labels:
-        app: harbor-redis
+        app: harbor-registry
     spec:
       nodeSelector:
-        kubernetes.io/hostname: cntlp-onp-wk-01  # 온프레미스 노드로 고정
+        kubernetes.io/hostname: cntlp-onp-wk-01
       containers:
-        - name: redis
-          image: redis:6.2-alpine
+        - name: registry
+          image: goharbor/registry-photon:v2.10.0
+          env:
+            - name: REGISTRY_HTTP_ADDR
+              value: ":5000"
+            - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+              value: "/storage"
           ports:
-            - containerPort: 6379
-          command: ["redis-server", "--protected-mode", "no"]
+            - containerPort: 5000
+          volumeMounts:
+            - name: registry-data
+              mountPath: /storage
+      volumes:
+        - name: registry-data
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: harbor-redis
+  name: harbor-registry
   namespace: devops
 spec:
   ports:
-    - port: 6379
-      targetPort: 6379
+    - port: 5000
+      targetPort: 5000
   selector:
-    app: harbor-redis
+    app: harbor-registry

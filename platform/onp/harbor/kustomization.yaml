@@ -6,6 +6,7 @@ resources:
   - harbor-core-config.yaml
   - redis.yaml
   - postgres.yaml
+  - registry.yaml
 
 patches:
   - target:
@@ -40,6 +41,8 @@ patches:
                     value: "root123"
                   - name: POSTGRESQL_DATABASE
                     value: "registry"
+                  - name: REGISTRY_URL
+                    value: "http://harbor-registry:5000"
                 volumeMounts:
                   - name: config-volume
                     mountPath: /etc/harbor/core/app.conf
