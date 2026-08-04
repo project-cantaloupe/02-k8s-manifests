@@ -5,6 +5,7 @@ resources:
   - harbor-components.yaml
   - harbor-core-config.yaml
   - redis.yaml
+  - postgres.yaml
 
 patches:
   - target:
@@ -31,6 +32,14 @@ patches:
                     value: "redis://harbor-redis:6379/0"
                   - name: _REDIS_URL_CORE
                     value: "redis://harbor-redis:6379/0"
+                  - name: POSTGRESQL_HOST
+                    value: "postgresql"
+                  - name: POSTGRESQL_PORT
+                    value: "5432"
+                  - name: POSTGRESQL_PASSWORD
+                    value: "root123"
+                  - name: POSTGRESQL_DATABASE
+                    value: "registry"
                 volumeMounts:
                   - name: config-volume
                     mountPath: /etc/harbor/core/app.conf
