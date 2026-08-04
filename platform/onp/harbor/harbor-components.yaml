@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-data-pvc
+  namespace: devops
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harbor-core
+  namespace: devops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harbor-core
+  template:
+    metadata:
+      labels:
+        app: harbor-core
+    spec:
+      containers:
+        - name: harbor-core
+          image: goharbor/harbor-core:v2.10.0
+          env:
+            - name: CACHE_TYPE
+              value: "memory"
+            - name: PORT
+              value: "8080"
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: harbor-data
+              mountPath: /storage
+      volumes:
+        - name: harbor-data
+          persistentVolumeClaim:
+            claimName: harbor-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harbor
+  namespace: devops
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      nodePort: 31432
+  selector:
+    app: harbor-core

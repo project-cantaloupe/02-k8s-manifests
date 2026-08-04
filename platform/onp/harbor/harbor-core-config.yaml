@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harbor-core-config
+  namespace: devops
+data:
+  app.conf: |
+    appname = Harbor
+    runmode = dev
+    enableadmin = false
+
+    [cache]
+    type = redis
+    key = redis
+    provider_config = addr=argocd-redis:6379,db=0

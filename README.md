@@ -6,7 +6,9 @@
 ## 구조
 
 ```text
-governance/             네임스페이스 보안 등급, Kyverno 정책과 예외
+bootstrap/              Argo CD Root Application 최초 등록 파일
+applications/           Root App이 관리하는 운영 Application 목록
+governance/             네임스페이스 보안 등급, Kyverno 보안·FinOps 정책과 예외
   namespaces/           네임스페이스와 Pod Security Admission 등급
 platform/
   aws/                  AWS 배치 플랫폼 구성
@@ -14,6 +16,29 @@ platform/
   onp/                  On-prem 배치 플랫폼 구성
 apps/                   사용자 서비스
 ```
+
+## Argo CD 배포 구조
+
+Argo CD 설치와 GitHub App repository credential은 별도 bootstrap 절차로
+관리한다. 설치가 끝난 뒤 `bootstrap/root-application.yaml`을 한 번 등록하면
+Root Application이 `main` 브랜치의 `applications/`만 동기화한다.
+
+```text
+bootstrap/root-application.yaml
+  -> applications/kustomization.yaml
+       -> applications/<part>.yaml
+            -> platform/<platform>/<part> 또는 apps/<app>
+```
+
+저장소 루트나 `platform/` 전체를 재귀적으로 적용하지 않는다. 따라서
+`platform/onp/argocd/`의 Argo CD 설치 매니페스트는 Root Application에 의해
+재설치되지 않는다.
+
+새 파트는 자신의 매니페스트 경로를 완성한 뒤 `applications/`에 운영
+Application을 추가하고 `applications/kustomization.yaml`에 명시적으로
+등록한다. Root App은 `main`만 감시하므로 feature branch가 자동으로 운영
+클러스터에 배포되지는 않는다. 자세한 최초 등록 및 브랜치 규칙은
+`bootstrap/README.md`를 참고한다.
 
 ## 라벨과 배치
 

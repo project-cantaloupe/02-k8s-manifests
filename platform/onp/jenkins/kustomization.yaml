@@ -4,12 +4,34 @@ kind: Kustomization
 namespace: devops
 
 resources:
-  - pvc.yaml
-  - jenkins.yaml
+  - jenkins-deployment.yaml
 
-# Cantaloupe Pod/Resource 라벨 규칙 일괄 적용
 labels:
   - pairs:
       area: devops
       platform: onp
     includeSelectors: false
+
+patches:
+  - target:
+      kind: Deployment
+      name: jenkins
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: jenkins
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              platform: onp
+              role: devops
+            containers:
+            - name: jenkins
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  memory: 2Gi
