@@ -50,6 +50,7 @@ Service Account를 사용할 수 있도록 `iam.serviceAccounts.actAs`도 필요
 공식 배포 스크립트 대신 Argo CD가 설치하므로 프로젝트 공통 시스템 Add-on
 Namespace인 `storage-system`도 이 디렉터리에서 함께 선언한다.
 
-현재 클러스터의 `monitoring-local-retain` local PV는 이 StorageClass로 자동
-전환되지 않는다. Prometheus와 Grafana를 CSI로 옮기는 작업은 별도 PR에서 PVC
-및 데이터 이전 계획과 함께 진행한다.
+기존의 미사용 `monitoring-local-retain` local PV와 StorageClass는 제거했다.
+Prometheus, Grafana 등 GCP 영속 워크로드는 각 Application에서 별도 PVC를
+선언하고 `storageClassName: gcp-pd-sc`를 명시한다. 하나의 `ReadWriteOnce` PVC를
+여러 StatefulSet 또는 여러 노드가 동시에 공유하지 않는다.
