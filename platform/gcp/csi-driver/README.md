@@ -41,6 +41,12 @@ compute.instances.detachDisk
 compute.disks.get
 ```
 
+GCP Worker에 Service Account가 연결된 경우 attach 작업의 호출 주체가 해당
+Service Account를 사용할 수 있도록 `iam.serviceAccounts.actAs`도 필요하다.
+일반적으로 대상 Service Account에 `roles/iam.serviceAccountUser`를 부여해
+충족한다. 이 권한이 없으면 디스크와 PV 생성은 성공하지만 attach operation이
+`SERVICE_ACCOUNT_ACCESS_DENIED`로 실패한다.
+
 공식 배포 스크립트 대신 Argo CD가 설치하므로 프로젝트 공통 시스템 Add-on
 Namespace인 `storage-system`도 이 디렉터리에서 함께 선언한다.
 
