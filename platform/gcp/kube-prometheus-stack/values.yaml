@@ -121,7 +121,6 @@ prometheusOperator:
     platform: gcp
     role: monitoring
   podLabels:
-    app: prometheus-operator
     area: monitoring
     platform: gcp
     cost-allocation: shared
