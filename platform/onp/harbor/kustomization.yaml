@@ -6,8 +6,6 @@ resources:
   - harbor-core-config.yaml
   - redis.yaml
   - postgres.yaml
-  - registry.yaml
-  - portal.yaml
 
 patches:
   - target:
@@ -58,3 +56,32 @@ patches:
               - name: config-volume
                 configMap:
                   name: harbor-core-config
+
+  # 모든 Harbor 컴포넌트를 온프레미스 노드로 고정
+  - target:
+      kind: Deployment
+      name: harbor-registry
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: harbor-registry
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              kubernetes.io/hostname: cntlp-onp-wk-01
+
+  - target:
+      kind: Deployment
+      name: harbor-portal
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: harbor-portal
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              kubernetes.io/hostname: cntlp-onp-wk-01
