@@ -30,6 +30,17 @@ StorageClass를 먼저 Sync하고 다음 조건을 검증한 뒤 소비 워크�
 5. Linux Node Agent가 `platform=gcp`인 두 Worker에만 배치됨
 6. 테스트 PVC의 provision, attach, mount, expansion, delete 성공
 
+특히 attach·detach 경로에는 다음 Compute Engine 권한이 필요하다. 디스크 생성만
+성공해도 이 권한이 없으면 PVC는 `Bound`되지만 Pod는
+`ContainerCreating`에서 멈춘다.
+
+```text
+compute.instances.get
+compute.instances.attachDisk
+compute.instances.detachDisk
+compute.disks.get
+```
+
 공식 배포 스크립트 대신 Argo CD가 설치하므로 프로젝트 공통 시스템 Add-on
 Namespace인 `storage-system`도 이 디렉터리에서 함께 선언한다.
 
