@@ -1,0 +1,13 @@
+spec:
+  template:
+    spec:
+      containers:
+        - name: harbor-core
+          image: goharbor/harbor-core:v2.10.0
+          env:
+            - name: CACHE_TYPE
+              value: "redis"
+            - name: REDIS_URL
+              value: "redis://argocd-redis:6379/0" # 또는 사용중인 redis service name
+            - name: PORT
+              value: "8080"
