@@ -57,6 +57,23 @@ opencost:
       scheme: http
   cloudCost:
     enabled: false
+  # Cross-platform FinOps baseline. These are deliberately normalized project
+  # rates, not AWS/GCP invoice prices. Provider list-price comparison remains a
+  # separate metric so unlike cost models are never added together.
+  customPricing:
+    enabled: true
+    provider: custom
+    costModel:
+      description: Cantaloupe normalized allocation rates (USD, not cloud billing)
+      CPU: 0.03
+      spotCPU: 0.03
+      RAM: 0.004
+      spotRAM: 0.004
+      GPU: 0
+      storage: 0.000137
+      zoneNetworkEgress: 0
+      regionNetworkEgress: 0
+      internetNetworkEgress: 0
   ui:
     enabled: true
     useIPv6: false

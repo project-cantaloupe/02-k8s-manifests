@@ -179,6 +179,10 @@ prometheus:
   service:
     type: ClusterIP
   prometheusSpec:
+    # Tailscale Serve removes /prometheus before proxying. Keep the internal
+    # route at / while generating browser links below the public sub-path.
+    externalUrl: https://cntlp-gcp-wk-01.tail270b85.ts.net/prometheus/
+    routePrefix: /
     replicas: 1
     shards: 1
     retention: 7d
