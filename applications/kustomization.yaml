@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - jenkins.yaml
   - harbor.yaml
+  - gcp-storage.yaml

@@ -1,5 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: storage-system
 
 # 공식 GCE PD CSI 배포 구성을 커밋 SHA로 고정한다. 직접 축약한 Controller
 # 매니페스트는 external-attacher, resizer와 필수 RBAC를 빠뜨리기 쉽다.
@@ -32,6 +33,15 @@ patches:
       - op: add
         path: /spec/template/spec/nodeSelector/platform
         value: gcp
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRoleBinding
+      name: pd-csi-taint-controller-binding
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: storage-system
   # 현재 클러스터는 Linux 전용이므로 upstream의 Windows Node Agent와 전용
   # 권한 객체는 렌더링 결과에서 제거한다.
   - target:
