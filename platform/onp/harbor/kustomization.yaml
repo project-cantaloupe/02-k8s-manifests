@@ -6,8 +6,31 @@ resources:
   - harbor-core-config.yaml
   - redis.yaml
   - postgres.yaml
+  - registry-config.yaml
+  - portal.yaml
+  - registry.yaml
 
 patches:
+  # 1. Harbor Service 라우팅 및 ExternalTrafficPolicy 패치
+  - target:
+      kind: Service
+      name: harbor
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: harbor
+      spec:
+        externalTrafficPolicy: Cluster
+        selector:
+          app: harbor-portal
+        ports:
+          - name: http
+            port: 80
+            targetPort: 80
+            nodePort: 31432
+
+  # 2. Harbor Core 패치
   - target:
       kind: Deployment
       name: harbor-core
@@ -19,6 +42,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              kubernetes.io/hostname: cntlp-onp-wk-01
             containers:
               - name: harbor-core
                 env:
@@ -40,6 +65,14 @@ patches:
                     value: "root123"
                   - name: POSTGRESQL_DATABASE
                     value: "registry"
+                  - name: REGISTRY_URL
+                    value: "http://harbor-registry:5000"
+                  - name: CORE_SECRET
+                    value: "HARBOR_CORE_SECRET_123456"
+                  - name: JOBSERVICE_SECRET
+                    value: "HARBOR_JOBSERVICE_SECRET_123456"
+                  - name: CSRF_KEY
+                    value: "12345678901234567890123456789012"
                 volumeMounts:
                   - name: config-volume
                     mountPath: /etc/harbor/core/app.conf
@@ -48,3 +81,28 @@ patches:
               - name: config-volume
                 configMap:
                   name: harbor-core-config
+
+  # 3. Harbor Registry 패치
+  - target:
+      kind: Deployment
+      name: harbor-registry
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: harbor-registry
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              kubernetes.io/hostname: cntlp-onp-wk-01
+            containers:
+              - name: registry
+                volumeMounts:
+                  - name: registry-config
+                    mountPath: /etc/registry/config.yml
+                    subPath: config.yml
+            volumes:
+              - name: registry-config
+                configMap:
+                  name: harbor-registry-config
