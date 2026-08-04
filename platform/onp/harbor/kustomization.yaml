@@ -6,6 +6,7 @@ resources:
   - harbor-core-config.yaml
   - redis.yaml
   - postgres.yaml
+  - registry-config.yaml
 
 patches:
   - target:
@@ -57,7 +58,7 @@ patches:
                 configMap:
                   name: harbor-core-config
 
-  # 모든 Harbor 컴포넌트를 온프레미스 노드로 고정
+  # Registry 볼륨 마운트 및 노드 고정 패치
   - target:
       kind: Deployment
       name: harbor-registry
@@ -71,7 +72,18 @@ patches:
           spec:
             nodeSelector:
               kubernetes.io/hostname: cntlp-onp-wk-01
+            containers:
+              - name: registry
+                volumeMounts:
+                  - name: registry-config
+                    mountPath: /etc/registry/config.yml
+                    subPath: config.yml
+            volumes:
+              - name: registry-config
+                configMap:
+                  name: harbor-registry-config
 
+  # Portal 노드 고정 패치
   - target:
       kind: Deployment
       name: harbor-portal

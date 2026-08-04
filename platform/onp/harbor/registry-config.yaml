@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harbor-registry-config
+  namespace: devops
+data:
+  config.yml: |
+    version: 0.1
+    log:
+      level: info
+      fields:
+        service: registry
+    storage:
+      cache:
+        layerinfo: redis
+      filesystem:
+        rootdirectory: /storage
+      maintenance:
+        uploadpurging:
+          enabled: true
+          age: 168h
+          interval: 24h
+          dryrun: false
+    http:
+      addr: :5000
+      drain_timeout: 60s
+    auth:
+      htpasswd:
+        realm: harbor-registry
+        path: /etc/registry/passwd
+    redis:
+      addr: harbor-redis:6379
+      db: 1
