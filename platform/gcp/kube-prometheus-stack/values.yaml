@@ -63,6 +63,9 @@ grafana:
     type: NodePort
     nodePort: 30300
     externalTrafficPolicy: Local
+  serviceMonitor:
+    # Grafana serves every HTTP endpoint below its configured sub-path.
+    path: /grafana/metrics
   persistence:
     enabled: true
     type: pvc
