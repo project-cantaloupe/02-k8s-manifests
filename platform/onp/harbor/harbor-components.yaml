@@ -29,8 +29,10 @@ spec:
         - name: harbor-core
           image: goharbor/harbor-core:v2.10.0
           env:
-            - name: HARBOR_URL
-              value: "https://cntlp-onp-wk-01.tail270b85.ts.net:31432"
+            - name: CACHE_TYPE
+              value: "memory"
+            - name: PORT
+              value: "8080"
           ports:
             - containerPort: 8080
               name: http
