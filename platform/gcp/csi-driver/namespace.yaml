@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gce-pd-csi-driver
+  labels:
+    app.kubernetes.io/name: gcp-compute-persistent-disk-csi-driver
+    platform: gcp

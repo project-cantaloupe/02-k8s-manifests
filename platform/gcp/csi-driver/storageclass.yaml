@@ -2,6 +2,8 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: gcp-pd-sc
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
 provisioner: pd.csi.storage.gke.io
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
