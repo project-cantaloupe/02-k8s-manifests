@@ -26,7 +26,6 @@ patches:
             nodeSelector:
               platform: onp
               role: devops
-
   - target:
       kind: Deployment
       name: harbor-core
@@ -41,6 +40,8 @@ patches:
             containers:
               - name: harbor-core
                 env:
+                  - name: CONFIG_PATH
+                    value: "/etc/harbor/core/app.conf"
                   - name: PORT
                     value: "8080"
                 volumeMounts:
