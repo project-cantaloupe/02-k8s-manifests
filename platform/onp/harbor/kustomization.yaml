@@ -9,6 +9,7 @@ resources:
   - registry-config.yaml
   - portal.yaml
   - registry.yaml
+  - harbor-service.yaml
 
 patches:
   - target:
