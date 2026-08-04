@@ -7,6 +7,19 @@ metadata:
     argocd.argoproj.io/sync-wave: "-20"
 spec:
   project: default
+  # Istiod가 webhook endpoint 준비 후 주입하는 CA와 차단 정책을 보존한다.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: istio-validator-istio-system
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+        - '.webhooks[]?.failurePolicy'
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: istio-sidecar-injector
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
   source:
     repoURL: https://istio-release.storage.googleapis.com/charts
     chart: istiod
@@ -53,3 +66,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true

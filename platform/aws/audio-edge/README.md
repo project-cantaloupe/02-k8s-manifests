@@ -52,6 +52,11 @@ kubectl -n istio-system rollout status deployment/istiod --timeout=5m
 kubectl get mutatingwebhookconfiguration istio-sidecar-injector
 ```
 
+Istiod는 webhook endpoint 준비 후 `caBundle`과 validator의 `failurePolicy`를
+런타임에 갱신한다. `istio-base`와 `istiod` Application은 해당 webhook 이름과
+필드만 `ignoreDifferences`로 제외하고 `RespectIgnoreDifferences=true`로 동기화
+중에도 런타임 값을 보존한다.
+
 ### 3. Istio Ingress Gateway
 
 Istiod와 Sidecar Injector가 준비된 뒤 `istio-ingress.yaml`을 추가하고 병합한다.
