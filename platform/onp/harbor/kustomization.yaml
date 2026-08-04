@@ -26,6 +26,7 @@ patches:
             nodeSelector:
               platform: onp
               role: devops
+
   - target:
       kind: Deployment
       name: harbor-core
@@ -44,6 +45,12 @@ patches:
                     value: "/etc/harbor/core/app.conf"
                   - name: PORT
                     value: "8080"
+                  - name: CACHE_TYPE
+                    value: "redis"
+                  - name: REDIS_URL
+                    value: "redis://argocd-redis:6379/0"
+                  - name: _REDIS_URL_CORE
+                    value: "redis://argocd-redis:6379/0"
                 volumeMounts:
                   - name: config-volume
                     mountPath: /etc/harbor/core/app.conf
