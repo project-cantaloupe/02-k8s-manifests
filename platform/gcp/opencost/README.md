@@ -6,7 +6,7 @@ OpenCost는 별도 Prometheus를 설치하지 않고 `monitoring-prometheus`를 
 위치가 확정된 뒤 별도 변경으로 추가한다.
 
 - Chart: `opencost` `2.5.28`
-- Tailnet URL: `http://cntlp-gcp-wk-01:30990`
+- Tailnet URL: `https://cntlp-gcp-wk-01.tail270b85.ts.net/`
 - 자체 영속 볼륨 없음: 비용 이력은 Prometheus 보존 기간을 따른다.
 - OpenCost UI에는 자체 인증이 없으므로 NodePort를 인터넷에 공개하지 않는다.
 

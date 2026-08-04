@@ -8,7 +8,7 @@ Worker에 배치된다. node-exporter는 모든 Linux Node의 공용 `node_*` �
 - Chart: `kube-prometheus-stack` `88.1.3`
 - Prometheus: 20Gi, 7일 또는 15GB 중 먼저 도달하는 기준으로 보존
 - Grafana: 5Gi
-- Grafana Tailnet URL: `http://cntlp-gcp-wk-01:30300`
+- Grafana Tailnet URL: `https://cntlp-gcp-wk-01.tail270b85.ts.net/grafana/`
 - Prometheus: ClusterIP 전용
 - 초기 자원 절약을 위해 Alertmanager와 이에 종속된 상시 경고는 비활성화한다.
   실제 알림 채널과 운영 수신자가 정해지면 별도 변경으로 활성화한다.

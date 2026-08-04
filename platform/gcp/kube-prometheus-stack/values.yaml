@@ -32,6 +32,11 @@ kubeScheduler:
 grafana:
   enabled: true
   fullnameOverride: grafana
+  grafana.ini:
+    server:
+      domain: cntlp-gcp-wk-01.tail270b85.ts.net
+      root_url: https://cntlp-gcp-wk-01.tail270b85.ts.net/grafana/
+      serve_from_sub_path: true
   # Remove datasources that were previously provisioned by this chart but are
   # no longer present in Git (for example the disabled Alertmanager source).
   prune: true
