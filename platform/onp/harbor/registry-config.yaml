@@ -24,10 +24,7 @@ data:
     http:
       addr: :5000
       drain_timeout: 60s
-    auth:
-      htpasswd:
-        realm: harbor-registry
-        path: /etc/registry/passwd
+      secret: "HARBOR_REGISTRY_SECRET_123456"
     redis:
       addr: harbor-redis:6379
       db: 1
