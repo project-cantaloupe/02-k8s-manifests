@@ -5,6 +5,7 @@ namespace: devops
 
 resources:
   - harbor-components.yaml
+  - harbor-core-config.yaml
 
 labels:
   - pairs:
@@ -38,10 +39,16 @@ patches:
         template:
           spec:
             containers:
-            - name: harbor-core
-              resources:
-                requests:
-                  cpu: 200m
-                  memory: 256Mi
-                limits:
-                  memory: 512Mi
+              - name: harbor-core
+                env:
+                  - name: CONFIG_PATH
+                    value: "/etc/harbor/core"
+                  - name: PORT
+                    value: "8080"
+                volumeMounts:
+                  - name: config-volume
+                    mountPath: /etc/harbor/core
+            volumes:
+              - name: config-volume
+                configMap:
+                  name: harbor-core-config
