@@ -7,6 +7,8 @@ resources:
   - redis.yaml
   - postgres.yaml
   - registry-config.yaml
+  - portal.yaml
+  - registry.yaml
 
 patches:
   - target:
@@ -20,6 +22,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              kubernetes.io/hostname: cntlp-onp-wk-01
             containers:
               - name: harbor-core
                 env:
@@ -58,7 +62,6 @@ patches:
                 configMap:
                   name: harbor-core-config
 
-  # Registry 볼륨 마운트 및 노드 고정 패치
   - target:
       kind: Deployment
       name: harbor-registry
@@ -82,18 +85,3 @@ patches:
               - name: registry-config
                 configMap:
                   name: harbor-registry-config
-
-  # Portal 노드 고정 패치
-  - target:
-      kind: Deployment
-      name: harbor-portal
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: harbor-portal
-      spec:
-        template:
-          spec:
-            nodeSelector:
-              kubernetes.io/hostname: cntlp-onp-wk-01
