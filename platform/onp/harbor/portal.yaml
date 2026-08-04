@@ -32,3 +32,13 @@ spec:
           image: goharbor/harbor-portal:v2.10.0
           ports:
             - containerPort: 8080
+          volumeMounts:
+            - name: var-run
+              mountPath: /var/run
+            - name: var-cache
+              mountPath: /var/cache/nginx
+      volumes:
+        - name: var-run
+          emptyDir: {}
+        - name: var-cache
+          emptyDir: {}
