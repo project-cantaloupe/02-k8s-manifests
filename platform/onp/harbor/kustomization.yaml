@@ -1,5 +1,47 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+namespace: devops
+
 resources:
-  - application.yaml
+  - harbor-components.yaml
+
+labels:
+  - pairs:
+      area: devops
+      platform: onp
+    includeSelectors: false
+
+patches:
+  - target:
+      kind: (Deployment|StatefulSet)
+    patch: |-
+      kind: Dummy
+      metadata:
+        name: dummy
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              platform: onp
+              role: devops
+
+  - target:
+      kind: Deployment
+      name: harbor-core
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: harbor-core
+      spec:
+        template:
+          spec:
+            containers:
+            - name: harbor-core
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 256Mi
+                limits:
+                  memory: 512Mi
