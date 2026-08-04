@@ -45,9 +45,8 @@ patches:
                     value: "8080"
                 volumeMounts:
                   - name: config-volume
-                    mountPath: /etc/core
-                  - name: config-volume
-                    mountPath: /harbor/conf
+                    mountPath: /etc/harbor/core/app.conf
+                    subPath: app.conf
             volumes:
               - name: config-volume
                 configMap:
