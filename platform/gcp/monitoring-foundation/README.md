@@ -1,7 +1,9 @@
 # GCP monitoring foundation
 
-`monitoring` Namespace와 Tailnet 전용 OpenCost UI NodePort를 관리한다.
-Grafana NodePort는 kube-prometheus-stack values에서 관리한다.
+`monitoring` Namespace와 Tailnet 전용 OpenCost/Prometheus UI NodePort를 관리한다.
+Grafana NodePort는 kube-prometheus-stack values에서 관리한다. 실제 모니터링
+워크로드와 데이터 PVC는 각각 `kube-prometheus-stack`, `opencost` 디렉터리에서
+관리하며, 이 디렉터리는 공통 기반 리소스만 소유한다.
 
 MagicDNS가 활성화된 Tailnet 사용자만 다음 HTTPS 주소로 접근한다.
 

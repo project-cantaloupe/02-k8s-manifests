@@ -70,6 +70,10 @@ grafana:
     enabled: true
     type: pvc
     storageClassName: gcp-pd-sc
+    annotations:
+      # Keep the data PVC when the preview Argo CD Application is replaced by
+      # the canonical main-branch Application or a manifest is removed by mistake.
+      argocd.argoproj.io/sync-options: Prune=false,Delete=false
     accessModes:
       - ReadWriteOnce
     size: 5Gi

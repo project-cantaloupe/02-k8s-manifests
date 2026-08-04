@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
     targetRevision: main
-    path: platform/gcp/monitoring
+    path: platform/gcp/monitoring-foundation
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
