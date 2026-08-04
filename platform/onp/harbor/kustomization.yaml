@@ -1,31 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: devops
-
 resources:
   - harbor-components.yaml
-
-labels:
-  - pairs:
-      area: devops
-      platform: onp
-    includeSelectors: false
+  - harbor-core-config.yaml
+  - redis.yaml
+  - postgres.yaml
 
 patches:
-  - target:
-      kind: (Deployment|StatefulSet)
-    patch: |-
-      kind: Dummy
-      metadata:
-        name: dummy
-      spec:
-        template:
-          spec:
-            nodeSelector:
-              platform: onp
-              role: devops
-
   - target:
       kind: Deployment
       name: harbor-core
@@ -38,10 +20,31 @@ patches:
         template:
           spec:
             containers:
-            - name: harbor-core
-              resources:
-                requests:
-                  cpu: 200m
-                  memory: 256Mi
-                limits:
-                  memory: 512Mi
+              - name: harbor-core
+                env:
+                  - name: CONFIG_PATH
+                    value: "/etc/harbor/core/app.conf"
+                  - name: PORT
+                    value: "8080"
+                  - name: CACHE_TYPE
+                    value: "redis"
+                  - name: REDIS_URL
+                    value: "redis://harbor-redis:6379/0"
+                  - name: _REDIS_URL_CORE
+                    value: "redis://harbor-redis:6379/0"
+                  - name: POSTGRESQL_HOST
+                    value: "postgresql"
+                  - name: POSTGRESQL_PORT
+                    value: "5432"
+                  - name: POSTGRESQL_PASSWORD
+                    value: "root123"
+                  - name: POSTGRESQL_DATABASE
+                    value: "registry"
+                volumeMounts:
+                  - name: config-volume
+                    mountPath: /etc/harbor/core/app.conf
+                    subPath: app.conf
+            volumes:
+              - name: config-volume
+                configMap:
+                  name: harbor-core-config

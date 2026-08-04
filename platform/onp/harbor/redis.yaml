@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harbor-redis
+  namespace: devops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harbor-redis
+  template:
+    metadata:
+      labels:
+        app: harbor-redis
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: cntlp-onp-wk-01  # 온프레미스 노드로 고정
+      containers:
+        - name: redis
+          image: redis:6.2-alpine
+          ports:
+            - containerPort: 6379
+          command: ["redis-server", "--protected-mode", "no"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harbor-redis
+  namespace: devops
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: harbor-redis
