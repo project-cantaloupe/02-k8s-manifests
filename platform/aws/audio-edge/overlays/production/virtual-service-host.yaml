@@ -1,0 +1,8 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: mesh-smoke
+  namespace: apps
+spec:
+  hosts:
+    - audio.example.com

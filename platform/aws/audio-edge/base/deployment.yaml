@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mesh-smoke
+  namespace: apps
+  labels:
+    app: mesh-smoke
+    area: apps
+    platform: aws
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mesh-smoke
+  template:
+    metadata:
+      labels:
+        app: mesh-smoke
+        area: apps
+        platform: aws
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      nodeSelector:
+        platform: aws
+        role: service
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:1.0.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -listen=:5678
+            - -text=mesh-smoke
+          ports:
+            - name: http
+              containerPort: 5678
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
