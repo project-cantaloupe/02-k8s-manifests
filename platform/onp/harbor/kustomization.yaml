@@ -1,6 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+namespace: devops
+
 resources:
   - harbor-components.yaml
   - harbor-core-config.yaml
@@ -9,9 +11,10 @@ resources:
   - registry-config.yaml
   - portal.yaml
   - registry.yaml
+  - virtualservice.yaml  # 신규 추가
 
 patches:
-  # 1. Harbor Service 라우팅 및 ExternalTrafficPolicy 패치
+  # 1. Harbor Service 패치
   - target:
       kind: Service
       name: harbor
@@ -30,7 +33,7 @@ patches:
             targetPort: 80
             nodePort: 31432
 
-  # 2. Harbor Core 패치
+  # 2. Harbor Core 패치 (nodeSelector 통일)
   - target:
       kind: Deployment
       name: harbor-core
@@ -43,7 +46,8 @@ patches:
         template:
           spec:
             nodeSelector:
-              kubernetes.io/hostname: cntlp-onp-wk-01
+              platform: onp
+              role: devops
             containers:
               - name: harbor-core
                 env:
@@ -82,7 +86,7 @@ patches:
                 configMap:
                   name: harbor-core-config
 
-  # 3. Harbor Registry 패치
+  # 3. Harbor Registry 패치 (nodeSelector 통일)
   - target:
       kind: Deployment
       name: harbor-registry
@@ -95,7 +99,8 @@ patches:
         template:
           spec:
             nodeSelector:
-              kubernetes.io/hostname: cntlp-onp-wk-01
+              platform: onp
+              role: devops
             containers:
               - name: registry
                 volumeMounts:
