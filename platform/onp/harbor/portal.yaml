@@ -6,7 +6,7 @@ metadata:
 spec:
   ports:
     - port: 80
-      targetPort: 8080
+      targetPort: 80
   selector:
     app: harbor-portal
 ---
@@ -31,7 +31,7 @@ spec:
         - name: harbor-portal
           image: goharbor/harbor-portal:v2.10.0
           ports:
-            - containerPort: 8080
+            - containerPort: 80
           volumeMounts:
             - name: var-run
               mountPath: /var/run
