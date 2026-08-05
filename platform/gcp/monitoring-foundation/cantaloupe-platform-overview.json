@@ -124,33 +124,48 @@
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6},
       "id": 200,
       "panels": [],
-      "title": "Platform Capacity",
+      "title": "Platform Capacity & FinOps Signals",
       "type": "row"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "플랫폼별 CPU/Memory Actual, Request, 활용률을 같은 행에서 비교한다. 활용률은 현재 Actual/Request이며 장기 Right-sizing 판단에는 P95가 별도로 필요하다.",
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byName", "options": "CPU Actual"}, "properties": [{"id": "unit", "value": "cores"}]}, {"matcher": {"id": "byName", "options": "CPU Request"}, "properties": [{"id": "unit", "value": "cores"}]}, {"matcher": {"id": "byName", "options": "CPU Utilization"}, "properties": [{"id": "unit", "value": "percent"}]}, {"matcher": {"id": "byName", "options": "Memory Actual"}, "properties": [{"id": "unit", "value": "bytes"}]}, {"matcher": {"id": "byName", "options": "Memory Request"}, "properties": [{"id": "unit", "value": "bytes"}]}, {"matcher": {"id": "byName", "options": "Memory Utilization"}, "properties": [{"id": "unit", "value": "percent"}]}]},
-      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 7},
+      "description": "플랫폼·역할별 CPU Allocatable, Request, Actual을 비교한다. Request Used가 낮으면 비용 최적화 후보, 100%에 가까우면 성능 위험 후보이며 장기 판단은 Kubernetes FinOps의 P95 기준을 사용한다.",
+      "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byRegexp", "options": "CPU .*"}, "properties": [{"id": "unit", "value": "cores"}]}, {"matcher": {"id": "byName", "options": "Request Used"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "min", "value": 0}, {"id": "max", "value": 120}, {"id": "custom.cellOptions", "value": {"mode": "gradient", "type": "gauge"}}, {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 30}, {"color": "green", "value": 60}, {"color": "red", "value": 100}]}}]}]},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 7},
       "id": 9,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Platform"}]},
       "targets": [
-        {"expr": "sum by (label_platform) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "A"},
-        {"expr": "sum by (label_platform) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "B"},
-        {"expr": "100 * sum by (label_platform) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}) / sum by (label_platform) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "C"},
-        {"expr": "sum by (label_platform) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "D"},
-        {"expr": "sum by (label_platform) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "E"},
-        {"expr": "100 * sum by (label_platform) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}) / sum by (label_platform) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "F"}
+        {"expr": "label_join(sum by (label_platform,label_role) (kube_node_status_allocatable{resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}), \"scope\", \" / \", \"label_platform\", \"label_role\")", "format": "table", "instant": true, "refId": "A"},
+        {"expr": "sum by (scope) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"scope\", \" / \", \"label_platform\", \"label_role\"))", "format": "table", "instant": true, "refId": "B"},
+        {"expr": "sum by (scope) (label_join(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"scope\", \" / \", \"label_platform\", \"label_role\"))", "format": "table", "instant": true, "refId": "C"},
+        {"expr": "100 * sum by (scope) (label_join(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"scope\", \" / \", \"label_platform\", \"label_role\")) / sum by (scope) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"scope\", \" / \", \"label_platform\", \"label_role\"))", "format": "table", "instant": true, "refId": "D"}
       ],
-      "title": "Platform Resource Overview",
-      "transformations": [{"id": "joinByField", "options": {"byField": "label_platform", "mode": "outer"}}, {"id": "organize", "options": {"excludeByName": {"Time": true}, "indexByName": {"label_platform": 0, "Value #A": 1, "Value #B": 2, "Value #C": 3, "Value #D": 4, "Value #E": 5, "Value #F": 6}, "renameByName": {"label_platform": "Platform", "Value #A": "CPU Actual", "Value #B": "CPU Request", "Value #C": "CPU Utilization", "Value #D": "Memory Actual", "Value #E": "Memory Request", "Value #F": "Memory Utilization"}}}],
+      "title": "Platform CPU Capacity & Request Efficiency",
+      "transformations": [{"id": "joinByField", "options": {"byField": "scope", "mode": "outer"}}, {"id": "organize", "options": {"excludeByName": {"Time": true, "scope": true}, "indexByName": {"label_platform": 0, "label_role": 1, "Value #A": 2, "Value #B": 3, "Value #C": 4, "Value #D": 5}, "renameByName": {"label_platform": "Platform", "label_role": "Role", "Value #A": "CPU Allocatable", "Value #B": "CPU Request", "Value #C": "CPU Actual", "Value #D": "Request Used"}}}],
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "플랫폼·역할별 Memory Allocatable, Request, Actual을 비교한다. 낮은 Request Used는 비용 최적화 후보이며 최종 Right-sizing은 Kubernetes FinOps에서 P95와 장애 이력을 함께 검증한다.",
+      "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byRegexp", "options": "Memory .*"}, "properties": [{"id": "unit", "value": "bytes"}]}, {"matcher": {"id": "byName", "options": "Request Used"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "min", "value": 0}, {"id": "max", "value": 120}, {"id": "custom.cellOptions", "value": {"mode": "gradient", "type": "gauge"}}, {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 30}, {"color": "green", "value": 60}, {"color": "red", "value": 100}]}}]}]},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 7},
+      "id": 10,
+      "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Platform"}]},
+      "targets": [
+        {"expr": "label_join(sum by (label_platform,label_role) (kube_node_status_allocatable{resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}), \"scope\", \" / \", \"label_platform\", \"label_role\")", "format": "table", "instant": true, "refId": "A"},
+        {"expr": "sum by (scope) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"scope\", \" / \", \"label_platform\", \"label_role\"))", "format": "table", "instant": true, "refId": "B"},
+        {"expr": "sum by (scope) (label_join(container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"scope\", \" / \", \"label_platform\", \"label_role\"))", "format": "table", "instant": true, "refId": "C"},
+        {"expr": "100 * sum by (scope) (label_join(container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"scope\", \" / \", \"label_platform\", \"label_role\")) / sum by (scope) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"scope\", \" / \", \"label_platform\", \"label_role\"))", "format": "table", "instant": true, "refId": "D"}
+      ],
+      "title": "Platform Memory Capacity & Request Efficiency",
+      "transformations": [{"id": "joinByField", "options": {"byField": "scope", "mode": "outer"}}, {"id": "organize", "options": {"excludeByName": {"Time": true, "scope": true}, "indexByName": {"label_platform": 0, "label_role": 1, "Value #A": 2, "Value #B": 3, "Value #C": 4, "Value #D": 5}, "renameByName": {"label_platform": "Platform", "label_role": "Role", "Value #A": "Memory Allocatable", "Value #B": "Memory Request", "Value #C": "Memory Actual", "Value #D": "Request Used"}}}],
       "type": "table"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "node-exporter가 측정한 Node 전체 non-idle CPU 사용률이다. OS와 Kubernetes 워크로드 사용량을 함께 포함한다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 70}, {"color": "red", "value": 85}]}, "unit": "percent"}, "overrides": []},
-      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 16},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 15},
       "id": 11,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "valueMode": "color"},
       "targets": [{"expr": "(100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])))) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "legendFormat": "{{node}}", "refId": "A"}],
@@ -161,7 +176,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "node-exporter 기준 Node 전체 Memory 사용률이다. (MemTotal - MemAvailable) / MemTotal로 계산한다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 70}, {"color": "red", "value": 85}]}, "unit": "percent"}, "overrides": []},
-      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 16},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 15},
       "id": 12,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "valueMode": "color"},
       "targets": [{"expr": "(100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "legendFormat": "{{node}}", "refId": "A"}],
@@ -170,7 +185,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23},
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22},
       "id": 300,
       "panels": [],
       "title": "Workload Health",
@@ -178,9 +193,9 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "Namespace별 CPU/Memory Actual, Request, 현재 활용률을 같은 행에서 비교한다. 상세 추세는 아래 Detail Namespace 시계열에서 확인한다.",
+      "description": "Namespace별 CPU/Memory Actual과 Request를 비교한다. 낮은 활용률은 비용 최적화 검토 신호이고 100% 이상은 성능 위험 신호다. 장기 Right-sizing과 비용 영향은 Kubernetes FinOps에서 P95·비용과 함께 판단한다.",
       "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byName", "options": "CPU Actual"}, "properties": [{"id": "unit", "value": "cores"}]}, {"matcher": {"id": "byName", "options": "CPU Request"}, "properties": [{"id": "unit", "value": "cores"}]}, {"matcher": {"id": "byName", "options": "CPU Utilization"}, "properties": [{"id": "unit", "value": "percent"}]}, {"matcher": {"id": "byName", "options": "Memory Actual"}, "properties": [{"id": "unit", "value": "bytes"}]}, {"matcher": {"id": "byName", "options": "Memory Request"}, "properties": [{"id": "unit", "value": "bytes"}]}, {"matcher": {"id": "byName", "options": "Memory Utilization"}, "properties": [{"id": "unit", "value": "percent"}]}]},
-      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 24},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 23},
       "id": 13,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Namespace"}]},
       "targets": [
@@ -197,37 +212,9 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "Detail Namespace로 선택한 단일 Namespace의 CPU Actual과 Request 추세다. Actual은 파란 실선, Request는 주황 점선이다.",
-      "fieldConfig": {"defaults": {"custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": true}, "unit": "cores"}, "overrides": [{"matcher": {"id": "byName", "options": "Actual"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]}, {"matcher": {"id": "byName", "options": "Request"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}, {"id": "custom.lineStyle", "value": {"dash": [10, 10], "fill": "dash"}}]}]},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
-      "id": 14,
-      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$detail_namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))", "legendFormat": "Actual", "refId": "A"},
-        {"expr": "sum(kube_pod_container_resource_requests{namespace=\"$detail_namespace\",resource=\"cpu\",unit=\"core\"})", "legendFormat": "Request", "refId": "B"}
-      ],
-      "title": "Selected Namespace CPU: Actual vs Request",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "Detail Namespace로 선택한 단일 Namespace의 Memory Actual과 Request 추세다. Actual은 파란 실선, Request는 주황 점선이다.",
-      "fieldConfig": {"defaults": {"custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": true}, "unit": "bytes"}, "overrides": [{"matcher": {"id": "byName", "options": "Actual"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]}, {"matcher": {"id": "byName", "options": "Request"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}, {"id": "custom.lineStyle", "value": {"dash": [10, 10], "fill": "dash"}}]}]},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
-      "id": 27,
-      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [
-        {"expr": "sum(container_memory_working_set_bytes{namespace=\"$detail_namespace\",container!=\"\",container!=\"POD\",image!=\"\"})", "legendFormat": "Actual", "refId": "A"},
-        {"expr": "sum(kube_pod_container_resource_requests{namespace=\"$detail_namespace\",resource=\"memory\",unit=\"byte\"})", "legendFormat": "Request", "refId": "B"}
-      ],
-      "title": "Selected Namespace Memory: Actual vs Request",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "최근 1시간 재시작한 Container를 namespace/pod/container와 함께 표시한다. 값은 increase()를 반올림한 운영용 근사 횟수다. 결과가 없으면 최근 재시작이 없다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}, {"color": "red", "value": 5}]}, "unit": "short"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 42},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 33},
       "id": 15,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "Restarts (1h)"}]},
       "targets": [{"expr": "topk(10, round(sum by (namespace,pod,container) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h])))) > 0", "format": "table", "instant": true, "refId": "A"}],
@@ -239,7 +226,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "현재 CPU 사용량 기준의 독립적인 Pod 상위 10개다. Memory Top 10과 같은 행끼리 대응하지 않는다.",
       "fieldConfig": {"defaults": {"color": {"mode": "continuous-GrYlRd"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "unit": "cores"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 42},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 33},
       "id": 16,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "CPU Cores"}]},
       "targets": [{"expr": "topk(10, sum by (namespace,pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "format": "table", "instant": true, "refId": "A"}],
@@ -251,7 +238,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "현재 memory working set 기준의 독립적인 Pod 상위 10개다. CPU Top 10과 같은 행끼리 대응하지 않는다.",
       "fieldConfig": {"defaults": {"color": {"mode": "continuous-GrYlRd"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "unit": "bytes"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 42},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 33},
       "id": 17,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "Memory Working Set"}]},
       "targets": [{"expr": "topk(10, sum by (namespace,pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "format": "table", "instant": true, "refId": "A"}],
@@ -263,7 +250,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "현재 Pending/Failed Pod, OOMKilled, Container waiting reason을 표시한다. 상단 상태 카드를 클릭하면 이 패널로 이동한다. 결과가 없으면 정상이다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "color-text"}, "inspect": false}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
-      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 50},
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 41},
       "id": 18,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
       "targets": [
@@ -271,7 +258,7 @@
         {"expr": "(kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\"} == 1) * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "legendFormat": "OOMKilled", "refId": "B"},
         {"expr": "(kube_pod_container_status_waiting_reason{namespace=~\"$namespace\",reason!=\"\"} == 1) * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "legendFormat": "Waiting reason", "refId": "C"}
       ],
-      "title": "Pending / Failed / OOM Workloads",
+      "title": "Active Workload Problems — Empty is Healthy",
       "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true, "service": true, "uid": true}, "indexByName": {}, "renameByName": {"Value": "State"}}}],
       "type": "table"
     },
@@ -279,11 +266,11 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "Bound되지 못한 PVC의 Namespace, 이름, StorageClass를 표시한다. 일반 원인은 StorageClass 부재, CSI 오류, PV 용량 부족, topology 불일치다. 결과가 없으면 정상이다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}]}, "unit": "short"}, "overrides": []},
-      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 57},
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 48},
       "id": 25,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Namespace"}]},
       "targets": [{"expr": "kube_persistentvolumeclaim_info{namespace=~\"$namespace\"} * on(namespace,persistentvolumeclaim) group_left(phase) (kube_persistentvolumeclaim_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} == 1)", "format": "table", "instant": true, "refId": "A"}],
-      "title": "Pending PVC Details",
+      "title": "Pending PVC Details — Empty is Healthy",
       "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true, "service": true, "uid": true, "Value": true}, "indexByName": {"namespace": 0, "persistentvolumeclaim": 1, "storageclass": 2, "volumename": 3, "phase": 4}, "renameByName": {"namespace": "Namespace", "persistentvolumeclaim": "PVC", "storageclass": "StorageClass", "volumename": "Volume", "phase": "Phase"}}}],
       "type": "table"
     },
@@ -291,24 +278,24 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "현재 Prometheus scrape에 실패한 Target의 job, instance, namespace, pod, service를 표시한다. 결과가 없으면 모든 Target이 UP이다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}]}, "unit": "short"}, "overrides": []},
-      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 63},
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 54},
       "id": 26,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Job"}]},
       "targets": [{"expr": "up == 0", "format": "table", "instant": true, "refId": "A"}],
-      "title": "Prometheus Down Target Details",
+      "title": "Prometheus Targets Down — Empty is Healthy",
       "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "Value": true}, "indexByName": {"job": 0, "instance": 1, "namespace": 2, "pod": 3, "service": 4, "endpoint": 5}, "renameByName": {"job": "Job", "instance": "Instance", "namespace": "Namespace", "pod": "Pod", "service": "Service", "endpoint": "Endpoint"}}}],
       "type": "table"
     },
     {
       "collapsed": true,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 69},
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 60},
       "id": 400,
       "panels": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "rootfs, tmpfs, overlay 등을 제외한 Node filesystem 사용률이다.",
           "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 75}, {"color": "red", "value": 90}]}, "unit": "percent"}, "overrides": []},
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 47},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 61},
           "id": 19,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
           "targets": [{"expr": "(100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*\"})) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "legendFormat": "{{node}} {{mountpoint}}", "refId": "A"}],
@@ -319,7 +306,7 @@
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "Node별 수신·송신 네트워크 대역폭이다. loopback과 가상 인터페이스를 제외한다.",
           "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "Bps"}, "overrides": []},
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 47},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 61},
           "id": 20,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
           "targets": [
@@ -331,44 +318,48 @@
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "description": "전체 PVC의 요청 용량과 사용률 수집 여부를 표시한다. GCP CSI 볼륨은 kubelet 사용률이 표시되며, On-prem hostPath PV는 kubelet per-volume stats를 제공하지 않아 Usage가 N/A다. hostPath 전체 디스크는 Node Filesystem에서 확인한다.",
-          "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byName", "options": "Requested Capacity"}, "properties": [{"id": "unit", "value": "bytes"}]}, {"matcher": {"id": "byName", "options": "Usage"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "noValue", "value": "N/A (hostPath)"}]}]},
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 55},
+          "description": "전체 PVC 인벤토리와 사용률 수집 범위를 함께 표시한다. GCP CSI는 사용률을 제공하고 On-prem hostPath는 kubelet per-volume stats가 없어 Not collected로 표시한다. hostPath의 전체 디스크 상태는 Node Filesystem에서 확인한다.",
+          "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byName", "options": "Capacity"}, "properties": [{"id": "unit", "value": "bytes"}]}, {"matcher": {"id": "byName", "options": "Usage"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "noValue", "value": "Not collected"}]}, {"matcher": {"id": "byName", "options": "Storage Type"}, "properties": [{"id": "noValue", "value": "hostPath"}]}]},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 69},
           "id": 21,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Claim"}]},
           "targets": [
-            {"expr": "label_join(max by (namespace,persistentvolumeclaim,storageclass,volumename) (kube_persistentvolumeclaim_info{namespace=~\"$namespace\"}), \"claim\", \"/\", \"namespace\", \"persistentvolumeclaim\")", "format": "table", "instant": true, "refId": "A"},
+            {"expr": "label_join(max by (namespace,persistentvolumeclaim,storageclass) (kube_persistentvolumeclaim_info{namespace=~\"$namespace\"}), \"claim\", \"/\", \"namespace\", \"persistentvolumeclaim\")", "format": "table", "instant": true, "refId": "A"},
             {"expr": "max by (claim) (label_join(kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace=~\"$namespace\"}, \"claim\", \"/\", \"namespace\", \"persistentvolumeclaim\"))", "format": "table", "instant": true, "refId": "B"},
             {"expr": "max by (claim) (label_join(100 * kubelet_volume_stats_used_bytes{namespace=~\"$namespace\"} / kubelet_volume_stats_capacity_bytes{namespace=~\"$namespace\"}, \"claim\", \"/\", \"namespace\", \"persistentvolumeclaim\"))", "format": "table", "instant": true, "refId": "C"}
           ],
-          "title": "PVC Inventory & Usage Coverage",
-          "transformations": [{"id": "joinByField", "options": {"byField": "claim", "mode": "outer"}}, {"id": "organize", "options": {"excludeByName": {"Time": true, "Value #A": true, "namespace": true, "persistentvolumeclaim": true}, "indexByName": {"claim": 0, "storageclass": 1, "volumename": 2, "Value #B": 3, "Value #C": 4}, "renameByName": {"claim": "Claim", "storageclass": "StorageClass", "volumename": "Volume", "Value #B": "Requested Capacity", "Value #C": "Usage"}}}],
+          "title": "PVC Inventory & Usage",
+          "transformations": [{"id": "joinByField", "options": {"byField": "claim", "mode": "outer"}}, {"id": "organize", "options": {"excludeByName": {"Time": true, "Value #A": true, "claim": true}, "indexByName": {"namespace": 0, "persistentvolumeclaim": 1, "storageclass": 2, "Value #B": 3, "Value #C": 4}, "renameByName": {"namespace": "Namespace", "persistentvolumeclaim": "PVC", "storageclass": "Storage Type", "Value #B": "Capacity", "Value #C": "Usage"}}}],
           "type": "table"
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "description": "Pod/Container별 CPU actual, request, limit을 비교한다.",
-          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "cores"}, "overrides": []},
-          "gridPos": {"h": 7, "w": 8, "x": 8, "y": 55},
+          "description": "현재 선택 범위의 Container별 CPU·Memory Actual/Request/Limit을 한 행에서 비교한다. 시계열 전체를 겹쳐 그리지 않고 현재값을 정렬·필터링해 운영 상세를 확인한다. 장기 P95 및 비용 기반 Right-sizing은 Kubernetes FinOps에서 수행한다.",
+          "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byRegexp", "options": "CPU .*"}, "properties": [{"id": "unit", "value": "cores"}]}, {"matcher": {"id": "byRegexp", "options": "Memory .*"}, "properties": [{"id": "unit", "value": "bytes"}]}]},
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 77},
           "id": 22,
-          "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "CPU Actual"}]},
           "targets": [
-            {"expr": "sum by (namespace,pod,container) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{namespace}}/{{pod}}/{{container}} actual", "refId": "A"},
-            {"expr": "sum by (namespace,pod,container) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{namespace}}/{{pod}}/{{container}} request", "refId": "B"},
-            {"expr": "sum by (namespace,pod,container) (kube_pod_container_resource_limits{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{namespace}}/{{pod}}/{{container}} limit", "refId": "C"}
+            {"expr": "label_join(sum by (namespace,pod,container) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}), \"workload\", \"/\", \"namespace\", \"pod\", \"container\")", "format": "table", "instant": true, "refId": "A"},
+            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "B"},
+            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_limits{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "C"},
+            {"expr": "sum by (workload) (label_join(container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "D"},
+            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "E"},
+            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_limits{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "F"}
           ],
-          "title": "Container CPU Actual / Request / Limit",
-          "type": "timeseries"
+          "title": "Container Resource Detail",
+          "transformations": [{"id": "joinByField", "options": {"byField": "workload", "mode": "outer"}}, {"id": "organize", "options": {"excludeByName": {"Time": true, "workload": true}, "indexByName": {"namespace": 0, "pod": 1, "container": 2, "Value #A": 3, "Value #B": 4, "Value #C": 5, "Value #D": 6, "Value #E": 7, "Value #F": 8}, "renameByName": {"namespace": "Namespace", "pod": "Pod", "container": "Container", "Value #A": "CPU Actual", "Value #B": "CPU Request", "Value #C": "CPU Limit", "Value #D": "Memory Actual", "Value #E": "Memory Request", "Value #F": "Memory Limit"}}}],
+          "type": "table"
         },
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "Ready가 아니거나 Memory/Disk/PID/Network 문제가 활성화된 Node만 표시한다. 결과가 없으면 선택 범위의 모든 Node condition이 정상이다.",
           "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "unit": "short"}, "overrides": []},
-          "gridPos": {"h": 7, "w": 4, "x": 16, "y": 55},
+          "gridPos": {"h": 8, "w": 6, "x": 12, "y": 69},
           "id": 23,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
           "targets": [{"expr": "((kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 0) or (kube_node_status_condition{condition=~\"MemoryPressure|DiskPressure|PIDPressure|NetworkUnavailable\",status=\"true\"} == 1)) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "refId": "A"}],
-          "title": "Unhealthy Node Conditions",
+          "title": "Unhealthy Node Conditions — Empty is Healthy",
           "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true, "service": true, "status": true, "Value": true}, "indexByName": {"node": 0, "condition": 1, "label_platform": 2, "label_role": 3}, "renameByName": {"node": "Node", "condition": "Problem", "label_platform": "Platform", "label_role": "Role"}}}],
           "type": "table"
         },
@@ -376,7 +367,7 @@
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "현재 Node에 설정된 taint다. control-plane의 NoSchedule은 정상 보호 설정이다. 일반 Pod Pending 발생 시 해당 Pod에 적절한 toleration이 있는지 확인한다.",
           "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "unit": "short"}, "overrides": []},
-          "gridPos": {"h": 7, "w": 4, "x": 20, "y": 55},
+          "gridPos": {"h": 8, "w": 6, "x": 18, "y": 69},
           "id": 24,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
           "targets": [{"expr": "kube_node_spec_taint * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "refId": "A"}],
@@ -391,7 +382,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["cantaloupe", "platform", "operations", "kubernetes"],
+  "tags": ["cantaloupe", "platform", "operations", "kubernetes", "finops-signal"],
   "templating": {
     "list": [
       {
@@ -440,22 +431,6 @@
         "name": "namespace",
         "options": [],
         "query": {"query": "label_values(kube_pod_info, namespace)", "refId": "PrometheusVariableQueryEditor-Namespace"},
-        "refresh": 1,
-        "regex": "",
-        "sort": 1,
-        "type": "query"
-      },
-      {
-        "current": {"selected": true, "text": "monitoring", "value": "monitoring"},
-        "datasource": {"type": "prometheus", "uid": "prometheus"},
-        "definition": "label_values(kube_pod_info, namespace)",
-        "hide": 0,
-        "includeAll": false,
-        "label": "Detail Namespace",
-        "multi": false,
-        "name": "detail_namespace",
-        "options": [],
-        "query": {"query": "label_values(kube_pod_info, namespace)", "refId": "PrometheusVariableQueryEditor-DetailNamespace"},
         "refresh": 1,
         "regex": "",
         "sort": 1,
