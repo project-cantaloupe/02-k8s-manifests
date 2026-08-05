@@ -1,0 +1,19 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: jenkins-vs
+  namespace: devops
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - istio-ingress/istio-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /jenkins
+    route:
+    - destination:
+        host: jenkins   # 서비스 이름 수정 (devops 네임스페이스 내)
+        port:
+          number: 8080

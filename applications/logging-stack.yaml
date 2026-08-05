@@ -1,0 +1,23 @@
+# Root Application(main)이 이 파일을 동기화하며, logging 매니페스트도 main에서 읽는다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-stack
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: smoke/logging-stack
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -5,8 +5,10 @@ resources:
   - jenkins.yaml
   - harbor.yaml
   - gcp-storage.yaml
+  - logging-stack.yaml
   - istio-base.yaml
   - istiod.yaml
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
   - opencost.yaml
+  - istio-ingress.yaml

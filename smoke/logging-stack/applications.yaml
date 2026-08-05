@@ -1,0 +1,84 @@
+# 이 파일은 root Application(main)에 등록하지 않는다. Argo CD에서 이 branch와
+# smoke/logging-stack 경로를 가리키는 임시 Application으로 동기화해 검증한다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-opensearch
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
+spec:
+  project: default
+  sources:
+    - repoURL: https://opensearch-project.github.io/helm-charts/
+      chart: opensearch
+      targetRevision: 2.18.0
+      helm:
+        releaseName: opensearch
+        valueFiles:
+          - $values/platform/gcp/opensearch/values.yaml
+    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-fluentd
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: platform/gcp/fluent-bit
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-dashboards
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: default
+  sources:
+    - repoURL: https://opensearch-project.github.io/helm-charts/
+      chart: opensearch-dashboards
+      targetRevision: 2.18.0
+      helm:
+        releaseName: opensearch-dashboards
+        valueFiles:
+          - $values/platform/gcp/opensearch-dashboards/values.yaml
+    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

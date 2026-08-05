@@ -52,6 +52,10 @@ spec:
       containers:
         - name: jenkins
           image: jenkins/jenkins:lts
+          # ★ [추가] Jenkins의 Context Path를 /jenkins 로 지정
+          env:
+            - name: JENKINS_OPTS
+              value: "--prefix=/jenkins"
           ports:
             - containerPort: 8080
               name: http
@@ -71,16 +75,14 @@ metadata:
   name: jenkins
   namespace: devops
 spec:
-  type: NodePort
-  externalTrafficPolicy: Local
+  # ★ [수정] Istio Ingress를 통하므로 NodePort 대신 ClusterIP 사용 권장
+  type: ClusterIP
   ports:
     - name: http
       port: 8080
       targetPort: 8080
-      nodePort: 31431
     - name: agent
       port: 50000
       targetPort: 50000
-      nodePort: 30000
   selector:
     app: jenkins
