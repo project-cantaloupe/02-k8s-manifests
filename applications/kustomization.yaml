@@ -5,7 +5,7 @@ resources:
   - jenkins.yaml
   - harbor.yaml
   - gcp-storage.yaml
-  - test-logging.yaml
+  - logging-stack.yaml
   - istio-base.yaml
   - istiod.yaml
   - monitoring-foundation.yaml
