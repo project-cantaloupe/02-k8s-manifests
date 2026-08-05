@@ -1,0 +1,83 @@
+# nginx-unprivileged가 정적 빌드 결과만 서빙한다. AWS 자격증명도 데이터베이스도
+# 사용하지 않으므로 Node Instance Profile이나 RDS 없이 단독으로 뜬다.
+#
+# nodeSelector는 apps/audio/kustomization.yaml이 일괄 주입하므로 여기 적지 않는다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audio-web
+  namespace: apps
+  labels:
+    app: audio-web
+    area: apps
+    platform: aws
+    component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audio-web
+  template:
+    metadata:
+      labels:
+        app: audio-web
+        area: apps
+        platform: aws
+        component: web
+      annotations:
+        # Namespace 전체 자동 주입을 켜지 않으므로 Sidecar가 필요한 Workload만
+        # 명시한다. Web은 Gateway에서 오는 mTLS 트래픽을 받는다.
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+        - name: web
+          image: audio-web
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          # nginx.conf가 8080에서 /healthz에 200을 반환한다.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          # nginx는 임시 파일과 PID를 쓰므로 읽기 전용 루트에서 쓰기 경로를 준다.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}

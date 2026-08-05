@@ -1,0 +1,19 @@
+# 외부 노출은 Ingress Gateway가 담당하므로 ClusterIP로 둔다. NodePort를 가진
+# 것은 Cluster 전체에서 Gateway 하나뿐이다.
+apiVersion: v1
+kind: Service
+metadata:
+  name: audio-web
+  namespace: apps
+  labels:
+    app: audio-web
+    area: apps
+    platform: aws
+    component: web
+spec:
+  selector:
+    app: audio-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
