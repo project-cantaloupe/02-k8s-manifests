@@ -11,7 +11,8 @@ resources:
   - registry-config.yaml
   - portal.yaml
   - registry.yaml
-  - virtualservice.yaml  # 신규 추가
+  - virtualservice.yaal
+  - pvc.yaml
 
 patches:
   # 1. Harbor Service 패치
