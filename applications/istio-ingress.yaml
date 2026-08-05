@@ -43,10 +43,10 @@ spec:
         labels:
           app: istio-ingress
           area: apps
-          platform: aws
+          platform: onp
         nodeSelector:
-          platform: aws
-          role: service
+          platform: onp
+          role: devops
         containerSecurityContext:
           runAsNonRoot: true
           runAsUser: 1337
