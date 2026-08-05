@@ -1,4 +1,4 @@
-apiVersion: networking.istio.io/v1beta1
+apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
   name: harbor-vs
@@ -12,8 +12,10 @@ spec:
   - match:
     - uri:
         prefix: /harbor
+    rewrite:
+      uri: /
     route:
     - destination:
-        host: harbor-portal   # UI 타겟 서비스 이름 수정
+        host: harbor-portal
         port:
           number: 80
