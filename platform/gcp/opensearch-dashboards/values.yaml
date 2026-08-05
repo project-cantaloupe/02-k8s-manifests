@@ -1,0 +1,14 @@
+opensearchHosts: "http://opensearch-cluster-master.logging.svc.cluster.local:9200"
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+nodeSelector:
+  platform: gcp
+  role: logging
