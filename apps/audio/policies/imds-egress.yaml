@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: audio-web-deny-imds
+  namespace: apps
+spec:
+  podSelector:
+    matchLabels:
+      app: audio-web
+  policyTypes:
+    - Egress
+  egress:
+    # Web의 일반 IPv4 Egress를 유지하고 EC2 Metadata 주소만 제외
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32

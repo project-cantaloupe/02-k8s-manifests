@@ -22,5 +22,6 @@ patches:
           platform: aws
           role: service
 
-# 앱 매니페스트가 추가되면 api, worker, web을 여기에 등록한다.
-resources: []
+# Audio Workload와 함께 적용할 보안 정책 등록
+resources:
+  - policies
