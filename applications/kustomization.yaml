@@ -6,4 +6,4 @@ kind: Kustomization
 resources:
   - jenkins.yaml
   - harbor.yaml
-  - cert-manager.yaml
+  - secops.yaml

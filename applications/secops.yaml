@@ -1,22 +1,24 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cert-manager
+  name: secops
   namespace: devops
 spec:
   project: default
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
     targetRevision: main
-    path: platform/aws/cert-manager
+    path: platform/aws/secops
   destination:
     server: https://kubernetes.default.svc
-    namespace: secops
+    # 이 카탈로그가 만드는 것은 Argo CD Application 객체이고 그것들이 devops 에
+    # 산다. 각 Application 이 자기 destination namespace 를 따로 갖는다.
+    namespace: devops
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      # secops 네임스페이스는 governance/namespaces/secops.yaml 이 만든다.
+      # devops 는 governance/namespaces/devops.yaml 이 만든다.
       # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
       - CreateNamespace=false

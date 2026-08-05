@@ -26,4 +26,4 @@ patches:
 # ArgoCD Application 은 그중 어느 것도 아니라 안 걸린다 — Helm 차트로 오는
 # 것은 각 차트의 values 에서 nodeSelector 를 준다 (README「라벨과 배치」).
 resources:
-  - kyverno
+  - secops
