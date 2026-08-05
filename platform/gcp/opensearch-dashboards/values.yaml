@@ -1,5 +1,11 @@
 opensearchHosts: "http://opensearch-cluster-master.logging.svc.cluster.local:9200"
 
+# The OpenSearch security plugin is disabled for the internal smoke setup.
+# Disable the matching Dashboards plugin, because no login credentials exist.
+extraEnvs:
+  - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+    value: "true"
+
 # OpenSearch 2.12.0과 Dashboards 메이저/마이너 버전을 맞춘다.
 image:
   tag: "2.12.0"
