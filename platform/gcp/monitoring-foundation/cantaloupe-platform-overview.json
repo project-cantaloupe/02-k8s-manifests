@@ -60,7 +60,7 @@
       "gridPos": {"h": 5, "w": 3, "x": 6, "y": 1},
       "id": 3,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} == 1)", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} == 1) or vector(0)", "instant": true, "refId": "A"}],
       "title": "Pending Pods",
       "type": "stat"
     },
@@ -71,7 +71,7 @@
       "gridPos": {"h": 5, "w": 3, "x": 9, "y": 1},
       "id": 4,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Failed\"} == 1)", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Failed\"} == 1) or vector(0)", "instant": true, "refId": "A"}],
       "title": "Failed Pods",
       "type": "stat"
     },
@@ -82,7 +82,7 @@
       "gridPos": {"h": 5, "w": 3, "x": 12, "y": 1},
       "id": 5,
       "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "round(sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h])))", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h]))) or vector(0)", "instant": true, "refId": "A"}],
       "title": "Restarts (1h)",
       "type": "stat"
     },
@@ -93,7 +93,7 @@
       "gridPos": {"h": 5, "w": 3, "x": 15, "y": 1},
       "id": 6,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "count(kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\"} == 1)", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "count(kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\"} == 1) or vector(0)", "instant": true, "refId": "A"}],
       "title": "Last OOMKilled",
       "type": "stat"
     },
@@ -104,7 +104,7 @@
       "gridPos": {"h": 5, "w": 3, "x": 18, "y": 1},
       "id": 7,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "count(kube_persistentvolumeclaim_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} == 1)", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "count(kube_persistentvolumeclaim_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} == 1) or vector(0)", "instant": true, "refId": "A"}],
       "title": "Pending PVCs",
       "type": "stat"
     },
@@ -115,7 +115,7 @@
       "gridPos": {"h": 5, "w": 3, "x": 21, "y": 1},
       "id": 8,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "count(up == 0)", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "count(up == 0) or vector(0)", "instant": true, "refId": "A"}],
       "title": "Targets Down",
       "type": "stat"
     },
