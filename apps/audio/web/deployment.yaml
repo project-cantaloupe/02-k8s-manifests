@@ -24,9 +24,12 @@ spec:
         area: apps
         platform: aws
         component: web
-      annotations:
         # Namespace 전체 자동 주입을 켜지 않으므로 Sidecar가 필요한 Workload만
         # 명시한다. Web은 Gateway에서 오는 mTLS 트래픽을 받는다.
+        #
+        # 어노테이션이 아니라 Pod 라벨이어야 한다. Istio 주입 Webhook은
+        # objectSelector로 대상을 고르는데 Kubernetes의 selector는 라벨만 본다.
+        # 어노테이션으로 두면 Webhook이 이 Pod를 대상으로 인식하지 못한다.
         sidecar.istio.io/inject: "true"
     spec:
       # GHCR 패키지가 private이므로 Pull 자격증명이 필요하다. Secret은 Token을
