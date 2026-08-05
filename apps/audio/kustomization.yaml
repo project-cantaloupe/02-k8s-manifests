@@ -25,4 +25,6 @@ patches:
 # Namespace를 먼저 두고, 그 뒤에 정책과 Workload를 등록한다.
 resources:
   - namespace.yaml
+  - gateway.yaml
   - policies
+  - web
