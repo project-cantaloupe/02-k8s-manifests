@@ -7,9 +7,8 @@ spec:
   hosts:
   - "*"
   gateways:
-  - istio-system/ingressgateway
+  - istio-ingress/istio-gateway  # 👈 여기를 수정합니다!
   http:
-  # 1. Harbor API 및 Registry 라우팅 (우선순위 높음)
   - match:
     - uri:
         prefix: /api/
@@ -24,8 +23,6 @@ spec:
         host: harbor.devops.svc.cluster.local
         port:
           number: 80
-
-  # 2. Harbor UI Portal (루트 경로 전체 매핑)
   - match:
     - uri:
         prefix: /
