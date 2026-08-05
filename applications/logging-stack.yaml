@@ -2,7 +2,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: test-logging
+  name: logging-stack
   namespace: devops
   annotations:
     argocd.argoproj.io/sync-wave: "1"
