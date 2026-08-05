@@ -1,0 +1,11 @@
+kraft:
+  enabled: true
+
+persistence:
+  enabled: true
+  storageClass: "gcp-pd-sc"
+  size: "20Gi"
+
+listeners:
+  client:
+    protocol: PLAINTEXT
