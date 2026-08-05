@@ -2,10 +2,10 @@ apiVersion: networking.istio.io/v1
 kind: Gateway
 metadata:
   name: audio-gateway
-  namespace: istio-ingress
+  namespace: audio-ingress
 spec:
   selector:
-    app: istio-ingress
+    app: audio-ingress
   servers:
     - port:
         number: 80

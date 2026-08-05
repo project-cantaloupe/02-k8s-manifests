@@ -1,9 +1,15 @@
-# DNS와 Kubernetes Service Account OIDC가 준비된 뒤 Root 목록에 등록한다.
+# Route53 Hosted Zone과 cert-manager의 AWS 자격증명 경로가 확정된 뒤 Root 목록에
+# 등록한다. 이 PoC는 Workload IAM(OIDC)을 채택하지 않고 AWS Service Worker의
+# Node Instance Profile을 사용하므로, DNS-01에 필요한 Route53 권한을 Node Role에
+# 추가할지 먼저 결정해야 한다. Node Role은 Audio 권한 합집합이므로 Route53을
+# 더하면 권한 범위가 그만큼 넓어진다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: cert-manager
   namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
 spec:
   project: default
   source:
@@ -47,24 +53,9 @@ spec:
               memory: 32Mi
             limits:
               memory: 64Mi
-        # Self-managed Kubernetes OIDC를 연결한 뒤 두 값을 실제 ARN과 경로로 교체
-        extraEnv:
-          - name: AWS_ROLE_ARN
-            value: REPLACE_CERT_MANAGER_ROLE_ARN
-          - name: AWS_WEB_IDENTITY_TOKEN_FILE
-            value: /var/run/secrets/aws-iam-token/serviceaccount-token
-        volumes:
-          - name: aws-iam-token
-            projected:
-              sources:
-                - serviceAccountToken:
-                    audience: sts.amazonaws.com
-                    expirationSeconds: 86400
-                    path: serviceaccount-token
-        volumeMounts:
-          - name: aws-iam-token
-            mountPath: /var/run/secrets/aws-iam-token
-            readOnly: true
+        # AWS 자격증명은 Node Instance Profile에서 IMDS로 가져온다. 별도 환경
+        # 변수나 Token Volume을 두지 않는다. Calico IMDS GlobalNetworkPolicy의
+        # 허용 대상에 cert-manager를 포함해야 DNS-01이 동작한다.
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

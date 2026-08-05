@@ -12,4 +12,5 @@ resources:
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
   - opencost.yaml
+  - audio-ingress.yaml
   - app-audio.yaml
