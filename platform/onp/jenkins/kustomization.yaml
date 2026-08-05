@@ -5,7 +5,6 @@ namespace: devops
 
 resources:
   - jenkins-deployment.yaml
-  - virtualservice.yaml  # 신규 추가
 
 labels:
   - pairs:
