@@ -91,10 +91,13 @@ spec:
                 - cert-manager
                 - istio-system
                 - istio-ingress
-                # ambient 데이터플레인. 둘 다 hostNetwork DaemonSet 이라
-                # NetworkPolicy 가 애초에 안 고르지만, 제외에 적어두지 않으면
-                # "왜 여긴 정책이 없지" 를 나중에 다시 조사하게 된다.
-                # calico-node·typha 와 같은 성격이다.
+                # ambient 데이터플레인.
+                #
+                # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
+                # NetworkPolicy 가 그대로 걸린다 (2026-08-05 `helm template`
+                # 실측. calico-node·typha 와는 다르다). 특히 ztunnel 을 막으면
+                # **노드 간 메시 트래픽이 통째로 죽는다** — 아래
+                # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
       generate:
@@ -140,10 +143,13 @@ spec:
                 - cert-manager
                 - istio-system
                 - istio-ingress
-                # ambient 데이터플레인. 둘 다 hostNetwork DaemonSet 이라
-                # NetworkPolicy 가 애초에 안 고르지만, 제외에 적어두지 않으면
-                # "왜 여긴 정책이 없지" 를 나중에 다시 조사하게 된다.
-                # calico-node·typha 와 같은 성격이다.
+                # ambient 데이터플레인.
+                #
+                # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
+                # NetworkPolicy 가 그대로 걸린다 (2026-08-05 `helm template`
+                # 실측. calico-node·typha 와는 다르다). 특히 ztunnel 을 막으면
+                # **노드 간 메시 트래픽이 통째로 죽는다** — 아래
+                # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
       generate:
@@ -188,10 +194,13 @@ spec:
                 - cert-manager
                 - istio-system
                 - istio-ingress
-                # ambient 데이터플레인. 둘 다 hostNetwork DaemonSet 이라
-                # NetworkPolicy 가 애초에 안 고르지만, 제외에 적어두지 않으면
-                # "왜 여긴 정책이 없지" 를 나중에 다시 조사하게 된다.
-                # calico-node·typha 와 같은 성격이다.
+                # ambient 데이터플레인.
+                #
+                # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
+                # NetworkPolicy 가 그대로 걸린다 (2026-08-05 `helm template`
+                # 실측. calico-node·typha 와는 다르다). 특히 ztunnel 을 막으면
+                # **노드 간 메시 트래픽이 통째로 죽는다** — 아래
+                # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
       generate:
@@ -250,10 +259,13 @@ spec:
                 - cert-manager
                 - istio-system
                 - istio-ingress
-                # ambient 데이터플레인. 둘 다 hostNetwork DaemonSet 이라
-                # NetworkPolicy 가 애초에 안 고르지만, 제외에 적어두지 않으면
-                # "왜 여긴 정책이 없지" 를 나중에 다시 조사하게 된다.
-                # calico-node·typha 와 같은 성격이다.
+                # ambient 데이터플레인.
+                #
+                # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
+                # NetworkPolicy 가 그대로 걸린다 (2026-08-05 `helm template`
+                # 실측. calico-node·typha 와는 다르다). 특히 ztunnel 을 막으면
+                # **노드 간 메시 트래픽이 통째로 죽는다** — 아래
+                # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
       generate:
@@ -281,3 +293,62 @@ spec:
                   - namespaceSelector:
                       matchLabels:
                         kubernetes.io/metadata.name: istio-ingress
+
+    - name: allow-from-ztunnel
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
+                - cert-manager
+                - istio-system
+                - istio-ingress
+                - istio-cni
+                - ztunnel
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: allow-from-ztunnel
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+            ingress:
+              # ⚠️ **ambient 의 노드 간 트래픽이 여기로 들어온다.**
+              #
+              # 사이드카였다면 파드 A → 파드 B 의 출발지 IP 가 A 의 podIP 라
+              # 같은 네임스페이스면 `allow-same-namespace` 로 끝났다. ambient
+              # 는 다른 노드의 ztunnel 이 HBONE 터널로 대신 열어준다.
+              #
+              # **그 ztunnel 은 hostNetwork 가 아니라 podIP 를 가진 일반
+              # 파드이고, `ztunnel` 네임스페이스에 산다.** 즉 도착 파드에는
+              # **교차 네임스페이스 인그레스**로 보인다.
+              #
+              # 기존 규칙 어느 것도 이걸 안 덮는다 (2026-08-05 실측):
+              #   allow-same-namespace  다른 네임스페이스라 해당 없음
+              #   allow-from-mesh       파드 CIDR 은 10.244.0.0/16 이고
+              #                         100.64.0.0/10 이 아니다
+              #
+              # ⚠️ **ztunnel 이 출발지 IP 를 보존하는지는 확인 못 했다.**
+              # 보존하면 이 규칙은 아무 일도 안 하는 무해한 규칙이고,
+              # 보존 안 하면 이게 없을 때 **메시가 조용히 죽는다.**
+              # NetworkPolicy 는 합집합이라 넣어두는 쪽이 싸다.
+              # → findings/20260805_ambient-networkpolicy-crossing.md
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: ztunnel
