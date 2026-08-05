@@ -4,11 +4,40 @@ metadata:
   name: harbor-vs
   namespace: devops
 spec:
-  hosts:
-  - "*"
   gateways:
   - istio-ingress/istio-gateway
+  hosts:
+  - "*"
   http:
+  # 1. Harbor API 및 핵심 서비스 (/api, /c, /v2.0, /service) -> harbor-core
+  - match:
+    - uri:
+        prefix: /api/
+    - uri:
+        prefix: /c/
+    - uri:
+        prefix: /v2.0/
+    - uri:
+        prefix: /service/
+    - uri:
+        prefix: /chartrepo/
+    route:
+    - destination:
+        host: harbor-core
+        port:
+          number: 80
+
+  # 2. Container Registry V2 API (/v2) -> harbor-registry
+  - match:
+    - uri:
+        prefix: /v2/
+    route:
+    - destination:
+        host: harbor-registry
+        port:
+          number: 5000
+
+  # 3. Harbor UI Portal (기본 모든 UI 요청) -> harbor-portal
   - match:
     - uri:
         prefix: /
