@@ -50,50 +50,77 @@ kubectl -n apps create secret docker-registry ghcr-pull \
   --docker-password=<read-packages-token>
 ```
 
-### 2. `audio-aws-endpoints` — SQS Queue URL
-
-Queue URL에 AWS 계정 ID가 들어가므로 커밋하지 않는다. Terraform 출력에서 만든다.
-
-```bash
-cd 01-infra-provisioning/terraform/aws/audio
-export AWS_PROFILE=cntlp
-
-kubectl -n apps create configmap audio-aws-endpoints \
-  --from-literal=SCAN_RESULT_QUEUE_URL="$(terraform output -json queue_urls | jq -r .scan_result)" \
-  --from-literal=TRANSCODE_QUEUE_URL="$(terraform output -json queue_urls | jq -r .transcode)" \
-  --from-literal=TRANSCODE_RESULT_QUEUE_URL="$(terraform output -json queue_urls | jq -r .transcode_result)" \
-  --from-literal=CLOUDFRONT_BASE_URL="$(terraform output -raw cloudfront_base_url)" \
-  --from-literal=CLOUDFRONT_KEY_PAIR_ID="$(terraform output -raw cloudfront_key_pair_id)"
-```
-
-### 3. `audio-database` — DATABASE_URL
+### 2. `audio-database` — DATABASE_URL
 
 RDS가 `manage_master_user_password`로 관리하는 Secret에서 비밀번호를 읽어 만든다.
-비밀번호를 셸 히스토리에 남기지 않도록 한 줄로 처리한다.
+
+**Control Plane Node에서 실행한다.** Instance Profile로 이 Secret을 읽을 권한이
+있다. 비밀번호가 화면이나 셸 히스토리에 남지 않도록 한 파이프라인으로 처리한다.
 
 ```bash
-cd 01-infra-provisioning/terraform/aws/database
-export AWS_PROFILE=cntlp
+DB_SECRET=$(aws secretsmanager get-secret-value \
+  --secret-id "$(aws rds describe-db-instances --db-instance-identifier cntlp-aws-api-db \
+    --query 'DBInstances[0].MasterUserSecret.SecretArn' --output text)" \
+  --query SecretString --output text)
 
-SECRET_ARN=$(terraform output -raw master_user_secret_arn)
-HOST=$(terraform output -raw database_address)
-PORT=$(terraform output -raw database_port)
-DBNAME=$(terraform output -raw database_name)
-USER=$(terraform output -raw master_username)
+DB_HOST=$(aws rds describe-db-instances --db-instance-identifier cntlp-aws-api-db \
+  --query 'DBInstances[0].Endpoint.Address' --output text)
 
 kubectl -n apps create secret generic audio-database \
-  --from-literal=DATABASE_URL="postgres://$USER:$(aws secretsmanager get-secret-value \
-    --secret-id "$SECRET_ARN" --query SecretString --output text | jq -r .password)@$HOST:$PORT/$DBNAME?sslmode=require"
+  --from-literal=DATABASE_URL="postgres://cntlpadmin:$(printf '%s' "$DB_SECRET" | jq -r .password)@$DB_HOST:5432/audio?sslmode=require"
+
+unset DB_SECRET
 ```
 
-### 4. `cloudfront-signing-key` — CloudFront 서명 개인키
+### 3. `cloudfront-signing-key` — CloudFront 서명 개인키
 
-Signed URL 발급에 필요하다. 개인키를 Git이나 로그에 남기지 않는다.
+**개인키는 Control Plane Node에서 만들고 그 노드 밖으로 내보내지 않는다.**
+공개키만 Terraform에 전달한다. 노트북에서 키를 만들면 개인키가 AWS 밖에 존재하게
+된다.
+
+Control Plane Node에서 키 쌍을 만든다.
+
+```bash
+umask 077
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+  -out /tmp/cloudfront-private-key.pem
+openssl pkey -in /tmp/cloudfront-private-key.pem -pubout \
+  -out /tmp/cloudfront-public-key.pub
+```
+
+같은 노드에서 바로 Kubernetes Secret을 만든다.
 
 ```bash
 kubectl -n apps create secret generic cloudfront-signing-key \
-  --from-file=cloudfront-private-key.pem=01-infra-provisioning/terraform/aws/audio/cloudfront-private-key.pem
+  --from-file=cloudfront-private-key.pem=/tmp/cloudfront-private-key.pem
 ```
+
+공개키만 가져가 Terraform에 반영한다. 공개 값이므로 이동해도 무방하다.
+
+```bash
+# 작업 머신에서
+scp ubuntu@cntlp-aws-cp-01:/tmp/cloudfront-public-key.pub \
+  01-infra-provisioning/terraform/aws/audio/cloudfront-public-key.pub
+```
+
+Terraform이 CloudFront 공개키와 Key Group을 갱신한다. Distribution 전파에 보통
+5~15분 걸린다.
+
+```bash
+cd 01-infra-provisioning
+AWS_PROFILE=cntlp terraform -chdir=terraform/aws/audio apply
+```
+
+반영이 끝나면 노드의 개인키 파일을 지운다. Kubernetes Secret에만 남는다.
+
+```bash
+shred -u /tmp/cloudfront-private-key.pem /tmp/cloudfront-public-key.pub
+```
+
+> 조직 표준 시크릿 저장소는 HashiCorp Vault다. 구축 중이라 이번에는 Kubernetes
+> Secret에 직접 둔다. Deployment는 Secret 이름만 참조하므로 Vault 연동 시
+> External Secrets Operator의 ExternalSecret으로 교체하면 매니페스트 변경이
+> 필요 없다.
 
 ## 데이터베이스 마이그레이션
 
@@ -106,33 +133,6 @@ kubectl -n apps run psql-migrate --rm -it --restart=Never \
   --overrides='{"spec":{"nodeSelector":{"platform":"aws","role":"service"}}}' \
   --env="PGURL=$(kubectl -n apps get secret audio-database -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
   -- sh -c 'psql "$PGURL" -f -' < ../03-app-audio/services/api/migrations/001_init.sql
-```
-
-## 이미지 Pull Secret
-
-컨테이너 이미지는 GHCR의 private 패키지다. GitHub 저장소를 private으로 유지하는
-것과 패키지 공개 여부는 별개 설정이지만, 이 프로젝트는 둘 다 private으로 둔다.
-
-Secret은 Token을 담으므로 **Git에 넣지 않는다.** 클러스터에서 직접 만든다.
-
-```bash
-kubectl -n apps create secret docker-registry ghcr-pull \
-  --docker-server=ghcr.io \
-  --docker-username=<github-username> \
-  --docker-password=<personal-access-token>
-```
-
-Token은 `read:packages` 권한이면 충분하다. Push에 쓰는 `write:packages` Token을
-클러스터에 넣지 않는다.
-
-이 수동 단계는 임시 조치다. 장기적으로는 External Secrets Operator로
-Secrets Manager에서 동기화하는 방향이 맞다.
-
-Secret이 없으면 Pod가 `ImagePullBackOff` 상태가 된다.
-
-```bash
-kubectl -n apps get secret ghcr-pull
-kubectl -n apps describe pod -l app=audio-web | tail -20
 ```
 
 ## 이미지 빌드

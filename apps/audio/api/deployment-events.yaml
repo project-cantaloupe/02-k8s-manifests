@@ -39,8 +39,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: audio-settings
-            - configMapRef:
-                name: audio-aws-endpoints
             - secretRef:
                 name: audio-database
           startupProbe:

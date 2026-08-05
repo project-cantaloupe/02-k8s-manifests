@@ -42,9 +42,6 @@ spec:
             # Git이 관리하는 비민감 설정
             - configMapRef:
                 name: audio-settings
-            # 계정 ID가 들어가는 Queue URL. 클러스터에서 직접 생성한다.
-            - configMapRef:
-                name: audio-aws-endpoints
             # RDS 자격증명으로 만든 DATABASE_URL. 클러스터에서 직접 생성한다.
             - secretRef:
                 name: audio-database
