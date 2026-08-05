@@ -30,13 +30,13 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "선택한 platform/role의 전체 Node 중 Ready 비율이다. Node가 증설되면 label_platform/label_role 기준으로 자동 포함된다. 100%가 정상이며 값을 클릭하면 비정상 Node Condition 상세를 연다.",
+      "description": "선택한 platform/role의 전체 Node 대비 Ready Node 비율이다. 100%는 선택 범위의 모든 Node가 Ready임을 뜻한다. Node 증설 시 label_platform/label_role 기준으로 전체 수와 Ready 수가 자동 반영되며, 값을 클릭하면 비정상 Node Condition 상세를 연다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "links": [{"title": "Node Condition 상세 보기", "url": "/grafana/d/cantaloupe-platform-overview/cantaloupe-platform-overview?viewPanel=23&${platform:queryparam}&${role:queryparam}"}], "mappings": [], "max": 100, "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 80}, {"color": "green", "value": 100}]}, "unit": "percent"}, "overrides": []},
       "gridPos": {"h": 5, "w": 3, "x": 0, "y": 1},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
       "targets": [{"expr": "100 * sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}) / count(kube_node_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "refId": "A"}],
-      "title": "Node Ready Ratio",
+      "title": "Node Ready",
       "type": "stat"
     },
     {
