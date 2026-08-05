@@ -12,6 +12,8 @@ spec:
       app: fluentd
   template:
     metadata:
+      annotations:
+        checksum/fluentd-config: 8737cfff0799af4de8e90abbf26434a35852f91157b481d5812eb39d8db30501
       labels:
         app: fluentd
         area: logging

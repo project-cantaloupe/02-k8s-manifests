@@ -28,6 +28,9 @@ data:
       host opensearch-cluster-master.logging.svc.cluster.local
       port 9200
       scheme http
+      # fluent-plugin-elasticsearch 5.x는 OpenSearch 2를 Elasticsearch 7 client와
+      # 비호환으로 오판한다. OpenSearch의 Elasticsearch 호환 API를 사용한다.
+      verify_es_version_at_startup false
       index_name cantaloupe-logs
       include_tag_key true
       flush_mode interval
