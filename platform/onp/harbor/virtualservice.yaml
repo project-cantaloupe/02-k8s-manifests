@@ -9,28 +9,11 @@ spec:
   gateways:
   - istio-ingress/istio-gateway
   http:
-  # 1. Harbor 백엔드 API & Registry
-  - match:
-    - uri:
-        prefix: /api/
-    - uri:
-        prefix: /v2/
-    - uri:
-        prefix: /service/
-    - uri:
-        prefix: /c/
-    route:
-    - destination:
-        host: harbor.devops.svc.cluster.local
-        port:
-          number: 80
-
-  # 2. Harbor 프론트엔드 UI Portal
   - match:
     - uri:
         prefix: /
     route:
     - destination:
-        host: harbor-portal.devops.svc.cluster.local
+        host: harbor.devops.svc.cluster.local
         port:
           number: 80
