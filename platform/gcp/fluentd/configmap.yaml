@@ -21,21 +21,6 @@ data:
       </parse>
     </source>
 
-    <filter k8s.**>
-      @type parser
-      key_name message
-      reserve_data true
-      <parse>
-        @type multi_format
-        <pattern>
-          format json
-        </pattern>
-        <pattern>
-          format none
-        </pattern>
-      </parse>
-    </filter>
-
     # 첫 smoke에서는 Kafka consumer 이미지가 아직 없으므로 OpenSearch에 직접 적재한다.
     # Kafka(k8s-logs)는 다음 단계에서 durable buffer/재처리 경로로 연결한다.
     <match k8s.**>
