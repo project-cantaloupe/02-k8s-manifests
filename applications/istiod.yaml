@@ -30,8 +30,8 @@ spec:
         autoscaleEnabled: false
         replicaCount: 1
         nodeSelector:
-          platform: aws
-          role: service
+          platform: onp
+          role: devops
         resources:
           requests:
             cpu: 200m
