@@ -1,15 +1,3 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: harbor-data-pvc
-  namespace: devops
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 50Gi
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -29,8 +17,18 @@ spec:
         - name: harbor-core
           image: goharbor/harbor-core:v2.10.0
           env:
+            # 1. K8s 자동 주입 변수 덮어쓰기 (숫자 포트 명시)
+            - name: POSTGRESQL_HOST
+              value: "postgresql"
+            - name: POSTGRESQL_PORT
+              value: "5432"
+            
+            # 2. Redis 캐시 설정 (memory -> redis 변경)
             - name: CACHE_TYPE
-              value: "memory"
+              value: "redis"
+            - name: REDIS_URL
+              value: "redis://harbor-redis:6379/0"
+              
             - name: PORT
               value: "8080"
           ports:
@@ -43,17 +41,3 @@ spec:
         - name: harbor-data
           persistentVolumeClaim:
             claimName: harbor-data-pvc
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: harbor
-  namespace: devops
-spec:
-  type: ClusterIP
-  ports:
-    - name: http
-      port: 80
-      targetPort: 8080
-  selector:
-    app: harbor-core
