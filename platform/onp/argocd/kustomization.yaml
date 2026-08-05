@@ -38,7 +38,9 @@ patches:
       metadata:
         name: argocd-cmd-params-cm
       data:
-        server.insecure: "false"
+        server.insecure: "true"
+        server.basehref: "/argocd"
+        server.rootpath: "/argocd"
 
   # Tailscale Serve가 전달할 Argo CD HTTPS backend를 NodePort로 고정한다.
   #  - target:
