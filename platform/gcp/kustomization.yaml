@@ -6,4 +6,4 @@ resources:
   - csi-driver
   - monitoring
   - opensearch
-  - fluentd
+  - fluent-bit
