@@ -36,8 +36,8 @@
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
       "targets": [
-        {"expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "Ready", "refId": "A"},
-        {"expr": "count(kube_node_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "Total", "refId": "B"}
+        {"expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "legendFormat": "Ready", "refId": "A"},
+        {"expr": "count(kube_node_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "legendFormat": "Total", "refId": "B"}
       ],
       "title": "Ready / Total Nodes",
       "type": "stat"
@@ -49,29 +49,29 @@
       "gridPos": {"h": 5, "w": 3, "x": 3, "y": 1},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Running\"} * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "refId": "A"}],
+      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Running\"} * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "refId": "A"}],
       "title": "Running Pods",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "현재 Pending 상태인 Pod 수다. 0보다 크면 스케줄링 실패, PVC, 이미지 문제 등을 확인한다.",
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}, {"color": "red", "value": 3}]}, "unit": "short"}, "overrides": []},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "links": [{"title": "Pending Pod 상세 보기", "url": "/grafana/d/cantaloupe-platform-overview/cantaloupe-platform-overview?viewPanel=18&${namespace:queryparam}&${platform:queryparam}&${role:queryparam}"}], "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}, {"color": "red", "value": 3}]}, "unit": "short"}, "overrides": []},
       "gridPos": {"h": 5, "w": 3, "x": 6, "y": 1},
       "id": 3,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "refId": "A"}],
+      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "refId": "A"}],
       "title": "Pending Pods",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "현재 Failed 상태인 Pod 수다.",
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "links": [{"title": "Failed Pod 상세 보기", "url": "/grafana/d/cantaloupe-platform-overview/cantaloupe-platform-overview?viewPanel=18&${namespace:queryparam}&${platform:queryparam}&${role:queryparam}"}], "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
       "gridPos": {"h": 5, "w": 3, "x": 9, "y": 1},
       "id": 4,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Failed\"} * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "refId": "A"}],
+      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Failed\"} * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "refId": "A"}],
       "title": "Failed Pods",
       "type": "stat"
     },
@@ -82,18 +82,18 @@
       "gridPos": {"h": 5, "w": 3, "x": 12, "y": 1},
       "id": 5,
       "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "round(sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h])))", "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h])))", "instant": true, "refId": "A"}],
       "title": "Restarts (1h)",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "마지막 종료 원인이 OOMKilled인 Container 수다.",
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "links": [{"title": "OOMKilled 상세 보기", "url": "/grafana/d/cantaloupe-platform-overview/cantaloupe-platform-overview?viewPanel=18&${namespace:queryparam}&${platform:queryparam}&${role:queryparam}"}], "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
       "gridPos": {"h": 5, "w": 3, "x": 15, "y": 1},
       "id": 6,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "count(kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\"} == 1)", "refId": "A"}],
+      "targets": [{"expr": "count(kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\"} == 1)", "instant": true, "refId": "A"}],
       "title": "OOMKilled",
       "type": "stat"
     },
@@ -104,18 +104,18 @@
       "gridPos": {"h": 5, "w": 3, "x": 18, "y": 1},
       "id": 7,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "count(kube_persistentvolumeclaim_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} == 1)", "refId": "A"}],
+      "targets": [{"expr": "count(kube_persistentvolumeclaim_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} == 1)", "instant": true, "refId": "A"}],
       "title": "Pending PVCs",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "Prometheus가 현재 scrape하지 못하는 Target 수다. 0이 정상이다.",
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "links": [{"title": "Down Target 상세 보기", "url": "/grafana/d/cantaloupe-platform-overview/cantaloupe-platform-overview?viewPanel=26"}], "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
       "gridPos": {"h": 5, "w": 3, "x": 21, "y": 1},
       "id": 8,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "count(up == 0)", "refId": "A"}],
+      "targets": [{"expr": "count(up == 0)", "instant": true, "refId": "A"}],
       "title": "Targets Down",
       "type": "stat"
     },
@@ -251,14 +251,15 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "현재 Pending/Failed Pod 또는 마지막 종료 원인이 OOMKilled인 Container를 표시한다. 결과가 없으면 정상이다.",
+      "description": "현재 Pending/Failed Pod, OOMKilled, Container waiting reason을 표시한다. 상단 상태 카드를 클릭하면 이 패널로 이동한다. 결과가 없으면 정상이다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "color-text"}, "inspect": false}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
       "gridPos": {"h": 7, "w": 24, "x": 0, "y": 39},
       "id": 18,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
       "targets": [
         {"expr": "(kube_pod_status_phase{namespace=~\"$namespace\",phase=~\"Pending|Failed\"} == 1) * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "legendFormat": "Pod state", "refId": "A"},
-        {"expr": "(kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\"} == 1) * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "legendFormat": "OOMKilled", "refId": "B"}
+        {"expr": "(kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\"} == 1) * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "legendFormat": "OOMKilled", "refId": "B"},
+        {"expr": "(kube_pod_container_status_waiting_reason{namespace=~\"$namespace\",reason!=\"\"} == 1) * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "legendFormat": "Waiting reason", "refId": "C"}
       ],
       "title": "Pending / Failed / OOM Workloads",
       "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true, "service": true, "uid": true}, "indexByName": {}, "renameByName": {"Value": "State"}}}],
@@ -277,8 +278,20 @@
       "type": "table"
     },
     {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "현재 Prometheus scrape에 실패한 Target의 job, instance, namespace, pod, service를 표시한다. 결과가 없으면 모든 Target이 UP이다.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 52},
+      "id": 26,
+      "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Job"}]},
+      "targets": [{"expr": "up == 0", "format": "table", "instant": true, "refId": "A"}],
+      "title": "Prometheus Down Target Details",
+      "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "Value": true}, "indexByName": {"job": 0, "instance": 1, "namespace": 2, "pod": 3, "service": 4, "endpoint": 5}, "renameByName": {"job": "Job", "instance": "Instance", "namespace": "Namespace", "pod": "Pod", "service": "Service", "endpoint": "Endpoint"}}}],
+      "type": "table"
+    },
+    {
       "collapsed": true,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 52},
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 58},
       "id": 400,
       "panels": [
         {
