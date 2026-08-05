@@ -7,27 +7,14 @@ spec:
   hosts:
   - "*"
   gateways:
-  - istio-ingress/istio-gateway  # 👈 여기를 수정합니다!
+  - istio-ingress/istio-gateway
   http:
-  - match:
-    - uri:
-        prefix: /api/
-    - uri:
-        prefix: /v2/
-    - uri:
-        prefix: /service/
-    - uri:
-        prefix: /c/
-    route:
-    - destination:
-        host: harbor.devops.svc.cluster.local
-        port:
-          number: 80
+  # Harbor 통합 서비스로 전체 트래픽 전달
   - match:
     - uri:
         prefix: /
     route:
     - destination:
-        host: harbor-portal.devops.svc.cluster.local
+        host: harbor.devops.svc.cluster.local
         port:
           number: 80
