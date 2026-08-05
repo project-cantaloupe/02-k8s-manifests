@@ -218,7 +218,9 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: gcp-pd-sc
+          # Preserve Prometheus history used for incident review, FinOps trends,
+          # and right-sizing comparisons if the PVC is accidentally deleted.
+          storageClassName: gcp-pd-retain
           accessModes:
             - ReadWriteOnce
           resources:
