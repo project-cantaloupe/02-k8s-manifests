@@ -1,48 +1,36 @@
-apiVersion: networking.istio.io/v1beta1
+apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
   name: harbor-vs
   namespace: devops
 spec:
-  gateways:
-  - istio-ingress/istio-gateway
   hosts:
   - "*"
+  gateways:
+  - istio-system/ingressgateway # 사용 중인 Gateway 이름 확인
   http:
-  # 1. Harbor API 및 핵심 서비스 (/api, /c, /v2.0, /service) -> harbor-core
+  # 1. Harbor Portal (UI)
   - match:
     - uri:
-        prefix: /api/
-    - uri:
-        prefix: /c/
-    - uri:
-        prefix: /v2.0/
-    - uri:
-        prefix: /service/
-    - uri:
-        prefix: /chartrepo/
+        prefix: /harbor
+    rewrite:
+      uri: /
     route:
     - destination:
-        host: harbor-core
+        host: harbor-portal.devops.svc.cluster.local
         port:
           number: 80
 
-  # 2. Container Registry V2 API (/v2) -> harbor-registry
+  # 2. Harbor Core API
   - match:
     - uri:
-        prefix: /v2/
-    route:
-    - destination:
-        host: harbor-registry
-        port:
-          number: 5000
-
-  # 3. Harbor UI Portal (기본 모든 UI 요청) -> harbor-portal
-  - match:
+        prefix: /api
     - uri:
-        prefix: /
+        prefix: /v2
+    - uri:
+        prefix: /service
     route:
     - destination:
-        host: harbor-portal
+        host: harbor.devops.svc.cluster.local
         port:
           number: 80
