@@ -1,0 +1,138 @@
+fullnameOverride: opencost
+clusterName: cluster.local
+
+podLabels:
+  app: opencost
+  area: monitoring
+  platform: gcp
+  cost-allocation: shared
+
+# Bump this value whenever node-pricing.csv changes so Argo CD rolls the Pod
+# immediately instead of waiting for the CSV provider's hourly refresh.
+podAnnotations:
+  finops.opencost.io/pricing-version: "2026-08-05-1"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+service:
+  type: ClusterIP
+
+opencost:
+  nodeSelector:
+    platform: gcp
+    role: monitoring
+  exporter:
+    defaultClusterId: cantaloupe
+    # A single CSV provider is required because this Kubernetes cluster mixes
+    # AWS, GCP, and on-premises nodes. The stock cloud-provider detection picks
+    # one provider for the entire OpenCost process and cannot price this layout.
+    extraEnv:
+      USE_CUSTOM_PROVIDER: "true"
+      USE_CSV_PROVIDER: "true"
+      CSV_PATH: /var/configs/node-pricing.csv
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000
+      capabilities:
+        drop:
+          - ALL
+    extraVolumeMounts:
+      - name: opencost-configs
+        mountPath: /var/configs
+  metrics:
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: monitoring
+      scrapeInterval: 60s
+      scrapeTimeout: 10s
+  prometheus:
+    internal:
+      enabled: true
+      serviceName: monitoring-prometheus
+      namespaceName: monitoring
+      port: 9090
+      scheme: http
+  cloudCost:
+    enabled: false
+  # CSV rows provide the authoritative total node price. CPU and RAM below are
+  # retained as a 7.5:1 allocation ratio and as fallback prices only; OpenCost
+  # normalizes the split back to each CSV node total.
+  customPricing:
+    enabled: true
+    provider: custom
+    costModel:
+      description: Cantaloupe mixed-provider public list-price allocation (USD)
+      customPricesEnabled: true
+      CPU: 0.03
+      spotCPU: 0.03
+      RAM: 0.004
+      spotRAM: 0.004
+      GPU: 0
+      storage: 0.000137
+      zoneNetworkEgress: 0
+      regionNetworkEgress: 0
+      internetNetworkEgress: 0
+  ui:
+    enabled: true
+    useIPv6: false
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      # The upstream UI rewrites its runtime base URL under /var/www at start.
+      readOnlyRootFilesystem: false
+      runAsNonRoot: true
+      # The upstream UI image owns /var/www as 1001:1000.
+      runAsUser: 1001
+      capabilities:
+        drop:
+          - ALL
+
+extraVolumes:
+  - name: opencost-configs
+    configMap:
+      name: opencost-node-pricing
+
+# The chart owns the price table so Argo CD applies the ConfigMap and Deployment
+# atomically. Node names are used as stable mixed-provider keys; every node must
+# have one exact row. AWS/GCP prices are public on-demand list prices captured on
+# 2026-08-05. On-premises uses the documented project benchmark because it has
+# no public cloud price.
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: opencost-node-pricing
+      namespace: monitoring
+      labels:
+        app: opencost
+        area: monitoring
+        cost-model: mixed-provider-public-list
+    data:
+      node-pricing.csv: |-
+        # schema: EndTimestamp | InstanceID | Region | AssetClass | InstanceIDField | InstanceType | MarketPriceHourly | Version
+        ,cntlp-aws-cp-01,,node,metadata.name,m7i-flex.large,0.117710000,aws-20260803194246
+        ,cntlp-aws-wk-01,,node,metadata.name,t3.small,0.026000000,aws-20260803194246
+        ,cntlp-gcp-wk-01,,node,metadata.name,e2-custom-4-8192,0.149119488,gcp-20260805
+        ,cntlp-gcp-wk-02,,node,metadata.name,e2-standard-4,0.171931440,gcp-20260805
+        ,cntlp-onp-wk-01,,node,metadata.name,custom-8vcpu-16gib,0.304000000,cantaloupe-benchmark-v1
+        ,gcp-pd-sc,,pv,spec.storageClassName,pd-standard,0.000071233,gcp-20260805

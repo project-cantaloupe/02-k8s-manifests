@@ -2,4 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # 구현을 마친 하위 구성만 resources에 등록한다.
-resources: []
+resources:
+  - csi-driver
+  - monitoring
+  - opensearch
+  - fluentd

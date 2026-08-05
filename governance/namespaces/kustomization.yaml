@@ -23,10 +23,14 @@ kind: Kustomization
 
 resources:
   - apps.yaml
+  - cert-manager.yaml
   - devops.yaml
   - finops.yaml
+  - istio-ingress.yaml
+  - istio-system.yaml
   - kyverno.yaml
   - logging.yaml
   - messaging.yaml
   - monitoring.yaml
   - secops.yaml
+  - storage-system.yaml

@@ -1,0 +1,88 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: storage-system
+
+# 공식 GCE PD CSI 배포 구성을 커밋 SHA로 고정한다. 직접 축약한 Controller
+# 매니페스트는 external-attacher, resizer와 필수 RBAC를 빠뜨리기 쉽다.
+resources:
+  - https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver//deploy/kubernetes/overlays/noauth?ref=542108f6279d571a4e2ab22656091d77b3df4449
+  - storageclass.yaml
+
+# Cantaloupe는 클라우드 구분에 location이 아니라 platform 라벨을 사용한다.
+# Controller는 GCE Metadata Server 인증을 사용하므로 GCP 노드에서만 실행한다.
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: csi-gce-pd-controller
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector/platform
+        value: gcp
+      - op: add
+        path: /spec/template/spec/nodeSelector/role
+        value: logging
+  - target:
+      group: apps
+      version: v1
+      kind: DaemonSet
+      name: csi-gce-pd-node
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector/platform
+        value: gcp
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRoleBinding
+      name: pd-csi-taint-controller-binding
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: storage-system
+  # 현재 클러스터는 Linux 전용이므로 upstream의 Windows Node Agent와 전용
+  # 권한 객체는 렌더링 결과에서 제거한다.
+  - target:
+      version: v1
+      kind: ServiceAccount
+      name: csi-gce-pd-node-sa-win
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: csi-gce-pd-node-sa-win
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+      name: csi-gce-pd-node-deploy-win
+    patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: csi-gce-pd-node-deploy-win
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRoleBinding
+      name: csi-gce-pd-node-win
+    patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: csi-gce-pd-node-win
+  - target:
+      group: apps
+      version: v1
+      kind: DaemonSet
+      name: csi-gce-pd-node-win
+    patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: csi-gce-pd-node-win

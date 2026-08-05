@@ -1,93 +1,66 @@
-# Let's Encrypt 발급자 둘 — staging 과 production.
+# Let's Encrypt 발급자 — staging 과 production.
 #
-# **staging 을 먼저 쓴다.** production 은 실패 시도에도 속도 제한이 걸리고,
-# 같은 이름에 대한 주당 발급 횟수 상한이 있다. 설정을 처음 맞출 때 몇 번
-# 틀리는 것은 정상이고, 그걸 production 에서 하면 한 주를 기다리게 된다.
-# staging 인증서는 브라우저가 신뢰하지 않는다 — 그게 정상이고, 발급 자체가
-# 되는지만 본다. 되면 Certificate 의 issuerRef 를 production 으로 바꾼다.
+# **여기 있는 이유** — ClusterIssuer 는 클러스터 범위 자원이고 여러 영역이
+# 같이 쓴다(오디오 앱의 `audio-tls`, 나중에 Keycloak 의 발행자 인증서).
+# 원래 `platform/aws/audio-edge/overlays/production/certificate.yaml` 안에
+# 있었는데, 그러면 **앱 오버레이가 클러스터 자원을 소유**하고 다른 영역이
+# 인증서를 받으려면 오디오 앱 배포에 의존하게 된다.
+# → tasks/doing/009_istio-governance-reconcile.md 2번
 #
-# ── 선행 조건 셋 ────────────────────────────────────────────────
+# 앱 오버레이에는 그 앱의 `Certificate` 만 남겼다. 이름으로 참조하므로
+# 정의 위치가 바뀌어도 그대로 붙는다.
 #
-# 1. **DNS 위임이 살아 있어야 한다.** 2026-08-05 기준 `echoprism.cloud` 는
-#    SERVFAIL 이다 — 가비아의 NS 가 가리키는 Route 53 네임서버가 질의를
-#    REFUSED 한다(lame delegation). 이 상태로는 DNS-01 이 반드시 실패한다.
-#    확인: https://dns.google/resolve?name=echoprism.cloud&type=NS
-#    `Status: 0` 이고 NS 넷이 나와야 한다
+# ── 자격증명이 없는 이유 ────────────────────────────────────────
 #
-# 2. **`route53-credentials` Secret 이 `secops` 에 있어야 한다.**
-#    아래 [자격증명](#자격증명) 참조
+# `accessKeyIDSecretRef` 가 없다. `applications/cert-manager.yaml` 이
+# projected ServiceAccount 토큰(`sts.amazonaws.com` audience)과
+# `AWS_ROLE_ARN` 으로 **AWS 역할을 web identity 로 맡는** 구성이라,
+# 파드가 이미 자격증명을 갖고 있다. 정적 IAM 키를 두지 않는다 —
+# `decisions/20260731_secret-access-no-fallback.md` 와 정면으로 맞는다.
 #
-# 3. **`email` 을 채워야 한다.** ACME 등록에 실제 주소가 필요하다.
-#    만료 임박 알림이 그리로 간다. 개인 주소보다 팀 별칭을 권한다
+# ⚠️ **선행 조건: 클러스터의 ServiceAccount 발행자를 AWS IAM 의 OIDC
+# 공급자로 등록해야 한다.** self-managed 클러스터라 EKS 처럼 자동으로 되지
+# 않는다. 그게 끝나기 전에는 cert-manager 를 Root 목록에 등록하지 않는다
+# (`applications/cert-manager.yaml` 주석). **Keycloak 인증서도 같이 막힌다.**
 #
-# ── 자격증명 ────────────────────────────────────────────────────
+# ── staging 을 먼저 쓴다 ────────────────────────────────────────
 #
-# cert-manager 가 Route 53 에 TXT 를 쓰려면 AWS 자격증명이 필요하다.
-# EKS 였으면 IRSA 를 쓰겠지만 **우리는 kubeadm 이라 그게 기본으로 안 된다.**
+# production 은 실패 시도에도 속도 제한이 걸리고 이름당 주간 발급 상한이
+# 있다. DNS-01 을 처음 맞출 때 몇 번 틀리는 것은 정상이고, 그걸 production
+# 에서 하면 한 주를 기다린다. staging 인증서는 브라우저가 신뢰하지 않는다 —
+# 그게 정상이고, 발급 자체가 되는지만 본다.
 #
-# 그래서 전용 IAM 사용자를 만들고 키를 Secret 으로 준다. 사람이 쓰는
-# 자격증명을 재사용하지 않는다. 정책은 해당 호스팅 존으로 좁힌다.
-#
-#   route53:ChangeResourceRecordSets   → 그 존 ID 에만
-#   route53:GetChange                  → *
-#   route53:ListHostedZonesByName      → *
-#
-# ⚠️ **이 Secret 은 손으로 한 번 만든다. 부트스트랩 예외다.**
-# `CONSTRAINTS.md` 는 시크릿에 평문 폴백을 두지 않는다고 정했고, 정상 경로는
-# Vault → ESO 다. 그런데 ESO 가 아직 없다(→ tasks/todo/008_identity-and-sso.md
-# 2단계). Vault 의 `userpass` 와 정확히 같은 구조다 — **임시 시설이고 ESO 로
-# 교체하는 것이 후속 태스크의 완료 조건이다.** 안 적어두면 영구화된다.
-#
-#   kubectl -n secops create secret generic route53-credentials \
-#     --from-literal=access-key-id=AKIA... \
-#     --from-literal=secret-access-key=...
-#
-# `hostedZoneID` 를 안 박은 이유 — 값을 모르고, 없으면 cert-manager 가
-# ListHostedZonesByName 으로 찾는다. 위 정책에 그 권한이 들어 있는 이유다.
-# 박으면 조회 한 번이 준다. 넣을 거면 두 발급자 모두에 넣는다.
+# `email` 과 `hostedZoneID` 는 `settings.yaml` 에서 kustomize replacements 로
+# 주입된다. 값을 여기 직접 적지 않는다.
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: letsencrypt-staging
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: REPLACE_WITH_TEAM_EMAIL
+    email: REPLACED_BY_SETTINGS
     privateKeySecretRef:
-      name: letsencrypt-staging-account-key
+      name: letsencrypt-staging-account
     solvers:
       - dns01:
           route53:
             region: ap-northeast-2
-            accessKeyIDSecretRef:
-              name: route53-credentials
-              key: access-key-id
-            secretAccessKeySecretRef:
-              name: route53-credentials
-              key: secret-access-key
+            hostedZoneID: REPLACED_BY_SETTINGS
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: letsencrypt-prod
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
+  name: letsencrypt-production
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: REPLACE_WITH_TEAM_EMAIL
+    email: REPLACED_BY_SETTINGS
     privateKeySecretRef:
-      name: letsencrypt-prod-account-key
+      name: letsencrypt-production-account
     solvers:
       - dns01:
           route53:
             region: ap-northeast-2
-            accessKeyIDSecretRef:
-              name: route53-credentials
-              key: access-key-id
-            secretAccessKeySecretRef:
-              name: route53-credentials
-              key: secret-access-key
+            hostedZoneID: REPLACED_BY_SETTINGS

@@ -3,7 +3,7 @@
 # (구성요소 목록은 00-cantaloupe-resources/k8s-labeling-convention.md 1절.
 #  OpenCost 는 배치가 GCP 지만 네임스페이스는 여기다 — finops 가 아니다)
 #
-# ⚠️ **privileged 는 "이 네임스페이스에 파드 하드닝이 없다"는 뜻이다.**
+# ⚠️ **privileged 는 이 네임스페이스에 파드 하드닝이 없다는 뜻이다.**
 # node-exporter 가 hostPath·hostNetwork·hostPID 를 전부 쓴다. 노드 메트릭을
 # 읽는 일이라 우회할 방법이 없고, 이 셋은 baseline 이 금지하는 항목이다.
 #
@@ -11,13 +11,24 @@
 # Grafana 와 Alertmanager 는 특권이 필요 없으므로 나중에 별도 네임스페이스로
 # 가르면 privileged 범위가 node-exporter 로 좁아진다.
 #
-# warn/audit 을 baseline 으로 둔 이유 — restricted 로 두면 경고가 너무 많이
-# 나와 아무도 안 읽는다. baseline 위반만 보면 "특권이 정말 필요한 것"이 남는다.
+# warn/audit 을 baseline 이 아니라 restricted 로 둔 것은 모니터링 갈래가
+# 정한 값을 그대로 살린 것이다.
+#
+# ⚠️ **이 파일이 `monitoring` 네임스페이스의 유일한 소유자다.**
+# `platform/gcp/monitoring-foundation/namespace.yaml` 이 같은 객체를 정의하고
+# 있었다. Application 둘이 한 Namespace 를 소유하면 ArgoCD 가 서로 되돌리며
+# 싸운다. 그 파일을 지우고 라벨을 여기로 흡수했다 — `cost-allocation` 과
+# `app.kubernetes.io/part-of` 는 저쪽이 쓰던 것이다.
+# → tasks/doing/009_istio-governance-reconcile.md 3번
 apiVersion: v1
 kind: Namespace
 metadata:
   name: monitoring
   labels:
+    area: monitoring
+    platform: gcp
+    cost-allocation: shared
+    app.kubernetes.io/part-of: cantaloupe-platform
     pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/warn: baseline
-    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

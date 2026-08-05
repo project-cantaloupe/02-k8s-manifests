@@ -1,0 +1,35 @@
+clusterName: "opensearch-cluster"
+singleNode: true
+replicas: 1
+
+# 내부 smoke 단계에서는 TLS/인증서를 아직 배포하지 않았으므로 클러스터 내부 HTTP만
+# 사용한다. 외부 노출은 하지 않으며, 운영 전에는 Secret 기반 인증·TLS로 교체한다.
+protocol: http
+config:
+  opensearch.yml: |
+    cluster.name: opensearch-cluster
+    network.host: 0.0.0.0
+    plugins.security.disabled: true
+securityConfig:
+  enabled: false
+
+# chart가 제공하는 init container로 vm.max_map_count를 설정한다.
+sysctlInit:
+  enabled: true
+
+persistence:
+  enabled: true
+  enableInitChown: true
+  storageClass: "gcp-pd-sc"
+  size: "30Gi"
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    memory: "2Gi"
+
+nodeSelector:
+  platform: gcp
+  role: logging

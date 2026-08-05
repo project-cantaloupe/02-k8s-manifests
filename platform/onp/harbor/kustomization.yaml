@@ -5,27 +5,36 @@ namespace: devops
 
 resources:
   - harbor-components.yaml
-
-labels:
-  - pairs:
-      area: devops
-      platform: onp
-    includeSelectors: false
+  - harbor-core-config.yaml
+  - redis.yaml
+  - postgres.yaml
+  - registry-config.yaml
+  - portal.yaml
+  - registry.yaml
+  - virtualservice.yaml
+  - pvc.yaml
 
 patches:
+  # 1. Harbor Service 패치
   - target:
-      kind: (Deployment|StatefulSet)
+      kind: Service
+      name: harbor
     patch: |-
-      kind: Dummy
+      apiVersion: v1
+      kind: Service
       metadata:
-        name: dummy
+        name: harbor
       spec:
-        template:
-          spec:
-            nodeSelector:
-              platform: onp
-              role: devops
+        externalTrafficPolicy: Cluster
+        selector:
+          app: harbor-portal
+        ports:
+          - name: http
+            port: 80
+            targetPort: 80
+            nodePort: 31432
 
+  # 2. Harbor Core 패치 (nodeSelector 통일)
   - target:
       kind: Deployment
       name: harbor-core
@@ -37,11 +46,69 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              platform: onp
+              role: devops
             containers:
-            - name: harbor-core
-              resources:
-                requests:
-                  cpu: 200m
-                  memory: 256Mi
-                limits:
-                  memory: 512Mi
+              - name: harbor-core
+                env:
+                  - name: CONFIG_PATH
+                    value: "/etc/harbor/core/app.conf"
+                  - name: PORT
+                    value: "8080"
+                  - name: CACHE_TYPE
+                    value: "redis"
+                  - name: REDIS_URL
+                    value: "redis://harbor-redis:6379/0"
+                  - name: _REDIS_URL_CORE
+                    value: "redis://harbor-redis:6379/0"
+                  - name: POSTGRESQL_HOST
+                    value: "postgresql"
+                  - name: POSTGRESQL_PORT
+                    value: "5432"
+                  - name: POSTGRESQL_PASSWORD
+                    value: "root123"
+                  - name: POSTGRESQL_DATABASE
+                    value: "registry"
+                  - name: REGISTRY_URL
+                    value: "http://harbor-registry:5000"
+                  - name: CORE_SECRET
+                    value: "HARBOR_CORE_SECRET_123456"
+                  - name: JOBSERVICE_SECRET
+                    value: "HARBOR_JOBSERVICE_SECRET_123456"
+                  - name: CSRF_KEY
+                    value: "12345678901234567890123456789012"
+                volumeMounts:
+                  - name: config-volume
+                    mountPath: /etc/harbor/core/app.conf
+                    subPath: app.conf
+            volumes:
+              - name: config-volume
+                configMap:
+                  name: harbor-core-config
+
+  # 3. Harbor Registry 패치 (nodeSelector 통일)
+  - target:
+      kind: Deployment
+      name: harbor-registry
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: harbor-registry
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              platform: onp
+              role: devops
+            containers:
+              - name: registry
+                volumeMounts:
+                  - name: registry-config
+                    mountPath: /etc/registry/config.yml
+                    subPath: config.yml
+            volumes:
+              - name: registry-config
+                configMap:
+                  name: harbor-registry-config

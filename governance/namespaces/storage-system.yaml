@@ -1,0 +1,25 @@
+# GCP Persistent Disk CSI 드라이버.
+#
+# ⚠️ **privileged 는 이 네임스페이스에 파드 하드닝이 없다는 뜻이다.**
+# CSI 노드 플러그인은 호스트의 마운트 네임스페이스를 다뤄야 해서 특권과
+# hostPath 가 필요하다. 우회할 방법이 없고, 특권이 필요한 것에 전용
+# 네임스페이스를 주는 규칙이 정확히 이런 경우를 위한 것이다
+# (00-cantaloupe-resources/k8s-labeling-convention.md 1절).
+#
+# ⚠️ **이 파일이 유일한 소유자다.** `platform/gcp/csi-driver/namespace.yaml`
+# 이 같은 객체를 정의하고 있었다. 라벨을 그대로 흡수했다.
+# → tasks/doing/009_istio-governance-reconcile.md 3·4번
+#
+# 📌 `area: platform` 은 규약 3절의 area 목록에 없는 값이다. 스토리지 갈래가
+# 쓰던 것을 보존했다. 규약에 추가할지 다른 값으로 바꿀지는 별도 판단이다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: storage-system
+  labels:
+    area: platform
+    cost-allocation: shared
+    app.kubernetes.io/part-of: cantaloupe-platform
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

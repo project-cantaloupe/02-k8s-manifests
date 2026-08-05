@@ -11,7 +11,7 @@ applications/           Root App이 관리하는 운영 Application 목록
 governance/             네임스페이스 보안 등급, Kyverno 보안·FinOps 정책과 예외
   namespaces/           네임스페이스와 Pod Security Admission 등급
 platform/
-  aws/                  AWS 배치 플랫폼 구성
+  aws/                  AWS 배치 플랫폼과 Audio Edge 구성
   gcp/                  GCP 배치 플랫폼 구성
   onp/                  On-prem 배치 플랫폼 구성
 apps/                   사용자 서비스
@@ -60,6 +60,21 @@ Application을 추가하고 `applications/kustomization.yaml`에 명시적으로
 | `platform/onp/` | `platform=onp`, `role=devops` |
 
 Kafka 등 배치가 확정되지 않은 구성요소는 임의로 특정 플랫폼에 넣지 않는다.
+
+## Audio Edge
+
+Public NLB의 TCP 80, 443 요청은 AWS service Worker의 Istio ingress gateway로
+전달한다. 고정 NodePort는 HTTP `30080`, HTTPS `30443`, readiness `32021`이다.
+`platform/aws/audio-edge/base`의 단일 Echo workload로 앱 이미지 없이 외부 경로와
+mTLS를 먼저 검증한다. Canary 분배는 애플리케이션 버전 전환 시험 전까지 추가하지
+않는다.
+
+Audio Edge Application 정의는 코드로 먼저 병합한 뒤 `istio-base`, `istiod`,
+`istio-ingress`, `audio-edge-smoke` 순서로 Root 목록에 추가한다. 각 단계는 이전
+구성의 실제 Ready 상태를 확인한 뒤 진행한다.
+
+Production TLS overlay와 cert-manager Application은 Route53 도메인과
+self-managed Kubernetes OIDC 준비 전까지 Root 목록에 등록하지 않는다.
 
 ## 모니터링
 

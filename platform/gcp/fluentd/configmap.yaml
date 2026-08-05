@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+data:
+  fluent.conf: |
+    # GCP logging 노드의 CRI Pod 로그를 읽는다. 앱이 JSON을 출력하면 message 안의
+    # 필드가 OpenSearch에서도 검색 가능하도록 한 단계 더 파싱한다.
+    <source>
+      @type tail
+      path /var/log/containers/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag k8s.*
+      read_from_head true
+      <parse>
+        @type regexp
+        expression /^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]+) (?<message>.*)$/
+        time_key time
+        time_type string
+        time_format %Y-%m-%dT%H:%M:%S.%N%z
+      </parse>
+    </source>
+
+    # 첫 smoke에서는 Kafka consumer 이미지가 아직 없으므로 OpenSearch에 직접 적재한다.
+    # Kafka(k8s-logs)는 다음 단계에서 durable buffer/재처리 경로로 연결한다.
+    <match k8s.**>
+      @type elasticsearch
+      host opensearch-cluster-master.logging.svc.cluster.local
+      port 9200
+      scheme http
+      # fluent-plugin-elasticsearch 5.x는 OpenSearch 2를 Elasticsearch 7 client와
+      # 비호환으로 오판한다. OpenSearch의 Elasticsearch 호환 API를 사용한다.
+      verify_es_version_at_startup false
+      index_name cantaloupe-logs
+      include_tag_key true
+      flush_mode interval
+      flush_interval 5s
+      <format>
+        @type json
+      </format>
+    </match>

@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-foundation
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: platform/gcp/monitoring-foundation
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    syncOptions:
+      # 네임스페이스는 governance/namespaces/ 가 만든다.
+      # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
+      - CreateNamespace=false

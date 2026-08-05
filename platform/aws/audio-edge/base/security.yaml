@@ -1,0 +1,29 @@
+# 테스트 workload에만 STRICT mTLS를 적용해 기존 apps workload에 영향을 주지 않는다.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: mesh-smoke-strict
+  namespace: apps
+spec:
+  selector:
+    matchLabels:
+      app: mesh-smoke
+  mtls:
+    mode: STRICT
+---
+# Istio ingress gateway ServiceAccount에서 시작한 요청만 테스트 workload가 허용한다.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: mesh-smoke-from-ingress
+  namespace: apps
+spec:
+  selector:
+    matchLabels:
+      app: mesh-smoke
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/istio-ingress/sa/istio-ingress

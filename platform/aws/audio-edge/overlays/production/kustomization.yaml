@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 이 overlay는 DNS, OIDC, cert-manager 준비 전 Root Application에 등록하지 않는다.
+resources:
+  - ../../base
+  - settings.yaml
+  - certificate.yaml
+
+patches:
+  - path: gateway-tls.yaml
+  - path: virtual-service-host.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: audio-edge-settings
+      fieldPath: data.publicHost
+    targets:
+      - select:
+          kind: Gateway
+          name: audio-gateway
+        fieldPaths:
+          - spec.servers.0.hosts.0
+          - spec.servers.1.hosts.0
+      - select:
+          kind: VirtualService
+          name: mesh-smoke
+        fieldPaths:
+          - spec.hosts.0
+      - select:
+          kind: Certificate
+          name: audio-tls
+        fieldPaths:
+          - spec.dnsNames.0

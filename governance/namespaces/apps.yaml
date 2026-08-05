@@ -1,9 +1,36 @@
 # 우리가 쓴 앱. 특권이 필요한 것이 없으므로 가장 높은 등급을 건다.
+#
+# ⚠️ **이 파일이 `apps` 네임스페이스의 유일한 소유자다.**
+# `platform/aws/audio-edge/base/namespace.yaml` 이 같은 객체를 정의하고
+# 있었다. Application 둘이 한 Namespace 를 소유하면 ArgoCD 가 서로 되돌리며
+# 싸우고, audio-edge 쪽에는 PSA 라벨이 없어서 그쪽이 이기면 하드닝이 통째로
+# 사라진다. 그 파일을 지우고 라벨을 여기로 흡수했다.
+#
+# ── istio-injection: disabled 를 유지하는 이유 ──────────────────
+#
+# ⚠️ **이 값을 `enabled` 로 바꾸면 지금 상태에서는 파드가 안 뜬다.**
+#
+# 사이드카 주입은 `istio-init` 이라는 init 컨테이너를 넣고, 그것이 iptables 를
+# 고치려고 `NET_ADMIN` 과 `NET_RAW` 를 요구한다. 그런데 `restricted` 는 모든
+# capability 를 drop 하고 `NET_BIND_SERVICE` 만 되돌릴 수 있다. 어드미션이
+# 거부하고, 증상은 "Istio 를 켰더니 앱이 안 뜬다" 로 나타나 원인이 PSA 라는
+# 게 잘 안 드러난다.
+#
+# 켜기 전에 둘 중 하나가 선행이다.
+#
+#   istio-cni 플러그인  iptables 설정을 CNI 가 대신해 특권 init 이 사라진다
+#   ambient 모드        사이드카 자체가 없다
+#
+# **`apps` 를 `baseline` 으로 낮추는 것은 답이 아니다.** 앱 네임스페이스의
+# 하드닝을 메시 때문에 내리는 것은 방향이 반대다.
+# → tasks/doing/009_istio-governance-reconcile.md 5번
 apiVersion: v1
 kind: Namespace
 metadata:
   name: apps
   labels:
+    area: apps
+    istio-injection: disabled
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/warn: restricted

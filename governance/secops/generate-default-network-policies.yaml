@@ -1,18 +1,22 @@
-# 네임스페이스가 생기면 기본 NetworkPolicy 두 장을 자동으로 만든다.
+# 네임스페이스가 생기면 기본 NetworkPolicy 네 장을 자동으로 만든다.
 #
 # **왜 generate 냐** — 네임스페이스마다 파일을 두면 새 네임스페이스를 만들 때
 # 반드시 빼먹는다. 빼먹은 곳은 그냥 전부 열려 있고, 열려 있다는 사실이
 # 아무 데도 안 나타난다. 정책 하나가 전부를 덮고, `synchronize: true` 라
 # 누가 지워도 되살아난다. Pod Security Admission 이 못 하는 일이다.
 #
-# **왜 두 장이냐** — NetworkPolicy 는 화이트리스트다. "거부" 규칙이 없고,
+# **왜 네 장이냐** — NetworkPolicy 는 화이트리스트다. "거부" 규칙이 없고,
 # 아무 정책도 안 고른 파드가 곧 거부다. default-deny 만 깔면 같은 네임스페이스
 # 안에서 파드끼리도 못 본다. 그게 가장 흔한 혼란의 원인이라 짝으로 깐다.
+# 나머지 둘은 **파드 셀렉터로 표현할 수 없는 출처**를 여는 것이다.
 #
-#   default-deny-ingress   들어오는 것 전부 차단
-#   allow-same-namespace   같은 네임스페이스 안은 허용
+#   default-deny-ingress      들어오는 것 전부 차단
+#   allow-same-namespace      같은 네임스페이스 안은 허용
+#   allow-from-mesh           tailnet(100.64.0.0/10) — 노드·kubelet 프로브 포함
+#   allow-from-istio-ingress  Istio 게이트웨이 → 앱 (교차 네임스페이스)
 #
-# 결과: **네임스페이스가 격리 단위가 된다.** 교차 네임스페이스 통신만 막힌다.
+# 결과: **네임스페이스가 격리 단위가 된다.** 교차 네임스페이스 통신은
+# 메시와 게이트웨이 경로만 열리고 나머지는 막힌다.
 #
 # **추가 허용은 이 두 장을 고치지 않는다.** NetworkPolicy 는 누적이라
 # 새 파일을 옆에 두면 합집합으로 허용된다. 생성된 것은 건드릴 일이 없다.
@@ -80,6 +84,13 @@ spec:
                 - tigera-operator
                 - calico-system
                 - calico-apiserver
+                # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
+                # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
+                # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
+                # istio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                - cert-manager
+                - istio-system
+                - istio-ingress
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -116,6 +127,13 @@ spec:
                 - tigera-operator
                 - calico-system
                 - calico-apiserver
+                # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
+                # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
+                # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
+                # istio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                - cert-manager
+                - istio-system
+                - istio-ingress
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -151,6 +169,13 @@ spec:
                 - tigera-operator
                 - calico-system
                 - calico-apiserver
+                # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
+                # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
+                # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
+                # istio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                - cert-manager
+                - istio-system
+                - istio-ingress
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -187,3 +212,48 @@ spec:
                   # 열거하는 방향이고 그건 노드가 늘 때마다 손이 간다.
                   - ipBlock:
                       cidr: 100.64.0.0/10
+
+    - name: allow-from-istio-ingress
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
+                - cert-manager
+                - istio-system
+                - istio-ingress
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: allow-from-istio-ingress
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+            ingress:
+              - from:
+                  # Istio 인그레스 게이트웨이는 `istio-ingress` 네임스페이스에
+                  # 살고, 거기서 앱 파드로 가는 것은 **교차 네임스페이스
+                  # 인그레스**라 default-deny 에 막힌다. 게이트웨이가 앱에
+                  # 못 닿으면 외부 접근이 통째로 죽는다.
+                  #
+                  # namespaceSelector 는 네임스페이스 **라벨**을 본다. 이름으로
+                  # 고르려면 자동으로 붙는 이 라벨을 쓴다.
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: istio-ingress
