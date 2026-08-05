@@ -1,0 +1,15 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: main-gateway
+  namespace: istio-ingress
+spec:
+  selector:
+    app: istio-ingress    # Ingress Pod의 app=istio-ingress 라벨과 일치
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
