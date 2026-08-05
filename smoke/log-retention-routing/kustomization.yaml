@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: logging
+
+resources:
+  - ../../platform/gcp/fluent-bit
+
+namePrefix: retention-smoke-
+
+patches:
+  - target:
+      kind: DaemonSet
+      name: fluent-bit
+    patch: |
+      - op: replace
+        path: /metadata/labels/app
+        value: fluent-bit-retention-smoke
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: fluent-bit-retention-smoke
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: fluent-bit-retention-smoke
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          platform: gcp
+          role: logging

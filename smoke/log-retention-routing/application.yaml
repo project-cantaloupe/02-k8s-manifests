@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-log-retention-routing
+  namespace: devops
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+      targetRevision: feat/log-retention-routing
+      path: platform/gcp/opensearch/ism
+    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+      targetRevision: feat/log-retention-routing
+      path: smoke/log-retention-routing
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
