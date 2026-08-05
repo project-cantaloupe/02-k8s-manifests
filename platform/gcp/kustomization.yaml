@@ -4,3 +4,6 @@ kind: Kustomization
 # 구현을 마친 하위 구성만 resources에 등록한다.
 resources:
   - csi-driver
+  - opensearch
+  - kafka
+  - fluentd

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+data:
+  fluent.conf: |
+    # 1. 노드의 Pod 로그 수집
+    <source>
+      @type tail
+      path /var/log/pods/*/*/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag k8s.*
+      read_from_head true
+      <parse>
+        @type multi_format
+        <pattern>
+          format json
+          time_key time
+          time_format %Y-%m-%dT%H:%M:%S.%NZ
+        </pattern>
+        <pattern>
+          format none
+        </pattern>
+      </parse>
+    </source>
+
+    # 2. 수집한 로그를 Kafka로 전송
+    <match k8s.**>
+      @type kafka2
+      brokers kafka.storage-system.svc.cluster.local:9092
+      default_topic k8s-logs
+      <format>
+        @type json
+      </format>
+    </match>
