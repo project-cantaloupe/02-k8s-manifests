@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+
+# Jenkinsfile이 `kustomize edit set image audio-worker=<registry>/audio-worker:<tag>`
+# 로 갱신한다.
+images:
+  - name: audio-worker
+    newName: ghcr.io/project-cantaloupe/audio-worker
+    newTag: dev

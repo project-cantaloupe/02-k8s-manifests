@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - deployment-events.yaml
+  - service.yaml
+
+# Jenkinsfile이 `kustomize edit set image audio-api=<registry>/audio-api:<tag>`로
+# 갱신한다. audio-api와 audio-events가 같은 Image를 쓰므로 항목은 하나다.
+images:
+  - name: audio-api
+    newName: ghcr.io/project-cantaloupe/audio-api
+    newTag: dev

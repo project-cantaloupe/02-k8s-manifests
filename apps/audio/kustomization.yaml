@@ -26,5 +26,9 @@ patches:
 resources:
   - namespace.yaml
   - gateway.yaml
+  - settings.yaml
+  - virtual-service.yaml
   - policies
   - web
+  - api
+  - worker
