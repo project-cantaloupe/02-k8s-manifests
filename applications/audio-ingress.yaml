@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: audio-ingress
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  project: default
+  source:
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: gateway
+    targetRevision: 1.30.3
+    helm:
+      releaseName: audio-ingress
+      values: |
+        name: audio-ingress
+        replicaCount: 1
+        autoscaling:
+          enabled: false
+        serviceAccount:
+          create: true
+          name: audio-ingress
+        service:
+          type: NodePort
+          externalTrafficPolicy: Local
+          ports:
+            - name: status-port
+              port: 15021
+              protocol: TCP
+              targetPort: 15021
+              nodePort: 32021
+            - name: http2
+              port: 80
+              protocol: TCP
+              targetPort: 80
+              nodePort: 30080
+            - name: https
+              port: 443
+              protocol: TCP
+              targetPort: 443
+              nodePort: 30443
+        labels:
+          app: audio-ingress
+          area: apps
+          platform: aws
+        nodeSelector:
+          platform: aws
+          role: service
+        containerSecurityContext:
+          runAsNonRoot: true
+          runAsUser: 1337
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: audio-ingress
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

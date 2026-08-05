@@ -8,19 +8,39 @@ AWS service Worker에서 실행하는 Istio ingress gateway와 독립 Echo 검�
 
 ```text
 NLB TCP 80
-  -> Worker 30080
-  -> istio-ingress
+  -> AWS Worker 30080
+  -> audio-ingress
   -> mesh-smoke
 ```
 
-NLB health check는 Worker `32021/healthz/ready`를 사용한다. TCP 443은
+NLB health check는 AWS Worker `32021/healthz/ready`를 사용한다. TCP 443은
 Production TLS overlay가 활성화된 뒤 Istio Gateway에서 종료한다.
+
+## Gateway 구성
+
+Cluster에 Ingress Gateway는 `audio-ingress` 하나다.
+
+| Gateway | Node | Namespace | NodePort (HTTP/HTTPS/Health) |
+| --- | --- | --- | --- |
+| `audio-ingress` | `platform=aws`, `role=service` | `audio-ingress` | 30080 / 30443 / 32021 |
+
+이전에는 `istio-ingress`가 On-Prem DevOps Node에서 Argo CD·Jenkins·Harbor를 경로로
+노출했다. 그 구성은 Argo CD가 Istio를 배포하면서 Istio가 Argo CD 접근을 통제하는
+순환 의존을 만들었고, NLB가 AWS Service Worker NodePort를 Target으로 하는데 Gateway
+Pod는 On-Prem에 있어 Target Health가 성립하지 않았다. DevOps 도구를 Tailscale과
+각자의 NodePort로 직접 접근하도록 옮기고 On-Prem Istio를 제거했다.
+
+`externalTrafficPolicy: Local`이므로 Gateway Pod가 없는 Node는 응답하지 않는다.
+NLB Target은 반드시 AWS Service Worker여야 한다.
+
+NodePort는 Cluster 전역에서 유일하다. `terraform/aws/edge`의
+`audio_ingress_*_node_port` 변수도 위 값과 일치시킨다.
 
 ## 준비된 Application 정의
 
 - `istio-base` 1.30.3
-- `istiod` 1.30.3
-- `istio-ingress` 1.30.3
+- `istiod` 1.30.3 (AWS Control Plane Node에서 실행)
+- `audio-ingress` 1.30.3 (AWS Audio 전용)
 - `audio-edge-smoke`
 
 현재 네 Application은 Root 목록에 등록하지 않는다. 정의 파일과 매니페스트를
@@ -57,16 +77,19 @@ Istiod는 webhook endpoint 준비 후 `caBundle`과 validator의 `failurePolicy`
 필드만 `ignoreDifferences`로 제외하고 `RespectIgnoreDifferences=true`로 동기화
 중에도 런타임 값을 보존한다.
 
-### 3. Istio Ingress Gateway
+### 3. AWS Audio Ingress Gateway
 
-Istiod와 Sidecar Injector가 준비된 뒤 `istio-ingress.yaml`을 추가하고 병합한다.
+Istiod와 Sidecar Injector가 준비된 뒤 `audio-ingress.yaml`을 추가하고 병합한다.
 
 ```bash
-kubectl -n istio-ingress rollout status deployment/istio-ingress --timeout=5m
-kubectl -n istio-ingress get service istio-ingress
+kubectl -n audio-ingress rollout status deployment/audio-ingress --timeout=5m
+kubectl -n audio-ingress get service audio-ingress
+kubectl -n audio-ingress get pod -o wide
 ```
 
-Service의 NodePort가 HTTP `30080`, HTTPS `30443`, Health `32021`인지 확인한다.
+Service의 NodePort가 HTTP `30080`, HTTPS `30443`, Health `32021`인지, Pod가
+AWS Service Worker Node에 배치됐는지 확인한다. `externalTrafficPolicy: Local`
+이므로 Pod가 AWS Worker에 없으면 NLB Target Health가 실패한다.
 
 ### 4. Audio Edge Smoke
 
@@ -90,15 +113,21 @@ Namespace 전체에는 sidecar를 자동 주입하지 않고 검증 workload에�
 ## Production TLS 활성화 조건
 
 1. Route53 Public Hosted Zone과 `publicHost` 확정
-2. kube-apiserver Service Account Issuer와 JWKS 외부 게시
-3. AWS IAM OIDC Provider 등록
-4. Terraform Edge의 `enable_cert_manager_iam = true` 적용
-5. `applications/cert-manager.yaml`의 IAM Role ARN 교체와 Root 목록 등록
-6. `overlays/production/settings.yaml`의 도메인, 이메일, Hosted Zone ID 교체
-7. `audio-edge-smoke` Application 경로를 `overlays/production`으로 변경
+2. cert-manager의 Route53 DNS-01 자격증명 방식 결정
+3. Terraform Edge의 `enable_cert_manager_iam = true` 적용
+4. `overlays/production/settings.yaml`의 도메인, 이메일, Hosted Zone ID 교체
+5. `audio-edge-smoke` Application 경로를 `overlays/production`으로 변경
 
-OIDC 준비 전에는 cert-manager Application과 Production overlay를 등록하지
-않는다. Worker Instance Profile 공유와 장기 AWS Access Key 저장은 사용하지 않는다.
+2번은 아직 결정되지 않았다. 이 PoC는 Workload IAM(OIDC)을 채택하지 않고 AWS
+Service Worker의 Node Instance Profile을 사용하기로 했는데, cert-manager도 같은
+Node에 배치되므로 Route53 권한을 Node Role에 추가하면 Node 권한이 더 넓어진다.
+Audio 전용 권한과 분리할지 별도로 판단한다.
+
+장기 AWS Access Key 저장은 어떤 경우에도 사용하지 않는다.
+
+> Node Instance Profile은 ServiceAccount 단위가 아니라 Node 단위 권한이다.
+> Calico GlobalNetworkPolicy로 IMDS 접근을 제한하지만 Pod별 IAM 격리를 완전히
+> 대체하지는 않는다. 운영 환경에서는 OIDC 기반 Workload IAM으로 전환한다.
 
 ## 정적 렌더링
 

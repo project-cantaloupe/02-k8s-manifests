@@ -7,7 +7,7 @@ spec:
   hosts:
     - "*"
   gateways:
-    - istio-ingress/audio-gateway
+    - audio-ingress/audio-gateway
   http:
     - route:
         - destination:

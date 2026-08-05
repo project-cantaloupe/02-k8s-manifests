@@ -11,7 +11,7 @@ spec:
   mtls:
     mode: STRICT
 ---
-# Istio ingress gateway ServiceAccount에서 시작한 요청만 테스트 workload가 허용한다.
+# AWS Audio Ingress Gateway ServiceAccount에서 시작한 요청만 테스트 workload가 허용한다.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -26,4 +26,4 @@ spec:
     - from:
         - source:
             principals:
-              - cluster.local/ns/istio-ingress/sa/istio-ingress
+              - cluster.local/ns/audio-ingress/sa/audio-ingress
