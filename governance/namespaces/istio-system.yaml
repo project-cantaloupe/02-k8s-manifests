@@ -1,4 +1,9 @@
-# istiod — 메시 컨트롤플레인 (Istio 1.30.3).
+# istiod — 메시 컨트롤플레인 (Istio 1.30.3, **ambient 모드**).
+#
+# ⚠️ **여기는 컨트롤플레인만이다. 데이터플레인은 다른 네임스페이스에 산다.**
+# ambient 의 특권 부분인 istio-cni 와 ztunnel 은 각각 전용 네임스페이스로
+# 봉쇄했다 → governance/namespaces/{istio-cni,ztunnel}.yaml
+# 여기 넣었으면 istiod 가 하드닝 없는 곳에서 돌게 된다.
 #
 # `applications/istio-base.yaml`(wave -30)과 `applications/istiod.yaml`
 # (wave -20)이 여기로 배포한다. 그 Application 들이 `CreateNamespace=true` 로
@@ -8,10 +13,6 @@
 # 있어 restricted 도 지날 가능성이 높지만 확인하지 않았다. warn/audit 을
 # restricted 로 둬서 격차가 보이게 하고, 위반이 없으면 enforce 를 올린다.
 #
-# ⚠️ **istio-cni 를 도입하면 그건 여기가 아니라 전용 네임스페이스로 간다.**
-# CNI 플러그인은 노드의 CNI 설정을 고쳐야 해서 특권과 hostPath 가 필요하다.
-# 여기 넣으면 istiod 가 하드닝 없는 곳에서 돌게 된다 — Kepler·Falco 와 같은
-# 봉쇄 규칙이다 (00-cantaloupe-resources 1절).
 apiVersion: v1
 kind: Namespace
 metadata:

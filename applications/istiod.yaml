@@ -1,3 +1,31 @@
+# istiod — 메시 컨트롤플레인. **ambient 모드**다.
+#
+# ── 배치가 aws 인 이유 ──────────────────────────────────────────
+#
+# `CONSTRAINTS.md` 는 Kyverno 컨트롤러를 `platform=aws` 에 고정한다. 근거는
+# *"어드미션 웹훅이 모든 쓰기의 동기 경로에 있어 다른 영역에 두면 WAN 을
+# 왕복한다"* 이다. **istiod 도 어드미션 웹훅을 갖는다** — 검증 웹훅
+# (`istio-validator-istio-system`) 이 모든 Istio CR 쓰기 경로에 있고,
+# 홈랩 회선이 끊기면 `failurePolicy` 에 따라 쓰기가 막힌다.
+# cert-manager·Kyverno 와 같은 노드다.
+#
+# ── ambient 인 이유 ────────────────────────────────────────────
+#
+# 사이드카는 `istio-init` init 컨테이너가 `NET_ADMIN`·`NET_RAW` 를 요구해서
+# `apps` 의 `restricted` 를 못 지난다. ambient 는 그 특권을 노드 단위
+# DaemonSet 둘로 옮긴다.
+#
+#   istio-cni  iptables/netns 설정. 네임스페이스 `istio-cni`
+#   ztunnel    노드별 L4 프록시. 네임스페이스 `ztunnel`
+#
+# 둘 다 privileged 라서 **전용 네임스페이스로 봉쇄한다** — Kepler·Falco 와
+# 같은 규칙이다 (00-cantaloupe-resources/k8s-labeling-convention.md 1절).
+# 이 봉쇄가 ambient 의 요점이다. 특권이 앱 옆에서 노드 인프라로 내려간다.
+#
+# ⚠️ **L7 정책은 waypoint 프록시가 있어야 동작한다.** ztunnel 은 L4 까지다.
+# `source.principals` 같은 L4 AuthorizationPolicy 는 ztunnel 이 집행하지만
+# HTTP 메서드·경로 조건이나 DestinationRule 의 트래픽 정책은 waypoint 없이
+# 조용히 무시된다 → decisions/20260805_istio-service-mesh.md
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -27,11 +55,17 @@ spec:
     helm:
       releaseName: istiod
       values: |
+        # ambient 를 켠다. `pilot.env.PILOT_ENABLE_AMBIENT` 를 세우고
+        # ztunnel 이 붙을 xDS 경로를 연다. istio-cni·ztunnel 쪽 profile 과
+        # **반드시 같이 켜야 한다** — 하나만 켜면 파드가 메시에 안 들어가고
+        # 에러도 안 난다.
+        profile: ambient
         autoscaleEnabled: false
         replicaCount: 1
+        # cert-manager·Kyverno 와 같은 노드다. 위 주석 참조.
         nodeSelector:
-          platform: onp
-          role: devops
+          platform: aws
+          role: service
         resources:
           requests:
             cpu: 200m

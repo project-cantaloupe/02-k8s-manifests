@@ -22,6 +22,10 @@ spec:
     helm:
       releaseName: istio-base
       values: |
+        # ambient 모드. base 차트에서는 CRD 집합에 거의 영향이 없지만,
+        # 네 차트(base·istiod·cni·ztunnel)의 profile 을 같은 값으로 두는 것이
+        # 규칙이다. 하나만 다르면 어긋난 자리를 찾기가 어렵다.
+        profile: ambient
         defaultRevision: default
         base:
           enableCRDTemplates: true

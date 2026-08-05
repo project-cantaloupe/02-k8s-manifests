@@ -26,6 +26,7 @@ resources:
   - cert-manager.yaml
   - devops.yaml
   - finops.yaml
+  - istio-cni.yaml
   - istio-ingress.yaml
   - istio-system.yaml
   - kyverno.yaml
@@ -34,3 +35,4 @@ resources:
   - monitoring.yaml
   - secops.yaml
   - storage-system.yaml
+  - ztunnel.yaml
