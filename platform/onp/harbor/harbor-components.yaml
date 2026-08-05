@@ -50,12 +50,10 @@ metadata:
   name: harbor
   namespace: devops
 spec:
-  type: NodePort
-  externalTrafficPolicy: Local
+  type: ClusterIP
   ports:
     - name: http
       port: 80
       targetPort: 8080
-      nodePort: 31432
   selector:
     app: harbor-core
