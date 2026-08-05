@@ -1,5 +1,9 @@
 opensearchHosts: "http://opensearch-cluster-master.logging.svc.cluster.local:9200"
 
+# OpenSearch 2.12.0과 Dashboards 메이저/마이너 버전을 맞춘다.
+image:
+  tag: "2.12.0"
+
 replicaCount: 1
 
 resources:
