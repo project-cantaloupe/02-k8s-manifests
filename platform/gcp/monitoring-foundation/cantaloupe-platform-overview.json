@@ -146,30 +146,30 @@
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "플랫폼·역할별 CPU Allocatable 대비 Request 예약률과 Container Actual 사용률을 같은 분모로 비교한다. 둘의 큰 차이는 Kubernetes FinOps의 P95·비용 분석으로 연결하되, 이 화면만으로 Right-sizing을 확정하지 않는다.",
-      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "min": 0, "max": 100, "unit": "percent"}, "overrides": []},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "Capacity usage (%)", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true, "stacking": {"group": "A", "mode": "none"}}, "min": 0, "max": 100, "unit": "percent"}, "overrides": [{"matcher": {"id": "byRegexp", "options": "/.*Request$/"}, "properties": [{"id": "custom.lineStyle", "value": {"dash": [10, 10], "fill": "dash"}}, {"id": "custom.fillOpacity", "value": 0}, {"id": "custom.lineWidth", "value": 2}]}, {"matcher": {"id": "byRegexp", "options": "/.*Workload Actual$/"}, "properties": [{"id": "custom.lineWidth", "value": 3}]}]},
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 13},
       "id": 9,
-      "options": {"displayMode": "gradient", "minVizHeight": 12, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "valueMode": "color"},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
         {"expr": "100 * sum by (label_platform,label_role) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}) / sum by (label_platform,label_role) (kube_node_status_allocatable{resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{label_platform}} / {{label_role}} — Request", "refId": "A"},
         {"expr": "100 * sum by (label_platform,label_role) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}) / sum by (label_platform,label_role) (kube_node_status_allocatable{resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{label_platform}} / {{label_role}} — Workload Actual", "refId": "B"}
       ],
-      "title": "Platform CPU — Request vs Workload / Allocatable",
-      "type": "bargauge"
+      "title": "Platform CPU Trend — Request vs Workload / Allocatable",
+      "type": "timeseries"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "플랫폼·역할별 Memory Allocatable 대비 Request 예약률과 Container Actual 사용률을 같은 분모로 비교한다. Request가 없는 control-plane Container 때문에 Actual/Request가 왜곡되는 문제를 피한다.",
-      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "min": 0, "max": 100, "unit": "percent"}, "overrides": []},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "Capacity usage (%)", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true, "stacking": {"group": "A", "mode": "none"}}, "min": 0, "max": 100, "unit": "percent"}, "overrides": [{"matcher": {"id": "byRegexp", "options": "/.*Request$/"}, "properties": [{"id": "custom.lineStyle", "value": {"dash": [10, 10], "fill": "dash"}}, {"id": "custom.fillOpacity", "value": 0}, {"id": "custom.lineWidth", "value": 2}]}, {"matcher": {"id": "byRegexp", "options": "/.*Workload Actual$/"}, "properties": [{"id": "custom.lineWidth", "value": 3}]}]},
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 13},
       "id": 10,
-      "options": {"displayMode": "gradient", "minVizHeight": 12, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "valueMode": "color"},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
         {"expr": "100 * sum by (label_platform,label_role) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}) / sum by (label_platform,label_role) (kube_node_status_allocatable{resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{label_platform}} / {{label_role}} — Request", "refId": "A"},
         {"expr": "100 * sum by (label_platform,label_role) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}) / sum by (label_platform,label_role) (kube_node_status_allocatable{resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{label_platform}} / {{label_role}} — Workload Actual", "refId": "B"}
       ],
-      "title": "Platform Memory — Request vs Workload / Allocatable",
-      "type": "bargauge"
+      "title": "Platform Memory Trend — Request vs Workload / Allocatable",
+      "type": "timeseries"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
