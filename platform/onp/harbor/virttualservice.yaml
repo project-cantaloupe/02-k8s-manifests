@@ -1,0 +1,19 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: harbor-vs
+  namespace: devops
+spec:
+  hosts:
+  - "cntlp-onp-wk-01.tail270b85.ts.net"
+  gateways:
+  - istio-ingress/istio-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /harbor
+    route:
+    - destination:
+        host: harbor-portal.devops.svc.cluster.local
+        port:
+          number: 80
