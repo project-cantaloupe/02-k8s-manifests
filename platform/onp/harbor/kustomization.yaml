@@ -11,7 +11,7 @@ resources:
   - registry-config.yaml
   - portal.yaml
   - registry.yaml
-  - virtualservice.yaal
+  - virtualservice.yaml
   - pvc.yaml
 
 patches:
