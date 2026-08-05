@@ -27,7 +27,7 @@ data:
     # 2. 수집한 로그를 Kafka로 전송
     <match k8s.**>
       @type kafka2
-      brokers kafka.storage-system.svc.cluster.local:9092
+      brokers kafka.logging.svc.cluster.local:9092
       default_topic k8s-logs
       <format>
         @type json

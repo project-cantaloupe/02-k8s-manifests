@@ -18,7 +18,7 @@ spec:
         image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-kafka-1
         env:
           - name: FLUENT_KAFKA_BROKERS
-            value: "kafka.storage-system.svc.cluster.local:9092"
+            value: "kafka.logging.svc.cluster.local:9092"
         resources:
           limits:
             memory: 500Mi
