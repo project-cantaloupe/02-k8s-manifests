@@ -5,7 +5,6 @@ namespace: devops
 
 resources:
   - namespace.yaml
-  - virtualservice.yaml
   # 재구축 시 의도하지 않은 Argo CD 버전 변경을 막는다.
   - https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.6/manifests/install.yaml
 

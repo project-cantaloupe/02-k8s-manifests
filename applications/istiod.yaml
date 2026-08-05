@@ -29,9 +29,18 @@ spec:
       values: |
         autoscaleEnabled: false
         replicaCount: 1
+        # On-Prem은 DevOps 전용 Node이므로 Istio를 두지 않는다. istiod는 AWS
+        # Audio Mesh의 mTLS에 필요하므로 삭제하지 않고 Control Plane Node로
+        # 옮긴다. Service Worker는 t3.small 2 GiB이며 FFmpeg가 그 메모리를
+        # 써야 하므로 대상에서 제외한다. Kubernetes Control Plane과 Istio
+        # Control Plane의 장애 영역이 묶이는 것을 트레이드오프로 수용한다.
         nodeSelector:
-          platform: onp
-          role: devops
+          platform: aws
+          role: control-plane
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
         resources:
           requests:
             cpu: 200m
