@@ -4,9 +4,9 @@ kind: Kustomization
 resources:
   - jenkins.yaml
   - harbor.yaml
+  - gcp-storage.yaml
   - istio-base.yaml
   - istiod.yaml
-  - gcp-storage.yaml
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
   - opencost.yaml

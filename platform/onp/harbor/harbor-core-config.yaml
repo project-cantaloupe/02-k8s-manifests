@@ -8,9 +8,8 @@ data:
     appname = Harbor
     runmode = dev
     enableadmin = false
-    
+
     [cache]
     type = redis
-    key = harbor
-    expire = 3600
-    provider_config = redis://argocd-redis:6379/0
+    key = redis
+    provider_config = addr=argocd-redis:6379,db=0
