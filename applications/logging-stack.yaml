@@ -1,5 +1,4 @@
-# Root Application(main)이 이 파일만 동기화한다. 실제 logging 매니페스트는
-# smoke 단계 동안 feat/logging-stack에서 읽는다.
+# Root Application(main)이 이 파일을 동기화하며, logging 매니페스트도 main에서 읽는다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -11,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-    targetRevision: feat/logging-stack
+    targetRevision: main
     path: smoke/logging-stack
   destination:
     server: https://kubernetes.default.svc

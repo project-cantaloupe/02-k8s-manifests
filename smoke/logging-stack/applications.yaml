@@ -3,36 +3,6 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: logging-kafka
-  namespace: devops
-  annotations:
-    argocd.argoproj.io/sync-wave: "-20"
-spec:
-  project: default
-  sources:
-    - repoURL: https://charts.bitnami.com/bitnami
-      chart: kafka
-      targetRevision: 26.0.0
-      helm:
-        releaseName: kafka
-        valueFiles:
-          - $values/platform/gcp/kafka/values.yaml
-    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-      targetRevision: feat/logging-stack
-      ref: values
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: messaging
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: logging-opensearch
   namespace: devops
   annotations:
@@ -48,7 +18,7 @@ spec:
         valueFiles:
           - $values/platform/gcp/opensearch/values.yaml
     - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-      targetRevision: feat/logging-stack
+      targetRevision: main
       ref: values
   destination:
     server: https://kubernetes.default.svc
@@ -71,7 +41,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-    targetRevision: feat/logging-stack
+    targetRevision: main
     path: platform/gcp/fluentd
   destination:
     server: https://kubernetes.default.svc
@@ -101,7 +71,7 @@ spec:
         valueFiles:
           - $values/platform/gcp/opensearch-dashboards/values.yaml
     - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-      targetRevision: feat/logging-stack
+      targetRevision: main
       ref: values
   destination:
     server: https://kubernetes.default.svc
