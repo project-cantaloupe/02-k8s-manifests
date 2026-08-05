@@ -21,17 +21,3 @@ configMapGenerator:
         cost-allocation: shared
       annotations:
         grafana-folder: Cantaloupe
-  - name: cantaloupe-platform-overview-v1
-    namespace: monitoring
-    files:
-      - cantaloupe-platform-overview-v1.json
-    options:
-      disableNameSuffixHash: true
-      labels:
-        grafana_dashboard: "1"
-        app: grafana
-        area: monitoring
-        platform: gcp
-        cost-allocation: shared
-      annotations:
-        grafana-folder: Cantaloupe
