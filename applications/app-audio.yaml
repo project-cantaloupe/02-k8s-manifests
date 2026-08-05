@@ -1,8 +1,13 @@
+# Audio Workload는 apps Namespace에서 실행한다. devops는 Argo CD, Jenkins,
+# Harbor 같은 DevOps 도구의 자리이므로 섞지 않는다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-audio-stack
+  name: app-audio
   namespace: devops
+  # Istio Base(-30), Istiod(-20), Gateway(-10) 이후에 배치한다.
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:
@@ -11,10 +16,20 @@ spec:
     path: apps/audio
   destination:
     server: https://kubernetes.default.svc
-    namespace: devops
+    namespace: apps
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
     syncOptions:
-      - CreateNamespace=true
+      # Namespace는 apps/audio/namespace.yaml이 라벨과 함께 소유하므로
+      # CreateNamespace로 라벨 없는 Namespace가 만들어지지 않게 한다.
+      - ServerSideApply=true
+      # Istio CRD가 아직 없는 상태에서도 첫 동기화가 실패하지 않게 한다.
+      - SkipDryRunOnMissingResource=true
