@@ -5,7 +5,7 @@ metadata:
   namespace: devops
 spec:
   hosts:
-  - "cntlp-onp-wk-01.tail270b85.ts.net"
+  - "*"
   gateways:
   - istio-ingress/istio-gateway
   http:
@@ -14,6 +14,6 @@ spec:
         prefix: /harbor
     route:
     - destination:
-        host: harbor-portal.devops.svc.cluster.local
+        host: harbor-portal   # UI 타겟 서비스 이름 수정
         port:
           number: 80

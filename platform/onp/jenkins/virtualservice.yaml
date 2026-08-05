@@ -5,7 +5,7 @@ metadata:
   namespace: devops
 spec:
   hosts:
-  - "cntlp-onp-wk-01.tail270b85.ts.net"
+  - "*"
   gateways:
   - istio-ingress/istio-gateway
   http:
@@ -14,6 +14,6 @@ spec:
         prefix: /jenkins
     route:
     - destination:
-        host: jenkins.devops.svc.cluster.local
+        host: jenkins   # 서비스 이름 수정 (devops 네임스페이스 내)
         port:
           number: 8080
