@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: devops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: platform/aws/cert-manager
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: secops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # secops 네임스페이스는 governance/namespaces/secops.yaml 이 만든다.
+      # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
+      - CreateNamespace=false

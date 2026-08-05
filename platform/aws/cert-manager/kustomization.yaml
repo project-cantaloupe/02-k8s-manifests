@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# sync-wave 로 순서를 준다. application.yaml 이 wave 0 이고 CRD 를 들여온다.
+# cluster-issuer.yaml 은 wave 1 이라 그 뒤에 간다 — CRD 없이 먼저 가면
+# "no matches for kind ClusterIssuer" 로 실패한다.
+resources:
+  - application.yaml
+  - cluster-issuer.yaml
