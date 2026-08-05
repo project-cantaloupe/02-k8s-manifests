@@ -7,3 +7,4 @@ resources:
   - gcp-storage.yaml
   - istio-base.yaml
   - istiod.yaml
+  - istio-ingress.yaml
