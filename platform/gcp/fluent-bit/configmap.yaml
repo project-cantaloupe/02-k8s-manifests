@@ -46,12 +46,19 @@ data:
         Match   kube.*
         Record  collector_node ${NODE_NAME}
 
+    # Keep only the operational namespaces in the platform index. Audio app
+    # JSON logs will be added later as a separate, longer-retained index.
+    [FILTER]
+        Name   grep
+        Match  kube.*
+        Regex  $kubernetes['namespace_name'] ^(logging|devops|istio-system)$
+
     [OUTPUT]
         Name                opensearch
         Match               kube.*
         Host                opensearch-cluster-master.logging.svc.cluster.local
         Port                9200
-        Index               cantaloupe-logs
+        Index               cantaloupe-platform-logs
         Suppress_Type_Name  On
         Generate_ID         On
         Retry_Limit         False
