@@ -2,6 +2,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  # ⚠️ 순서는 여기가 아니라 각 Application 의 sync-wave 가 정한다.
+  # governance-namespaces(-40)가 가장 먼저, governance-policies(10)가 마지막.
+  - governance-namespaces.yaml
+  - governance-policies.yaml
   - jenkins.yaml
   - harbor.yaml
   - gcp-storage.yaml
@@ -16,3 +20,6 @@ resources:
   - opencost.yaml
   - istio-ingress.yaml
   - secops.yaml
+  # ambient 가 실제로 도는지 확인하는 워크로드(mesh-smoke). wave 0 이라
+  # Istio 가 다 선 뒤에 뜬다 → tasks/doing/009 착지 확인 절
+  - audio-edge-smoke.yaml

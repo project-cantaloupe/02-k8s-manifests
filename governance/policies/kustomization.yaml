@@ -1,0 +1,28 @@
+# Kyverno 가 집행하는 것만 모은다.
+#
+# **왜 `namespaces/` 와 갈랐나** — 필요한 선행 조건이 다르다.
+#
+#   namespaces/   아무것도 필요 없다. Namespace 는 내장 자원이다
+#   policies/     **Kyverno CRD 가 먼저 서야 한다**. 없으면 sync 가
+#                 `no matches for kind "ClusterPolicy"` 로 실패한다
+#
+# 한 Application 으로 묶으면 Kyverno 가 서기 전까지 네임스페이스까지 같이
+# 못 만든다. 그런데 Kyverno 는 자기 네임스페이스가 있어야 서므로 **교착이다.**
+#
+# 그래서 Application 을 둘로 나눴다.
+#
+#   applications/governance-namespaces.yaml   wave -40  (제일 먼저)
+#   applications/secops.yaml                  wave   0  (Kyverno 가 여기)
+#   applications/governance-policies.yaml     wave  10  (이 디렉터리)
+#
+# ⚠️ **네임스페이스가 정책보다 먼저 생기는 것은 문제가 아니다.**
+# 생성 정책이 `background: true` 라 Kyverno 가 이미 있는 네임스페이스를
+# 거슬러 올라가 NetworkPolicy 를 채운다. `synchronize: true` 가 그걸
+# 계속 유지한다 → governance/secops/generate-default-network-policies.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../secops
+  - ../finops
+  - ../exceptions
