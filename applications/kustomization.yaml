@@ -10,3 +10,4 @@ resources:
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
   - opencost.yaml
+  - istio-ingress.yaml
