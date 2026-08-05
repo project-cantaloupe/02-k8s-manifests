@@ -11,3 +11,4 @@ resources:
   - monitoring-stack.yaml
   - opencost.yaml
   - istio-ingress.yaml
+  - test-logging.yaml
