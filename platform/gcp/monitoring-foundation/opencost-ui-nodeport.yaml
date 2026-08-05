@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: opencost-ui-tailscale
+  namespace: monitoring
+  labels:
+    app: opencost
+    area: monitoring
+    platform: gcp
+    cost-allocation: shared
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/instance: opencost
+    app.kubernetes.io/name: opencost
+  ports:
+    - name: http-ui
+      protocol: TCP
+      port: 9090
+      targetPort: 9090
+      nodePort: 30990
