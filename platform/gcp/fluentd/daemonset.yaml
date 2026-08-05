@@ -3,7 +3,9 @@ kind: DaemonSet
 metadata:
   name: fluentd
   labels:
-    k8s-app: fluentd-logging
+    app: fluentd
+    area: logging
+    platform: gcp
 spec:
   selector:
     matchLabels:
@@ -11,14 +13,16 @@ spec:
   template:
     metadata:
       labels:
-        name: fluentd
+        app: fluentd
+        area: logging
+        platform: gcp
     spec:
+      nodeSelector:
+        platform: gcp
+        role: logging
       containers:
       - name: fluentd
-        image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-kafka-1
-        env:
-          - name: FLUENT_KAFKA_BROKERS
-            value: "kafka.logging.svc.cluster.local:9092"
+        image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch7-1
         resources:
           limits:
             memory: 500Mi

@@ -1,11 +1,45 @@
 kraft:
   enabled: true
 
-persistence:
-  enabled: true
-  storageClass: "gcp-pd-sc"
-  size: "20Gi"
-
 listeners:
   client:
     protocol: PLAINTEXT
+  controller:
+    protocol: PLAINTEXT
+  interbroker:
+    protocol: PLAINTEXT
+
+# 단일 demo 클러스터에서는 controller가 broker 역할도 겸한다.
+controller:
+  replicaCount: 1
+  controllerOnly: false
+  nodeSelector:
+    platform: gcp
+    role: logging
+  podLabels:
+    app: kafka
+    area: messaging
+    platform: gcp
+  persistence:
+    enabled: true
+    storageClass: gcp-pd-sc
+    size: 20Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+
+# 이후 Kafka consumer를 추가할 때도 같은 topic을 사용한다.
+provisioning:
+  enabled: true
+  numPartitions: 1
+  replicationFactor: 1
+  nodeSelector:
+    platform: gcp
+    role: logging
+  topics:
+    - name: k8s-logs
+      partitions: 1
+      replicationFactor: 1
