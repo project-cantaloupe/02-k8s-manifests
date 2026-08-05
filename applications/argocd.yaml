@@ -1,0 +1,37 @@
+# Argo CD가 자기 자신을 관리한다. 이전에는 이 Application이 없어
+# platform/onp/argocd의 변경이 Git에만 반영되고 Cluster에는 누군가 수동으로
+# kubectl apply를 해야 적용됐다.
+#
+# 최초 채택 단계에서는 automated sync를 켜지 않는다. Argo CD가 자기 Deployment와
+# StatefulSet을 재배포하는 중에 Sync가 끊길 수 있고, prune이 예상치 못한 자원을
+# 지울 위험도 있다. UI에서 Diff를 먼저 확인하고 수동 Sync로 적용한 뒤, 결과가
+# 안정적이면 automated를 별도 변경으로 추가한다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: devops
+  # istio-base(-30)보다 앞에 둬 GitOps 기반을 먼저 세운다. 다만 automated sync를
+  # 쓰지 않으므로 이 값은 Application 생성 순서에만 영향을 준다.
+  annotations:
+    argocd.argoproj.io/sync-wave: "-40"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: platform/onp/argocd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devops
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  # Argo CD 자신의 CRD는 Helm이나 Operator가 아니라 install.yaml이 소유한다.
+  # 재적용 시 대용량 annotation 충돌을 피하려고 ServerSideApply를 사용한다.
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration
