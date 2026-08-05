@@ -22,6 +22,7 @@ patches:
           platform: aws
           role: service
 
-# Audio Workload와 함께 적용할 보안 정책 등록
+# Namespace를 먼저 두고, 그 뒤에 정책과 Workload를 등록한다.
 resources:
+  - namespace.yaml
   - policies

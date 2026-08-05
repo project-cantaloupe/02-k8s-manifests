@@ -1,0 +1,14 @@
+# Audio Workload가 사는 Namespace를 Audio Stack이 소유한다. 이전에는
+# platform/aws/audio-edge/base가 Smoke 검증용으로 정의하고 있어, Smoke를
+# 제거하면 소유자가 사라지는 구조였다.
+#
+# Namespace 전체 자동 주입은 켜지 않는다. Sidecar가 필요한 Workload만 Pod에
+# sidecar.istio.io/inject 라벨을 명시한다. audio-transcode는 트랜스코딩 비용을
+# 분리해 측정하기 위해 Sidecar를 주입하지 않는다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps
+  labels:
+    area: apps
+    istio-injection: disabled
