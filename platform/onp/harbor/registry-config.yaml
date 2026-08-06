@@ -19,8 +19,8 @@ data:
       token:
         issuer: harbor-token-issuer
         realm: https://cntlp-onp-wk-01.tail270b85.ts.net/service/token
+        rootcertbundle: /etc/pki/tls/certs/ca-bundle.crt
         service: harbor-registry
-        # rootcertbundle: /etc/registry/root.crt  <-- 마운트된 파일이 없으므로 주석 처리
     storage:
       cache:
         layerinfo: redis
