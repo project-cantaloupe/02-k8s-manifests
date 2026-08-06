@@ -19,7 +19,7 @@ data:
       token:
         issuer: harbor-token-issuer
         realm: https://cntlp-onp-wk-01.tail270b85.ts.net/service/token
-        rootcertbundle: /etc/pki/tls/certs/ca-bundle.crt
+        rootcertbundle: /etc/registry/root.crt
         service: harbor-registry
     storage:
       cache:
