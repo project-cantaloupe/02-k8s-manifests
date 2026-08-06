@@ -1,10 +1,24 @@
 # CPU·Memory requests와 Memory limit은 스케줄링·용량·비용 분석의 기준이다.
+# ⚠️ **Audit 로 시작한다. 2026-08-06 실측에서 파드 9개가 위반한다.**
+#
+#     devops/argocd-dex-server        [dex]
+#     devops/argocd-repo-server       [copyutil]      ← initContainer
+#     devops/harbor-{core,portal,redis,registry}, devops/postgresql
+#     logging/opensearch-cluster-master-0 [fsgroup-volume], logging/log-smoke
+#
+# **Argo CD 자신이 목록에 있다.** Enforce 로 두면 Argo CD 가 재시작할 때
+# 자기가 못 뜨고, 그걸 고칠 수 있는 것이 Argo CD 다. 자기잠금이다.
+#
+# **Enforce 전환 전에 할 것** — 차트 values 로 limits 를 채우거나
+# (Harbor·OpenSearch 는 대체로 가능) `exceptions/` 를 쓴다. initContainer 는
+# 패턴의 `=(initContainers)` 가 잡으므로 그쪽도 채워야 한다
+# → governance/README.md 의 Audit 우선 절차
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: require-resource-limits
 spec:
-  validationFailureAction: Enforce
+  validationFailureAction: Audit
   background: true
   rules:
     - name: check-resources

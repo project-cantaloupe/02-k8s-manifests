@@ -18,6 +18,12 @@
 #
 # ⚠️ 이 정책은 파드 자체를 막는다. `default` 에 뭔가 띄워야 하면
 # 네임스페이스를 만드는 것이 답이지 예외를 쓰는 것이 아니다.
+# ⚠️ **Audit 로 시작한다. 2026-08-06 실측 위반 0건이다.**
+#
+# 넷 중 유일하게 위반이 없어서 바로 Enforce 로 둬도 됐지만, **같은 wave 에
+# 착지하는 정책의 집행 모드를 갈라두면 PolicyReport 를 읽을 때 어느 것이
+# 왜 통과했는지가 헷갈린다.** 넷을 같이 올린다
+# → governance/README.md 의 Audit 우선 절차
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -27,7 +33,7 @@ metadata:
       default 네임스페이스에는 파드를 만들지 않는다.
       PSA 등급·NetworkPolicy·비용 귀속이 전부 안 걸리는 곳이다.
 spec:
-  validationFailureAction: Enforce
+  validationFailureAction: Audit
   background: true
   rules:
     - name: no-pods-in-default

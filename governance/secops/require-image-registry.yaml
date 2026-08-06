@@ -30,6 +30,21 @@
 # 있다 — 어느 쪽이든 값이 어딘가에는 커밋된다.
 #
 # → references/20260803_secops-admission-and-network-policy.md 3절
+# ⚠️ **Audit 로 시작한다. 2026-08-06 실측에서 `apps` 파드 넷이 전부 위반한다.**
+#
+#     apps/audio-api        ghcr.io/project-cantaloupe/audio-api:dev
+#     apps/audio-events     ghcr.io/project-cantaloupe/audio-api:dev
+#     apps/audio-transcode  ghcr.io/project-cantaloupe/audio-worker:dev
+#     apps/audio-web        ghcr.io/project-cantaloupe/audio-web:dev
+#
+# Enforce 로 두면 **오디오 앱이 재시작하는 순간 영구히 못 뜬다.** 어드미션은
+# 생성 시점에만 보므로 도는 파드는 살아 있고, 노드 드레인·이미지 재푸시·OOM
+# 같은 무관해 보이는 사건에서 터진다. 원인이 안 드러나는 종류의 고장이다.
+#
+# **Enforce 전환 전에 정해야 할 것** — ECR 로 옮길지, GHCR 을 허용 목록에
+# 넣을지. 지금 이미지는 GHCR 에 있고 `ghcr-pull` Secret 으로 당긴다
+# (apps/audio/README.md). 이 정책이 쓰일 때 `apps` 가 비어 있어서 대조할
+# 워크로드가 없었다 → governance/README.md 의 Audit 우선 절차
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -39,7 +54,7 @@ metadata:
       apps 네임스페이스의 이미지는 ECR 에서만 온다.
       Harbor 는 빌드 경로 전용이고 런타임 pull 대상이 아니다.
 spec:
-  validationFailureAction: Enforce
+  validationFailureAction: Audit
   background: true
   rules:
     - name: images-from-ecr-only

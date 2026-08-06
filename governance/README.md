@@ -44,14 +44,36 @@ PSA 는 네임스페이스 라벨 세 줄이고 설치할 것도 유지할 것�
 
 ## 현재 정책 목록
 
-| 정책 | 대상 | 하는 일 |
+| 정책 | 대상 | 하는 일 | 집행 |
+|---|---|---|---|
+| `namespaces/` | 14개 네임스페이스 | PSA 등급 (파드 하드닝) | enforce |
+| `secops/generate-default-network-policies` | 새 네임스페이스 | default-deny + 같은 ns 허용 생성 | generate |
+| `secops/require-image-registry` | `apps` | ECR 에서만 당긴다 | **Audit** |
+| `secops/disallow-latest-tag` | 팀 ns 7개 | 태그 필수, `latest` 금지 | **Audit** |
+| `secops/disallow-default-namespace` | `default` | 파드 생성 금지 | **Audit** |
+| `finops/require-resource-limits` | 팀 ns 7개 | CPU·Mem requests, Mem limit | **Audit** |
+
+### Audit 로 남아 있는 것 — 미완료 목록
+
+**2026-08-06 착지 시점 실측.** 네 정책 전부 Audit 이고, 아래가 각각의
+Enforce 전환 조건이다. 이 표가 비면 완료다.
+
+| 정책 | 위반 | Enforce 전환 조건 |
 |---|---|---|
-| `namespaces/` | 8개 네임스페이스 | PSA 등급 (파드 하드닝) |
-| `secops/generate-default-network-policies` | 새 네임스페이스 | default-deny + 같은 ns 허용 생성 |
-| `secops/require-image-registry` | `apps` | ECR 에서만 당긴다 |
-| `secops/disallow-latest-tag` | 팀 ns 7개 | 태그 필수, `latest` 금지 |
-| `secops/disallow-default-namespace` | `default` | 파드 생성 금지 |
-| `finops/require-resource-limits` | 팀 ns 7개 | CPU·Mem requests, Mem limit |
+| `require-resource-limits` | 9건 — Argo CD·Harbor·OpenSearch | 차트 values 로 limits 를 채우거나 `exceptions/` |
+| `require-image-registry` | 4건 — `apps` 파드 **전부** | **결정이 필요하다** — 아래 |
+| `disallow-latest-tag` | 3건 — Harbor·OpenSearch 보조 컨테이너 | 차트 values 로 태그 고정 |
+| `disallow-default-namespace` | **0건** | 나머지 셋과 같이 올린다 |
+
+`require-image-registry` 만 성격이 다르다. 나머지 셋은 위 규칙이 허용하는
+**"아직 안 세운 서드파티 스택"** 이지만, **이건 우리 앱이 걸린 것이다.**
+지금 오디오 이미지는 GHCR 에 있고 `ghcr-pull` Secret 으로 당긴다
+(`apps/audio/README.md`). ECR 로 옮길지, GHCR 을 허용 목록에 넣을지가
+정해져야 Enforce 로 갈 수 있다. **정책과 현실 중 어느 쪽이 틀렸는지의
+문제라서 예외로 덮을 일이 아니다.**
+
+이 정책이 Enforce 로 쓰였던 것은 작성 당시 `apps` 가 비어 있어 대조할
+워크로드가 없었기 때문이다. 워크로드가 생기자 4건이 나왔다.
 
 대상 범위는 규약 7절을 따른다 — 팀 네임스페이스 일곱. 시스템 네임스페이스와
 `kyverno` 는 제외한다

@@ -13,6 +13,15 @@
 #
 # 다이제스트(`image@sha256:...`)는 통과한다. 콜론이 있어 태그 규칙을
 # 만족하고, `latest` 도 아니다. 다이제스트가 가장 강한 형태다.
+# ⚠️ **Audit 로 시작한다. 2026-08-06 실측에서 파드 3개가 위반한다.**
+#
+#     devops/harbor-core       alpine            ← 태그 없음 (= latest)
+#     devops/harbor-registry   busybox           ← 태그 없음
+#     logging/opensearch-cluster-master-0  busybox:latest
+#
+# 셋 다 차트가 심는 보조 컨테이너다. **Enforce 전환 전에** 차트 values 로
+# 태그를 고정하거나 `exceptions/` 를 쓴다
+# → governance/README.md 의 Audit 우선 절차
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -21,7 +30,7 @@ metadata:
     policies.kyverno.io/description: >-
       팀 네임스페이스의 이미지는 태그를 명시하고 latest 를 쓰지 않는다.
 spec:
-  validationFailureAction: Enforce
+  validationFailureAction: Audit
   background: true
   rules:
     - name: require-image-tag
