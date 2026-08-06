@@ -15,7 +15,7 @@ resources:
   - pvc.yaml
 
 patches:
-  # 1. Harbor Service (Portal 80 포트로 확실히 연결)
+  # 1. Harbor Service 패치 (NodePort 31432 유지 및 Portal로 라우팅)
   - target:
       kind: Service
       name: harbor
@@ -34,7 +34,7 @@ patches:
             targetPort: 80
             nodePort: 31432
 
-  # 2. Harbor Core (외부 접근 주소 지정)
+  # 2. Harbor Core 패치 (외부 접근 Endpoint 및 필수 환경변수 적용)
   - target:
       kind: Deployment
       name: harbor-core
@@ -53,3 +53,29 @@ patches:
                     value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
                   - name: HARBOR_URL
                     value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
+                  - name: CONFIG_PATH
+                    value: "/etc/harbor/core/app.conf"
+                  - name: PORT
+                    value: "8080"
+                  - name: CACHE_TYPE
+                    value: "redis"
+                  - name: REDIS_URL
+                    value: "redis://harbor-redis:6379/0"
+                  - name: _REDIS_URL_CORE
+                    value: "redis://harbor-redis:6379/0"
+                  - name: POSTGRESQL_HOST
+                    value: "postgresql"
+                  - name: POSTGRESQL_PORT
+                    value: "5432"
+                  - name: POSTGRESQL_PASSWORD
+                    value: "root123"
+                  - name: POSTGRESQL_DATABASE
+                    value: "registry"
+                  - name: REGISTRY_URL
+                    value: "http://harbor-registry:5000"
+                  - name: CORE_SECRET
+                    value: "HARBOR_CORE_SECRET_123456"
+                  - name: JOBSERVICE_SECRET
+                    value: "HARBOR_JOBSERVICE_SECRET_123456"
+                  - name: CSRF_KEY
+                    value: "12345678901234567890123456789012"
