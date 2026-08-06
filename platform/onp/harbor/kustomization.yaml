@@ -28,11 +28,11 @@ patches:
         type: NodePort
         externalTrafficPolicy: Cluster
         selector:
-          app: harbor-portal
+          app: harbor-core
         ports:
           - name: http
             port: 80
-            targetPort: 80
+            targetPort: 8080
             nodePort: 31432
 
   # 2. Harbor Core 패치 (nodeSelector 통일)
