@@ -53,6 +53,16 @@ data:
         Match  kube.*
         Regex  $kubernetes['namespace_name'] ^(logging|devops|istio-system)$
 
+    # Harbor Portal emits NGINX access logs to stdout. Parse only matching
+    # lines; all other records retain their original `log` field unchanged.
+    [FILTER]
+        Name           parser
+        Match          kube.*
+        Key_Name       log
+        Parser         harbor_nginx
+        Reserve_Data   On
+        Preserve_Key   On
+
     # Dashboard query fields are flattened here while the original `log` and
     # Kubernetes metadata are retained for incident investigation.
     [FILTER]
@@ -78,6 +88,11 @@ data:
         Regex        ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]+) (?<log>.*)$
         Time_Key     time
         Time_Format  %Y-%m-%dT%H:%M:%S.%L%z
+    [PARSER]
+        Name         harbor_nginx
+        Format       regex
+        Regex        ^(?<http_client_ip>[^ ]+) - (?<http_user>[^ ]+) \[(?<http_request_time>[^\]]+)\] "(?<http_method>[^ ]+) (?<http_path>[^ ]+) [^"]+" (?<http_status>[0-9]{3}) (?<http_response_bytes>[0-9]+) "(?<http_referer>[^"]*)" "(?<http_user_agent>[^"]*)" "(?<http_forwarded_for>[^"]*)"$
+        Types        http_status:integer http_response_bytes:integer
   platform-normalize.lua: |
     -- Common schema for platform log dashboards. `collector_platform` is
     -- read once from the node label captured by the init container.
@@ -99,6 +114,20 @@ data:
       return collector_platform
     end
 
+    local function normalize_harbor_route(path)
+      if string.match(path, "^/v2/.+/blobs/uploads") then
+        return "/v2/*/blobs/uploads"
+      elseif string.match(path, "^/v2/.+/blobs/") then
+        return "/v2/*/blobs/*"
+      elseif string.match(path, "^/v2/.+/manifests/") then
+        return "/v2/*/manifests/*"
+      elseif string.match(path, "^/v2/") then
+        return "/v2/*"
+      end
+
+      return path
+    end
+
     function normalize(tag, timestamp, record)
       local kubernetes = record["kubernetes"] or {}
       local pod_labels = kubernetes["labels"] or {}
@@ -112,6 +141,14 @@ data:
       record["pod"] = kubernetes["pod_name"] or "unknown"
       record["container"] = kubernetes["container_name"] or "unknown"
       record["message"] = record["msg"] or record["message"] or record["log"] or ""
+
+      -- Avoid storing high-cardinality image digests as a separate parsed
+      -- field. The original request line remains available in `log`.
+      if record["app"] == "harbor-portal" and record["http_status"] ~= nil then
+        record["log_type"] = "harbor_access"
+        record["http_route"] = normalize_harbor_route(record["http_path"])
+        record["http_path"] = nil
+      end
 
       if record["level"] == nil then
         record["level"] = "unknown"

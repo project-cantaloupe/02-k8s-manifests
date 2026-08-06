@@ -13,7 +13,7 @@ spec:
     metadata:
       annotations:
         fluentbit.io/exclude: "true"
-        checksum/fluent-bit-config: "normalization-v1"
+        checksum/fluent-bit-config: "harbor-parser-v1"
       labels:
         app: fluent-bit
         area: logging
@@ -41,7 +41,7 @@ spec:
                 --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
                 -H "Authorization: Bearer ${token}" \
                 "${api}/api/v1/nodes/${NODE_NAME}" \
-                | sed -n 's/.*"platform":"\([^"]*\)".*/\1/p')
+                | sed -n 's/.*"platform"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
               test -n "${platform}"
               printf '%s\n' "${platform}" > /fluent-bit/state/collector_platform
