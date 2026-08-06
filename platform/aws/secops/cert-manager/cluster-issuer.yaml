@@ -12,16 +12,21 @@
 #
 # ── 자격증명이 없는 이유 ────────────────────────────────────────
 #
-# `accessKeyIDSecretRef` 가 없다. `applications/cert-manager.yaml` 이
-# projected ServiceAccount 토큰(`sts.amazonaws.com` audience)과
-# `AWS_ROLE_ARN` 으로 **AWS 역할을 web identity 로 맡는** 구성이라,
-# 파드가 이미 자격증명을 갖고 있다. 정적 IAM 키를 두지 않는다 —
+# `accessKeyIDSecretRef` 가 없다. cert-manager 파드가 도는 노드
+# (`cntlp-aws-wk-01`)의 **Node Instance Profile** 에서 IMDS 로 자격증명을
+# 가져오기 때문이다. 정적 IAM 키를 두지 않는다 —
 # `decisions/20260731_secret-access-no-fallback.md` 와 정면으로 맞는다.
 #
-# ⚠️ **선행 조건: 클러스터의 ServiceAccount 발행자를 AWS IAM 의 OIDC
-# 공급자로 등록해야 한다.** self-managed 클러스터라 EKS 처럼 자동으로 되지
-# 않는다. 그게 끝나기 전에는 cert-manager 를 Root 목록에 등록하지 않는다
-# (`applications/cert-manager.yaml` 주석). **Keycloak 인증서도 같이 막힌다.**
+# ⚠️ **IRSA 가 아니다.** 예전 주석이 projected ServiceAccount 토큰과
+# `AWS_ROLE_ARN` 을 적고 있었는데, self-managed 클러스터의
+# `--service-account-issuer` 가 `https://kubernetes.default.svc.cluster.local`
+# 이라 AWS 가 OIDC 디스커버리 문서를 가지러 올 수 없다. IRSA 는 컨트롤플레인을
+# 3대로 늘릴 때 다시 본다 — apiserver 재시작이 필요하다.
+# → decisions/20260806_cert-manager-node-instance-profile.md
+#
+# ⚠️ **`hostedZoneID` 를 명시하는 것이 IAM 정책의 전제다.** 인라인 정책이
+# `route53:ListHostedZonesByName` 을 안 준다. 이 값을 비우면 cert-manager 가
+# 존을 이름으로 찾으려 들다가 AccessDenied 로 죽는다.
 #
 # ── staging 을 먼저 쓴다 ────────────────────────────────────────
 #
