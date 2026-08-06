@@ -32,7 +32,8 @@ spec:
         - name: events
           image: audio-api
           imagePullPolicy: IfNotPresent
-          command: ["/usr/local/bin/audio-events"]
+          # 같은 Image의 다른 바이너리다. 둘 다 루트에 있다.
+          command: ["/audio-events"]
           ports:
             - name: http
               containerPort: 8081

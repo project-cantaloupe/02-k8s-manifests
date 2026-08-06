@@ -34,7 +34,8 @@ spec:
         - name: api
           image: audio-api
           imagePullPolicy: IfNotPresent
-          command: ["/usr/local/bin/audio-api"]
+          # Dockerfile이 바이너리를 루트에 둔다. ENTRYPOINT도 /audio-api다.
+          command: ["/audio-api"]
           ports:
             - name: http
               containerPort: 8080
