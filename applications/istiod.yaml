@@ -64,6 +64,32 @@ spec:
         # **반드시 같이 켜야 한다** — 하나만 켜면 파드가 메시에 안 들어가고
         # 에러도 안 난다.
         profile: ambient
+        # ⚠️ **ztunnel 을 `istio-system` 밖에 두면 이 값이 반드시 필요하다.**
+        #
+        # ztunnel 은 자기 인증서가 아니라 **각 워크로드의 인증서를 대신
+        # 요청한다**(impersonation). 노드 하나가 그 위 모든 파드의 신원을
+        # 발급받는 것이라, istiod 는 이 권한을 **명시된 계정 하나에만** 준다.
+        # 그 목록이 `CA_TRUSTED_NODE_ACCOUNTS` 이고 기본값이
+        # `istio-system/ztunnel` 이다.
+        #
+        # 우리는 PSA 봉쇄를 위해 ztunnel 을 전용 네임스페이스로 뺐다
+        # (→ governance/namespaces/ztunnel.yaml). 그래서 실제 신원이
+        # `spiffe://cluster.local/ns/ztunnel/sa/ztunnel` 이고 기본값과 어긋난다.
+        #
+        # **증상이 배치가 아니라 트래픽에서 나타난다.** DaemonSet 은 정상으로
+        # 뜨고 파드 포획도 되고 15008 도 열린다. 인증서만 못 받아서 HBONE
+        # 핸드셰이크가 실패하고 **게이트웨이가 503 을 낸다.**
+        #
+        #   ztunnel:  certificate fetch failed (signing gRPC error
+        #             (The request does not have valid authentication
+        #             credentials): request impersonation authentication
+        #             failure) id=spiffe://cluster.local/ns/apps/sa/default
+        #   gateway:  503 UC envoy://connect_originate/10.244.33.108:8080
+        #
+        # 2026-08-06 착지 때 실제로 겪었다
+        # → findings/20260806_ztunnel-ca-trusted-node-accounts.md
+        env:
+          CA_TRUSTED_NODE_ACCOUNTS: "ztunnel/ztunnel"
         autoscaleEnabled: false
         replicaCount: 1
         # On-Prem은 DevOps 전용 Node이므로 Istio를 두지 않는다. istiod는 AWS
