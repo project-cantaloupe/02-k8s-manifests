@@ -1,0 +1,354 @@
+# 네임스페이스가 생기면 기본 NetworkPolicy 네 장을 자동으로 만든다.
+#
+# **왜 generate 냐** — 네임스페이스마다 파일을 두면 새 네임스페이스를 만들 때
+# 반드시 빼먹는다. 빼먹은 곳은 그냥 전부 열려 있고, 열려 있다는 사실이
+# 아무 데도 안 나타난다. 정책 하나가 전부를 덮고, `synchronize: true` 라
+# 누가 지워도 되살아난다. Pod Security Admission 이 못 하는 일이다.
+#
+# **왜 네 장이냐** — NetworkPolicy 는 화이트리스트다. "거부" 규칙이 없고,
+# 아무 정책도 안 고른 파드가 곧 거부다. default-deny 만 깔면 같은 네임스페이스
+# 안에서 파드끼리도 못 본다. 그게 가장 흔한 혼란의 원인이라 짝으로 깐다.
+# 나머지 둘은 **파드 셀렉터로 표현할 수 없는 출처**를 여는 것이다.
+#
+#   default-deny-ingress      들어오는 것 전부 차단
+#   allow-same-namespace      같은 네임스페이스 안은 허용
+#   allow-from-mesh           tailnet(100.64.0.0/10) — 노드·kubelet 프로브 포함
+#   allow-from-audio-ingress  Istio 게이트웨이 → 앱 (교차 네임스페이스)
+#
+# 결과: **네임스페이스가 격리 단위가 된다.** 교차 네임스페이스 통신은
+# 메시와 게이트웨이 경로만 열리고 나머지는 막힌다.
+#
+# **추가 허용은 이 두 장을 고치지 않는다.** NetworkPolicy 는 누적이라
+# 새 파일을 옆에 두면 합집합으로 허용된다. 생성된 것은 건드릴 일이 없다.
+#
+# ── 알아야 할 것 ────────────────────────────────────────────────
+#
+# 1. **Ingress 만 막는다. Egress 는 안 막는다.** egress 를 막으면 DNS(53)도
+#    막혀서 이름 해석이 전부 실패하는데, 증상이 "네트워크 장애"가 아니라
+#    "호스트를 못 찾음"으로 나와 원인이 안 드러난다. egress 차단은 CoreDNS
+#    허용 규칙을 같이 설계해야 하므로 별도 단계다
+#
+# 2. **교차 네임스페이스로 오는 것은 전부 막힌다.** 세울 때 허용 규칙이
+#    같이 필요한 것들:
+#      - Prometheus 가 다른 네임스페이스의 파드를 스크레이프한다
+#      - ingress-nginx 가 apps 의 파드로 프록시한다
+#      - ArgoCD 가 클러스터 API 를 통해 배포하는 것은 영향 없음(API 서버 경유)
+#
+# 3. **제외한 네임스페이스** — kube-system·kube-public·kube-node-lease 는
+#    CNI 와 컨트롤플레인 구성요소가 산다. kyverno 는 **어드미션 웹훅이
+#    API 서버로부터 호출을 받아야 해서** 막으면 정책 엔진이 자기를 죽인다.
+#    API 서버는 컨트롤플레인 노드의 호스트 네트워크에서 오므로 파드 셀렉터로
+#    허용되지 않는다
+#
+# 4. **집행은 CNI 가 한다.** Calico 가 깔려 있어야 실제로 막힌다
+#    (`ansible/roles/cni-calico`). CNI 가 지원 안 하면 객체만 생기고
+#    조용히 무시된다
+#
+# 5. Kyverno 백그라운드 컨트롤러에 NetworkPolicy 생성 RBAC 이 필요하다.
+#    Kyverno 배포 시 확인한다 → tasks/todo/002_bootstrap-blockers.md 1번
+#
+# → references/20260803_secops-admission-and-network-policy.md 2·3절
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: generate-default-network-policies
+  annotations:
+    policies.kyverno.io/description: >-
+      네임스페이스 생성 시 default-deny-ingress 와 allow-same-namespace 를
+      만든다. 네임스페이스를 격리 단위로 만드는 것이 목적이다.
+spec:
+  # generate 규칙에는 validationFailureAction 이 의미 없다. 거부하지 않고
+  # 자원을 만든다.
+  background: true
+  rules:
+    - name: default-deny-ingress
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              # Namespace 는 클러스터 범위라 names 로 고른다.
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                # CNI. tigera-operator 로 깔려서 네임스페이스가 셋이다
+                # (ansible/roles/cni-calico). calico-node·typha 는
+                # hostNetwork 라 정책이 안 걸리지만 **calico-apiserver 는
+                # 일반 파드**이고 kube-apiserver 가 컨트롤플레인의 호스트
+                # 네트워크에서 aggregated APIService 를 호출한다 —
+                # kyverno 와 같은 이유로 파드 셀렉터로 허용할 수 없다.
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
+                # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
+                # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
+                # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
+                # audio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                - cert-manager
+                - istio-system
+                - audio-ingress
+                # ambient 데이터플레인.
+                #
+                # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
+                # NetworkPolicy 가 그대로 걸린다 (2026-08-05 `helm template`
+                # 실측. calico-node·typha 와는 다르다). 특히 ztunnel 을 막으면
+                # **노드 간 메시 트래픽이 통째로 죽는다** — 아래
+                # allow-from-ztunnel 규칙과 짝이다.
+                - istio-cni
+                - ztunnel
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: default-deny-ingress
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            # 이 네임스페이스의 모든 파드
+            podSelector: {}
+            policyTypes: [Ingress]
+
+    - name: allow-same-namespace
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              # ⚠️ **세 규칙의 제외 목록은 반드시 같아야 한다.**
+              # NetworkPolicy 는 파드를 고르는 정책이 하나라도 있으면 그
+              # 방향이 기본 차단이 된다. 즉 여기만 제외가 빠지면 allow 정책
+              # 하나만으로도 그 네임스페이스가 차단된다 — default-deny 를
+              # 안 넣었는데 차단되는, 가장 찾기 어려운 형태다.
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
+                # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
+                # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
+                # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
+                # audio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                - cert-manager
+                - istio-system
+                - audio-ingress
+                # ambient 데이터플레인.
+                #
+                # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
+                # NetworkPolicy 가 그대로 걸린다 (2026-08-05 `helm template`
+                # 실측. calico-node·typha 와는 다르다). 특히 ztunnel 을 막으면
+                # **노드 간 메시 트래픽이 통째로 죽는다** — 아래
+                # allow-from-ztunnel 규칙과 짝이다.
+                - istio-cni
+                - ztunnel
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: allow-same-namespace
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+            ingress:
+              # from 에 podSelector 만 쓰면 "같은 네임스페이스의 모든 파드"다.
+              # namespaceSelector 를 안 붙이는 것이 그 의미를 만든다.
+              - from:
+                  - podSelector: {}
+
+    - name: allow-from-mesh
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
+                # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
+                # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
+                # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
+                # audio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                - cert-manager
+                - istio-system
+                - audio-ingress
+                # ambient 데이터플레인.
+                #
+                # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
+                # NetworkPolicy 가 그대로 걸린다 (2026-08-05 `helm template`
+                # 실측. calico-node·typha 와는 다르다). 특히 ztunnel 을 막으면
+                # **노드 간 메시 트래픽이 통째로 죽는다** — 아래
+                # allow-from-ztunnel 규칙과 짝이다.
+                - istio-cni
+                - ztunnel
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: allow-from-mesh
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+            ingress:
+              - from:
+                  # Tailscale CGNAT 대역. **파드 셀렉터로는 못 잡는 출처가
+                  # 둘 있어서 필요하다.**
+                  #
+                  # 1. **서브넷 라우터를 지나온 트래픽.** tailnet → 파드는
+                  #    라우터 노드가 자기 IP 로 SNAT 해서 보낸다
+                  #    (`--snat-subnet-routes` 기본값). 파드에는 노드의
+                  #    tailnet IP 에서 온 것으로 보인다
+                  #    → tasks/todo/002_bootstrap-blockers.md 2번
+                  # 2. **노드 자신.** kubeadm 이 `node-ip` 를 tailscale IP 로
+                  #    세운다 (kubeadm-init.yaml.j2). 즉 노드 IP 가 이 대역
+                  #    안이고, kubelet 의 liveness·readiness 프로브도 여기서
+                  #    온다. 막히면 파드가 계속 재시작한다
+                  #
+                  # ⚠️ **대가 — 메시에 있는 것은 무엇이든 어느 파드에나 닿는다.**
+                  # 네임스페이스 격리는 파드 간에만 남는다. 접속 모델이
+                  # "팀원이 메시에 참여한다" 라서 의도한 경로이긴 하지만
+                  # (decisions/20260728_network-connectivity-and-access.md),
+                  # 메시가 곧 신뢰 경계라는 뜻이다. 좁히려면 노드 IP 만
+                  # 열거하는 방향이고 그건 노드가 늘 때마다 손이 간다.
+                  - ipBlock:
+                      cidr: 100.64.0.0/10
+
+    - name: allow-from-audio-ingress
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
+                - cert-manager
+                - istio-system
+                - audio-ingress
+                # ambient 데이터플레인.
+                #
+                # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
+                # NetworkPolicy 가 그대로 걸린다 (2026-08-05 `helm template`
+                # 실측. calico-node·typha 와는 다르다). 특히 ztunnel 을 막으면
+                # **노드 간 메시 트래픽이 통째로 죽는다** — 아래
+                # allow-from-ztunnel 규칙과 짝이다.
+                - istio-cni
+                - ztunnel
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: allow-from-audio-ingress
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+            ingress:
+              - from:
+                  # Istio 인그레스 게이트웨이는 `audio-ingress` 네임스페이스에
+                  # 살고, 거기서 앱 파드로 가는 것은 **교차 네임스페이스
+                  # 인그레스**라 default-deny 에 막힌다. 게이트웨이가 앱에
+                  # 못 닿으면 외부 접근이 통째로 죽는다.
+                  #
+                  # namespaceSelector 는 네임스페이스 **라벨**을 본다. 이름으로
+                  # 고르려면 자동으로 붙는 이 라벨을 쓴다.
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: audio-ingress
+
+    - name: allow-from-ztunnel
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+      exclude:
+        any:
+          - resources:
+              names:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - tigera-operator
+                - calico-system
+                - calico-apiserver
+                - cert-manager
+                - istio-system
+                - audio-ingress
+                - istio-cni
+                - ztunnel
+      generate:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: allow-from-ztunnel
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          metadata:
+            annotations:
+              cntlp/generated-by: generate-default-network-policies
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+            ingress:
+              # ⚠️ **ambient 의 노드 간 트래픽이 여기로 들어온다.**
+              #
+              # 사이드카였다면 파드 A → 파드 B 의 출발지 IP 가 A 의 podIP 라
+              # 같은 네임스페이스면 `allow-same-namespace` 로 끝났다. ambient
+              # 는 다른 노드의 ztunnel 이 HBONE 터널로 대신 열어준다.
+              #
+              # **그 ztunnel 은 hostNetwork 가 아니라 podIP 를 가진 일반
+              # 파드이고, `ztunnel` 네임스페이스에 산다.** 즉 도착 파드에는
+              # **교차 네임스페이스 인그레스**로 보인다.
+              #
+              # 기존 규칙 어느 것도 이걸 안 덮는다 (2026-08-05 실측):
+              #   allow-same-namespace  다른 네임스페이스라 해당 없음
+              #   allow-from-mesh       파드 CIDR 은 10.244.0.0/16 이고
+              #                         100.64.0.0/10 이 아니다
+              #
+              # ⚠️ **ztunnel 이 출발지 IP 를 보존하는지는 확인 못 했다.**
+              # 보존하면 이 규칙은 아무 일도 안 하는 무해한 규칙이고,
+              # 보존 안 하면 이게 없을 때 **메시가 조용히 죽는다.**
+              # NetworkPolicy 는 합집합이라 넣어두는 쪽이 싸다.
+              # → findings/20260805_ambient-networkpolicy-crossing.md
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: ztunnel

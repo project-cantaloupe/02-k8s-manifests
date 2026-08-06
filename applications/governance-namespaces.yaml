@@ -1,0 +1,48 @@
+# 네임스페이스와 그 Pod Security Admission 등급.
+#
+# ⚠️ **wave -40 — 클러스터에서 가장 먼저 적용된다.** 이유가 둘이다.
+#
+# 1. **네임스페이스가 없으면 그 안에 넣는 것이 전부 실패한다.** 다른 모든
+#    Application 이 `CreateNamespace=false` 라 스스로 만들지 않는다
+# 2. **PSA 는 소급되지 않는다.** 파드 생성 시점에만 검사하므로 라벨이
+#    파드보다 먼저 붙어 있어야 한다. 뒤늦게 붙이면 이미 도는 파드는
+#    위반한 채로 계속 산다
+#
+# **`CreateNamespace=false` 를 전부에 건 것이 이 Application 의 짝이다.**
+# 하나라도 `true` 로 남아 있으면 ArgoCD 가 라벨 없는 네임스페이스를 먼저
+# 만들어버리고, 그러면 여기서 붙이는 등급이 이미 뜬 파드에 안 걸린다.
+#
+# ⚠️ **`governance/policies` 와 갈라져 있다.** 저쪽은 Kyverno CRD 를
+# 기다려야 해서 wave 10 이다 → governance/policies/kustomization.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: governance-namespaces
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-40"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: governance/namespaces
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      # ⚠️ **이미 존재하는 네임스페이스에 라벨을 얹는다.** `apps`·
+      # `istio-system`·`audio-ingress`·`logging`·`messaging` 은 ArgoCD 가
+      # `CreateNamespace=true` 로 이미 만들어놨고 PSA 라벨이 없다
+      # (2026-08-05 실측). ServerSideApply 로 필드 소유권을 가져온다.
+      - ServerSideApply=true

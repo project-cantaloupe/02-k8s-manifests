@@ -28,8 +28,10 @@ spec:
         factor: 2
         maxDuration: 3m
     syncOptions:
-      # Namespace는 apps/audio/namespace.yaml이 라벨과 함께 소유하므로
-      # CreateNamespace로 라벨 없는 Namespace가 만들어지지 않게 한다.
+      # 네임스페이스는 governance/namespaces/ 가 라벨과 함께 소유한다.
+      # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
+      # → governance/namespaces/apps.yaml
+      - CreateNamespace=false
       - ServerSideApply=true
       # Istio CRD가 아직 없는 상태에서도 첫 동기화가 실패하지 않게 한다.
       - SkipDryRunOnMissingResource=true

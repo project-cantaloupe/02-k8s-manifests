@@ -1,0 +1,35 @@
+# cert-manager 의 클러스터 범위 설정.
+#
+# **차트 자체는 여기 없다.** `applications/cert-manager.yaml` 이 Helm 차트를
+# 직접 배포한다. 여기는 그 위에 얹는 ClusterIssuer 뿐이다.
+#
+# ⚠️ **순서** — ClusterIssuer 는 cert-manager 의 CRD 를 쓴다. 차트가 먼저
+# 서지 않으면 `no matches for kind ClusterIssuer` 로 실패한다. 지금은
+# `applications/cert-manager.yaml` 이 Root 목록에 등록돼 있지 않아
+# (SA OIDC 선행) 이 카탈로그도 같은 이유로 기다리는 상태다.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - settings.yaml
+  - cluster-issuer.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: cert-manager-settings
+      fieldPath: data.acmeEmail
+    targets:
+      - select:
+          kind: ClusterIssuer
+        fieldPaths:
+          - spec.acme.email
+  - source:
+      kind: ConfigMap
+      name: cert-manager-settings
+      fieldPath: data.route53ZoneID
+    targets:
+      - select:
+          kind: ClusterIssuer
+        fieldPaths:
+          - spec.acme.solvers.0.dns01.route53.hostedZoneID

@@ -5,7 +5,6 @@ namespace: storage-system
 # 공식 GCE PD CSI 배포 구성을 커밋 SHA로 고정한다. 직접 축약한 Controller
 # 매니페스트는 external-attacher, resizer와 필수 RBAC를 빠뜨리기 쉽다.
 resources:
-  - namespace.yaml
   - https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver//deploy/kubernetes/overlays/noauth?ref=542108f6279d571a4e2ab22656091d77b3df4449
   - storageclass.yaml
   - storageclass-retain.yaml

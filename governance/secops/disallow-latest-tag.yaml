@@ -1,0 +1,76 @@
+# 태그를 반드시 달고, `latest` 는 쓰지 않는다.
+#
+# **롤백 가능성의 전제다.** `latest` 는 같은 이름이 시점마다 다른 이미지를
+# 가리킨다. 그러면 "어제 것으로 되돌린다"가 성립하지 않고, 파드가 재시작될
+# 때마다 다른 것이 뜰 수 있다. 무엇이 돌고 있는지 아무도 모르는 상태가 된다.
+#
+# 태그를 아예 안 적어도 같은 문제다 — 컨테이너 런타임이 `:latest` 로 채운다.
+# 그래서 규칙이 둘이다.
+#
+# 대상 범위는 규약 7절의 Kyverno 강제 대상과 같다 — 팀 네임스페이스 일곱.
+# `kube-system` 등 시스템 네임스페이스와 `kyverno` 는 제외한다
+# (00-cantaloupe-resources/k8s-labeling-convention.md 7절).
+#
+# 다이제스트(`image@sha256:...`)는 통과한다. 콜론이 있어 태그 규칙을
+# 만족하고, `latest` 도 아니다. 다이제스트가 가장 강한 형태다.
+# ⚠️ **Audit 로 시작한다. 2026-08-06 실측에서 파드 3개가 위반한다.**
+#
+#     devops/harbor-core       alpine            ← 태그 없음 (= latest)
+#     devops/harbor-registry   busybox           ← 태그 없음
+#     logging/opensearch-cluster-master-0  busybox:latest
+#
+# 셋 다 차트가 심는 보조 컨테이너다. **Enforce 전환 전에** 차트 values 로
+# 태그를 고정하거나 `exceptions/` 를 쓴다
+# → governance/README.md 의 Audit 우선 절차
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/description: >-
+      팀 네임스페이스의 이미지는 태그를 명시하고 latest 를 쓰지 않는다.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: &teamNamespaces
+                - apps
+                - devops
+                - monitoring
+                - messaging
+                - logging
+                - finops
+                - secops
+      validate:
+        message: "이미지에 태그를 명시한다. 태그가 없으면 런타임이 latest 로 채운다."
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+            =(initContainers):
+              - image: "*:*"
+            =(ephemeralContainers):
+              - image: "*:*"
+
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: *teamNamespaces
+      validate:
+        message: "`:latest` 는 시점마다 다른 이미지를 가리켜 롤백이 성립하지 않는다."
+        pattern:
+          spec:
+            containers:
+              # `!` 는 부정이다. "latest 로 끝나면 안 된다".
+              - image: "!*:latest"
+            =(initContainers):
+              - image: "!*:latest"
+            =(ephemeralContainers):
+              - image: "!*:latest"

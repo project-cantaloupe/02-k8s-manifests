@@ -2,15 +2,26 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  # ⚠️ 순서는 여기가 아니라 각 Application 의 sync-wave 가 정한다.
+  # governance-namespaces(-40)가 가장 먼저, governance-policies(10)가 마지막.
+  - governance-namespaces.yaml
+  - governance-policies.yaml
   - argocd.yaml
-  - jenkins.yaml
   - harbor.yaml
   - gcp-storage.yaml
   - logging-stack.yaml
   - istio-base.yaml
   - istiod.yaml
+  # ambient 데이터플레인. 셋이 한 벌이다 → applications/istiod.yaml
+  - istio-cni.yaml
+  - ztunnel.yaml
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
   - opencost.yaml
   - audio-ingress.yaml
+  - secops.yaml
   - app-audio.yaml
+  # `audio-edge-smoke.yaml` 은 일부러 등록하지 않는다. ambient 가 실제로
+  # 도는지 볼 워크로드가 필요해서 만든 것인데, 이제 `app-audio` 가 진짜
+  # 워크로드를 `apps` 에 올린다. 파일은 남겨두되 배포하지 않는다
+  # → tasks/doing/009_istio-governance-reconcile.md

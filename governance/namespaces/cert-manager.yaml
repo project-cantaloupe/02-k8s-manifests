@@ -1,0 +1,23 @@
+# cert-manager. `applications/cert-manager.yaml` 이 여기로 배포한다.
+#
+# 차트 기본 네임스페이스를 그대로 쓴다. 처음엔 `secops` 로 합치려 했는데
+# `origin/main` 이 이미 `cert-manager` 로 잡아뒀고, 그쪽이 IRSA 방식이라
+# 그 구성을 유지하는 편이 낫다 (장기 자격증명이 없다).
+# → tasks/doing/009_istio-governance-reconcile.md 1번
+#
+# 특권이 필요 없어 restricted 다.
+#
+# ⚠️ cert-manager 의 웹훅을 kube-apiserver 가 **컨트롤플레인의 호스트
+# 네트워크에서** 호출한다. 파드 셀렉터로 허용할 수 없는 출처라
+# `default-deny-ingress` 대상에서 제외돼 있다 — Kyverno·calico-apiserver 와
+# 같은 이유다 → governance/secops/generate-default-network-policies.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    area: secops
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

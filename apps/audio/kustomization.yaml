@@ -21,10 +21,39 @@ patches:
         value:
           platform: aws
           role: service
+  # ⚠️ **seccompProfile 이 없으면 PSA `restricted` 를 못 지난다.**
+  # 컨테이너 쪽 `runAsNonRoot`·`allowPrivilegeEscalation`·`capabilities.drop`
+  # 은 이미 다 맞춰져 있는데 이것 하나가 빠져 있었다. 2026-08-06 컨트롤플레인
+  # 실측:
+  #
+  #   Warning: existing pods in namespace "apps" violate the new PodSecurity
+  #   enforce level "restricted:v1.36"
+  #   Warning: audio-events-... (and 1 other pod): seccompProfile
+  #
+  # 파드 단위로 걸면 그 안의 컨테이너 전부에 상속된다. nodeSelector 와 같은
+  # 이유로 여기 한 곳에만 적는다 → governance/namespaces/apps.yaml
+  - target:
+      kind: "(Deployment|StatefulSet|Job)"
+    patch: |
+      - op: add
+        path: /spec/template/spec/securityContext
+        value:
+          seccompProfile:
+            type: RuntimeDefault
+  - target:
+      kind: CronJob
+    patch: |
+      - op: add
+        path: /spec/jobTemplate/spec/template/spec/securityContext
+        value:
+          seccompProfile:
+            type: RuntimeDefault
 
-# Namespace를 먼저 두고, 그 뒤에 정책과 Workload를 등록한다.
+# ⚠️ `namespace.yaml` 은 여기 없다. `apps` Namespace 는 governance 가 소유한다
+# → governance/namespaces/apps.yaml
+# Namespace 는 오래 살고 Pod Security Admission 등급이 붙는 자리라, 앱 갈래마다
+# 흩어 두면 어느 쪽이 이기는지가 배포 순서에 달리게 된다.
 resources:
-  - namespace.yaml
   - gateway.yaml
   - settings.yaml
   - virtual-service.yaml

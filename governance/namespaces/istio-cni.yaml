@@ -1,0 +1,26 @@
+# istio-cni DaemonSet 전용. `applications/istio-cni.yaml`(wave -18).
+#
+# ⚠️ **privileged 는 이 네임스페이스에 파드 하드닝이 없다는 뜻이다.**
+# CNI 플러그인을 노드에 설치하려면 hostPath 로 `/opt/cni/bin` 과
+# `/etc/cni/net.d` 를 쓰고 특권이 필요하다. 우회할 방법이 없다.
+#
+# **그래서 istio-system 이 아니라 여기다.** 같이 두면 istiod 가 하드닝 없는
+# 네임스페이스에서 돌게 된다. node-exporter 가 `monitoring` 을,
+# Fluent Bit 이 `logging` 을 그렇게 만든 것과 같은 문제이고, 규약이
+# Kepler·Falco 에 대해 정한 봉쇄 규칙이 그대로 적용된다
+# (00-cantaloupe-resources/k8s-labeling-convention.md 1절).
+#
+# **이 네임스페이스에는 istio-cni 말고 아무것도 넣지 않는다.**
+#
+# warn/audit 은 restricted 로 둔다. 지금은 전부 위반으로 뜨겠지만, 나중에
+# 여기에 다른 것이 섞이면 그것도 같이 보이라는 뜻이다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-cni
+  labels:
+    area: apps
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

@@ -18,8 +18,16 @@ spec:
         app: mesh-smoke
         area: apps
         platform: aws
-      annotations:
-        sidecar.istio.io/inject: "true"
+      # ⚠️ **`sidecar.istio.io/inject: "true"` 를 뺐다.**
+      #
+      # 그 애노테이션은 파드 단위로 사이드카 주입을 **강제**한다 —
+      # 네임스페이스 라벨보다 우선이라 `apps` 가 ambient 여도 이것만 보고
+      # 주입한다. 그러면 `istio-init` 이 `NET_ADMIN`·`NET_RAW` 를 요구하고
+      # `apps` 의 PSA `restricted` 가 거부한다. 파드가 아예 안 뜬다.
+      #
+      # **ambient 는 파드에 아무 표시도 안 한다.** 네임스페이스의
+      # `istio.io/dataplane-mode: ambient` 하나로 들어간다
+      # → governance/namespaces/apps.yaml
     spec:
       nodeSelector:
         platform: aws

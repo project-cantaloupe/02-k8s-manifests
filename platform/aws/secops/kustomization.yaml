@@ -1,0 +1,22 @@
+# secops 영역 카탈로그.
+#
+# `applications/secops.yaml` 이 이 경로 하나를 가리키고, 여기서 영역에 속한
+# 실제 구성요소를 연결한다. 구성요소가 늘 때 `applications/` 는 안 건드리고
+# 이 파일에 한 줄을 더한다 (applications/README.md).
+#
+# 여기 있는 것은 대부분 Argo CD `Application` 객체다. 즉 이 카탈로그가
+# 배포하는 것은 워크로드가 아니라 **Application 이고**, 각 Application 이
+# 자기 차트와 자기 destination namespace 를 갖는다. 그래서 카탈로그 하나가
+# 서로 다른 네임스페이스로 가는 것들을 함께 들 수 있다.
+#
+#   cert-manager → secops 네임스페이스
+#   kyverno      → kyverno 네임스페이스 (차트 기본값, 규약 7절이 강제 대상에서 제외)
+#
+# 파드 라벨의 `area` 는 둘 다 `secops` 다 — 네임스페이스와 area 가 항상
+# 1:1 은 아니다 (00-cantaloupe-resources/k8s-labeling-convention.md 1절).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - cert-manager
+  - kyverno

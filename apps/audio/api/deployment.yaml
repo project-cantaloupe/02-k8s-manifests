@@ -24,9 +24,12 @@ spec:
         area: apps
         platform: aws
         component: api
-        # Gateway에서 오는 Mesh 트래픽을 받으므로 Sidecar를 주입한다.
-        # 어노테이션이 아니라 라벨이어야 Webhook의 objectSelector가 인식한다.
-        sidecar.istio.io/inject: "true"
+        # Mesh 참여는 Namespace의 `istio.io/dataplane-mode: ambient`가 한다.
+        # 여기에 라벨을 적지 않는다 → governance/namespaces/apps.yaml
+        #
+        # ⚠️ 예전의 `sidecar.istio.io/inject: "true"`를 뺐다. `apps`가 PSA
+        # `restricted`라 `istio-init`의 NET_ADMIN·NET_RAW가 어드미션에서
+        # 거부된다. ambient는 그 특권을 노드 DaemonSet으로 옮긴 방식이다.
     spec:
       imagePullSecrets:
         - name: ghcr-pull

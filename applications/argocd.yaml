@@ -26,7 +26,10 @@ spec:
     namespace: devops
   syncPolicy:
     syncOptions:
-      - CreateNamespace=true
+      # 네임스페이스는 governance/namespaces/ 가 만든다.
+      # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
+      # → governance/namespaces/devops.yaml
+      - CreateNamespace=false
       - ServerSideApply=true
   # Argo CD 자신의 CRD는 Helm이나 Operator가 아니라 install.yaml이 소유한다.
   # 재적용 시 대용량 annotation 충돌을 피하려고 ServerSideApply를 사용한다.

@@ -1,0 +1,24 @@
+# ztunnel DaemonSet 전용. `applications/ztunnel.yaml`(wave -16).
+#
+# ⚠️ **privileged 는 이 네임스페이스에 파드 하드닝이 없다는 뜻이다.**
+# ztunnel 은 다른 파드의 네트워크 네임스페이스에 들어가 트래픽을 가로챈다.
+# `NET_ADMIN`·`SYS_ADMIN` 과 `/var/run/netns` hostPath 가 필요하다.
+#
+# **istio-cni 와 같은 이유로 전용 네임스페이스다** → istio-cni.yaml
+#
+# ⚠️ **이것이 ambient 의 거래다.** 특권이 사라진 게 아니라 **앱 옆에서
+# 노드 인프라로 옮겨간 것**이다. 대신 특권을 가진 곳이 네임스페이스 둘로
+# 한정되고, `apps` 는 `restricted` 를 유지한다. 사이드카였다면 모든 앱
+# 파드가 특권 init 컨테이너를 달거나 `apps` 를 baseline 으로 내려야 했다.
+#
+# **이 네임스페이스에는 ztunnel 말고 아무것도 넣지 않는다.**
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ztunnel
+  labels:
+    area: apps
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

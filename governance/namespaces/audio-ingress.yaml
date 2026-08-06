@@ -1,0 +1,47 @@
+# 오디오 스택의 인그레스 게이트웨이. `applications/audio-ingress.yaml`(wave -10).
+#
+# **istiod 와 다른 네임스페이스다.** 차트의 `gateway` 릴리스가 여기로 간다.
+#
+# ── 이름이 `istio-ingress` 가 아닌 이유 ────────────────────────
+#
+# Istio 의 `gateway` 차트는 `name:` 으로 파라미터화돼 있고 여러 번 배포하는
+# 것이 전제다. **차트가 강제하는 네임스페이스가 아니므로** 규약 1절의
+# "서드파티 기본값 존중" 대상이 아니다. 그래서 일반 규칙대로 **노출 경계를
+# 이름에 담는다.**
+#
+# 구현 이름(`istio-`)을 쓰지 않는 이유는 바꾸는 비용 때문이다. 네임스페이스
+# 이름은 Gateway 참조(`<ns>/<name>`)·AuthorizationPolicy 의 principal
+# (`cluster.local/ns/<ns>/sa/<sa>`)·NetworkPolicy selector 에 박힌다. 나중에
+# 게이트웨이 구현을 바꿔도 저 셋을 다 못 고쳐서 **틀린 이름이 그럴듯하게
+# 남는다.**
+#
+# 이게 공용 인그레스가 아니라는 근거도 있다 — Argo CD·Jenkins·Harbor 는
+# Tailscale + NodePort 로 직접 접근하고 **일부러 이 게이트웨이를 안 쓴다.**
+# (그렇게 해서 "Argo CD 가 Istio 를 배포하는데 Istio 가 Argo CD 접근을
+#  통제하는" 순환 의존을 끊었다.)
+#
+# ── PSA ────────────────────────────────────────────────────────
+#
+# 게이트웨이 파드는 이미 restricted 에 맞게 잡혀 있다 — `runAsNonRoot: true`,
+# `runAsUser: 1337`, `allowPrivilegeEscalation: false`,
+# `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`.
+# 노드 :443 을 직접 잡는 대신 **NodePort 30443** 을 쓰기 때문에 특권이
+# 필요 없다. 인그레스 컨트롤러가 보통 hostNetwork 로 특권을 먹는 것을
+# 이 구성이 피해간다.
+#
+# 그래도 enforce 는 baseline 으로 시작한다. 차트가 만드는 다른 자원까지
+# restricted 를 지나는지 확인하지 않았다. warn 이 조용하면 올린다.
+#
+# ⚠️ 여기서 `apps` 로 가는 트래픽은 **교차 네임스페이스 인그레스**라
+# `default-deny-ingress` 에 막힌다. 허용 규칙이 생성 정책에 들어 있다
+# → governance/secops/generate-default-network-policies.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: audio-ingress
+  labels:
+    area: apps
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

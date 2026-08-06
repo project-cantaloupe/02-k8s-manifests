@@ -1,19 +1,9 @@
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-production
-spec:
-  acme:
-    email: platform@example.com
-    server: https://acme-v02.api.letsencrypt.org/directory
-    privateKeySecretRef:
-      name: letsencrypt-production-account
-    solvers:
-      - dns01:
-          route53:
-            region: ap-northeast-2
-            hostedZoneID: Z0000000000000000000
----
+# ClusterIssuer 는 여기 없다. 클러스터 범위 자원이라 앱 오버레이가 소유하면
+# 다른 영역이 인증서를 받으려고 오디오 앱 배포에 의존하게 된다.
+# → platform/aws/secops/cert-manager/cluster-issuer.yaml
+#   tasks/doing/009_istio-governance-reconcile.md 2번
+#
+# 이름으로 참조하므로 정의 위치가 바뀌어도 그대로 붙는다.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

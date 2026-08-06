@@ -1,0 +1,19 @@
+# Kyverno 컨트롤러 자신. PolicyException 도 이 네임스페이스에 산다
+# (governance/exceptions/_EXAMPLE.yaml).
+#
+# ⚠️ **정책 엔진이 자기 자신을 막을 수 있다.** 등급을 너무 높이면 Kyverno 가
+# 못 뜨고, Kyverno 가 없으면 나머지 정책이 전부 무력해진다. baseline 으로
+# 여유를 두되 warn 으로 실제 필요치를 관찰한다.
+#
+# 컨트롤러 배치는 platform=aws 고정이다 (어드미션 웹훅이 모든 쓰기의 동기
+# 경로에 있다) → decisions/20260728_network-connectivity-and-access.md
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno
+  labels:
+    area: secops
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

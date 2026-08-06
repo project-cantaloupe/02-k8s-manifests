@@ -20,4 +20,6 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      # 네임스페이스는 governance/namespaces/ 가 만든다.
+      # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
+      - CreateNamespace=false

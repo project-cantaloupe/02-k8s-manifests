@@ -1,9 +1,15 @@
 # FFmpeg로 MP3와 waveform을 만든다. SQS를 long polling하고 메시지를 한 건씩
 # 처리한다.
 #
-# Sidecar를 주입하지 않는다. 통신 대상이 S3와 SQS뿐이라 Mesh 이득이 없고,
+# Mesh에 넣지 않는다. 통신 대상이 S3와 SQS뿐이라 Mesh 이득이 없고,
 # 트랙당 처리 비용에 Mesh 비용을 섞지 않기 위해서다. 이 결정은 FinOps 측정
 # 기준선의 일부다.
+#
+# ⚠️ **ambient에서는 "라벨을 안 붙이는 것"으로는 안 빠진다.** Namespace에
+# `istio.io/dataplane-mode: ambient`가 걸려 있으면 그 안의 파드가 전부
+# ztunnel에 잡힌다. 사이드카 때와 정반대로 **빼는 쪽을 명시**해야 한다 —
+# 아래 Pod 라벨 `istio.io/dataplane-mode: none`이 그것이다.
+# → governance/namespaces/apps.yaml
 #
 # DB에 직접 접속하지 않으므로 DATABASE_URL이 필요 없다.
 apiVersion: apps/v1
@@ -31,6 +37,8 @@ spec:
         area: apps
         platform: aws
         component: transcode
+        # FinOps 기준선. 위 주석 참조.
+        istio.io/dataplane-mode: none
     spec:
       imagePullSecrets:
         - name: ghcr-pull

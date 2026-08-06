@@ -1,0 +1,106 @@
+# istio-cni — ambient 의 특권 절반. 노드의 CNI 체인에 플러그인을 끼워
+# 파드 netns 의 트래픽을 ztunnel 로 넘긴다.
+#
+# **사이드카에서 없어진 `istio-init` 이 여기로 왔다.** 앱 파드마다 붙던
+# `NET_ADMIN`·`NET_RAW` init 컨테이너가 사라지고, 같은 일을 노드당 하나의
+# DaemonSet 이 한다. 그래서 `apps` 가 `restricted` 를 유지할 수 있다.
+#
+# ⚠️ **전용 네임스페이스 `istio-cni` 에 둔다.** 이 파드는 hostPath 로
+# `/opt/cni/bin`·`/etc/cni/net.d` 를 쓰고 특권이 필요하다. `istio-system` 에
+# 넣으면 istiod 가 하드닝 없는 네임스페이스에서 돌게 된다 — Kepler·Falco 와
+# 같은 봉쇄 규칙이다 (00-cantaloupe-resources/k8s-labeling-convention.md 1절).
+#
+# ⚠️ **DaemonSet 이고 nodeSelector 가 없다.** aws·gcp·onp 노드 전부에 떠야
+# 한다. 안 뜬 노드의 파드는 조용히 메시 밖에 남는다 — 에러가 아니라 그냥
+# 정책이 안 걸린 상태로 산다. 그래서 `platform` 라벨도 안 붙인다
+# (규약 3절, 다중 플랫폼 DaemonSet).
+#
+# ── Calico·Tailscale 과 한 노드에 산다 ─────────────────────────
+#
+# **이 플러그인은 Calico 가 쓰는 파일을 같이 고친다.** 셋이 어떻게 겹치는지
+# 실측치와 함께 정리해뒀다 →
+# references/20260805_network-cni-chain-and-tailscale-routing.md
+#
+# 지금 매니페스트에서 지켜야 하는 것 셋:
+#
+#   1. cniConfFileName 을 명시한다 (아래 주석)
+#   2. NATIVE_NFTABLES 를 켜지 않는다 — Calico 가 `linuxDataplane: Iptables`
+#      라서 istio 만 native nft 로 가면 규칙이 서로 안 엮인다. 차트 기본값이
+#      `false` 이고 그게 맞다. **"노드가 nf_tables 백엔드니까 켜야지" 는
+#      틀린 판단이다** — iptables-nft 는 호환 계층이고 둘 다 그걸 쓴다
+#   3. Calico 를 eBPF 데이터플레인으로 바꾸지 않는다 → CONSTRAINTS.md
+#
+# → decisions/20260805_istio-service-mesh.md
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istio-cni
+  namespace: devops
+  annotations:
+    # istiod(-20) 다음, ztunnel(-16) 앞.
+    argocd.argoproj.io/sync-wave: "-18"
+spec:
+  project: default
+  source:
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: cni
+    targetRevision: 1.30.3
+    helm:
+      releaseName: istio-cni
+      values: |
+        # 네 차트가 같은 값이어야 한다 → applications/istiod.yaml 주석
+        profile: ambient
+        global:
+          # ⚠️ **릴리스 네임스페이스가 `istio-cni` 라 이 값이 필요하다.**
+          # 차트 기본값은 `istio-system` 이고, 보통은 릴리스와 같은 곳이라
+          # 신경 쓸 일이 없다. 우리는 갈라놨으므로 명시한다.
+          istioNamespace: istio-system
+        # Calico Installation CR 의 `spec.cni` 와 같은 값이어야 한다
+        # (2026-08-05 실측: binDir=/opt/cni/bin, confDir=/etc/cni/net.d).
+        # 틀리면 플러그인이 체인에 안 들어가고, 증상은 "파드가 메시에
+        # 안 잡힌다" 로만 나타난다.
+        cniBinDir: /opt/cni/bin
+        cniConfDir: /etc/cni/net.d
+        # ⚠️ **차트 기본값은 `""` 이고 그건 "conf 디렉터리에서 처음 찾은
+        # 파일" 이라는 뜻이다.** 지금 그 디렉터리에는 `10-calico.conflist`
+        # 말고도 `calico-kubeconfig` 와 `backup/` 이 있다. 나중에 뭐가 하나
+        # 더 생겨서 정렬 순서가 바뀌면 **엉뚱한 파일에 체인을 붙이고도
+        # 성공한 것처럼 보인다.**
+        #
+        # 명시하면 파일이 없을 때 시끄럽게 실패한다. 조용한 오동작보다 낫다.
+        # (차트 values.yaml 의 예시 주석이 바로 이 값이다)
+        cniConfFileName: 10-calico.conflist
+        # Calico 가 이미 체인을 잡고 있으므로 끼워 넣는 방식이다.
+        # `false` 는 자기 conflist 를 따로 두는 방식이고 OpenShift 처럼
+        # 체인을 안 받는 플랫폼용이다. 우리는 체인이 맞다.
+        chained: true
+        # 노드 재시작 등으로 설정을 놓친 파드를 되잡는다.
+        repair:
+          enabled: true
+        # 컨트롤플레인 노드에도 떠야 한다 — 거기 뜨는 파드도 대상이다.
+        tolerations:
+          - operator: Exists
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 128Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-cni
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      # 네임스페이스는 governance/namespaces/ 가 만든다.
+      # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
+      - CreateNamespace=false
+      - ServerSideApply=true

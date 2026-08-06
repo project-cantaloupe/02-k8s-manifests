@@ -1,0 +1,38 @@
+# 네임스페이스와 그 보안 등급을 한 곳에 모은다.
+#
+# **왜 여기냐** — Pod Security Admission 의 집행 단위가 네임스페이스 라벨이다.
+# 워크로드 옆에 흩어두면 "각 네임스페이스가 몇 등급이냐"에 답하려면 리포를
+# 뒤져야 한다. `ls namespaces/` 하나로 답하게 둔다. `exceptions/` 를 한 곳에
+# 모은 것과 같은 이유다 (governance/README.md).
+#
+# **왜 지금이냐** — PSA 는 파드 생성 시점에만 본다. 이미 도는 파드에 소급되지
+# 않는다. 라벨을 붙이기 전에 뜬 파드는 위반한 채로 계속 산다. 워크로드가
+# 아직 없는 지금이 가장 싸다.
+#
+# ⚠️ **적용 순서** — 이 디렉터리가 `platform/`·`apps/` 보다 먼저 적용돼야 한다.
+# 네임스페이스가 없으면 그 안에 넣는 자원이 전부 실패한다.
+#
+# ⚠️ **라벨이 없는 네임스페이스는 아무 제약도 안 받는다.** PSA 는 라벨이 있는
+# 곳에만 건다. `default` 와 `kube-system` 이 그렇다 — 전자는 Kyverno 의
+# disallow-default-namespace 가 맡고, 후자는 의도적으로 비워둔다 (CNI·kube-proxy
+# 가 특권을 필요로 해서 등급을 걸면 클러스터가 안 뜬다).
+#
+# → references/20260803_secops-admission-and-network-policy.md 1절
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - apps.yaml
+  - audio-ingress.yaml
+  - cert-manager.yaml
+  - devops.yaml
+  - finops.yaml
+  - istio-cni.yaml
+  - istio-system.yaml
+  - kyverno.yaml
+  - logging.yaml
+  - messaging.yaml
+  - monitoring.yaml
+  - secops.yaml
+  - storage-system.yaml
+  - ztunnel.yaml

@@ -1,4 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - require-run-as-nonroot.yaml
+  - disallow-default-namespace.yaml
+  - disallow-latest-tag.yaml
+  - generate-default-network-policies.yaml
+  - require-image-registry.yaml
+
+# require-run-as-nonroot.yaml 은 지웠다. Pod Security Admission 의
+# restricted 등급이 같은 것을 더 강하게 한다 (상속 덮어쓰기까지 막는다).
+# → governance/namespaces/ · governance/README.md 「왜 둘로 나누나」

@@ -6,8 +6,12 @@ AWS Service Worker에서 실행하는 Audio 서비스 매니페스트다. `nodeS
 
 ## 구성
 
+`apps` Namespace는 여기 없다. governance가 소유한다 →
+`governance/namespaces/apps.yaml`. Namespace는 오래 살고 Pod Security Admission
+등급이 붙는 자리라, 앱 갈래마다 흩어 두면 어느 쪽이 이기는지가 배포 순서에
+달리게 된다.
+
 ```text
-namespace.yaml        apps Namespace 소유. istio-injection 라벨을 두지 않는다
 gateway.yaml          audio-ingress Namespace의 Gateway 진입점
 settings.yaml         세 워크로드가 공유하는 비민감 ConfigMap
 virtual-service.yaml  경로 분기를 한 곳에서 관리 (/v1 -> api, 나머지 -> web)
@@ -17,20 +21,33 @@ api/                  audio-api와 audio-events (같은 Image의 다른 진입�
 worker/               audio-transcode
 ```
 
-### Sidecar 주입 기준
+### Mesh 참여 기준 — ambient
 
-Namespace 전체 자동 주입은 켜지 않는다. Mesh 안에서 들어오는 트래픽을 받는
-워크로드만 Pod 라벨로 명시한다.
+**Sidecar를 쓰지 않는다.** Namespace의 `istio.io/dataplane-mode: ambient`가
+`apps`의 모든 Pod를 노드별 ztunnel 프록시에 태운다. Pod에 아무 라벨도 필요 없다.
 
-| 워크로드 | Sidecar | 이유 |
+`apps`가 PSA `restricted`이기 때문이다. Sidecar 주입기는 `istio-init` init
+컨테이너를 넣고 그것이 iptables를 고치려고 `NET_ADMIN`·`NET_RAW`를 요구하는데,
+`restricted`는 모든 capability를 drop하므로 어드미션이 Pod를 거부한다. ambient는
+그 특권을 노드 DaemonSet(`istio-cni`·`ztunnel` Namespace)으로 내린다.
+
+**빼는 쪽을 명시한다.** Sidecar 때와 정반대다.
+
+| 워크로드 | Mesh | 이유 |
 | --- | --- | --- |
 | `audio-web` | O | Gateway에서 오는 트래픽 수신 |
 | `audio-api` | O | Gateway에서 오는 트래픽 수신 |
-| `audio-events` | X | SQS와 RDS만 사용. Mesh 인바운드 없음 |
-| `audio-transcode` | X | S3와 SQS만 사용. 트랙당 처리 비용에 Mesh 비용을 섞지 않는다 |
+| `audio-events` | O | Namespace 기본값. 빼도 이득이 없어 그대로 둔다 |
+| `audio-transcode` | X | Pod 라벨 `istio.io/dataplane-mode: none`. S3·SQS만 쓰고, 트랙당 처리 비용에 Mesh 비용을 섞지 않는다 |
 
-`istio-injection` 라벨을 Namespace에 두면 안 된다. 값이 `disabled`면 Webhook이
-그 Namespace를 대상에서 제외해 Pod 단위 지정도 무시된다.
+⚠️ **ztunnel은 L4까지만 집행한다.** HTTP 메서드·경로 조건이 붙은
+AuthorizationPolicy나 DestinationRule의 트래픽 정책은 waypoint 프록시를 세우기
+전까지 **에러 없이 무시된다.**
+
+`istio-injection` 라벨은 Namespace에 두지 않는다. ambient에서는 주입기를 안 쓰니
+무해해 보이지만, 값이 `disabled`면 Webhook이 그 Namespace를 대상에서 제외해
+나중에 Pod 단위 지정으로 되돌리려 해도 무시된다. "끄는 것"과 "두지 않는 것"이
+다르다.
 
 ## 클러스터에서 직접 만들어야 하는 것
 

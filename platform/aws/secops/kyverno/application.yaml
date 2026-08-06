@@ -1,0 +1,117 @@
+# Kyverno 정책 엔진.
+#
+# **이게 없으면 `governance/secops/`·`governance/finops/` 가 전부 무동작이다.**
+# ClusterPolicy 는 CRD 이고 CRD 를 이 차트가 들여온다.
+# → tasks/todo/002_bootstrap-blockers.md 1번
+#
+# PSA 는 이것과 무관하게 이미 동작한다 (API 서버 내장). 여기 없어도
+# `governance/namespaces/` 의 등급은 걸린다.
+#
+# ── 왜 platform=aws 인가 ────────────────────────────────────────
+#
+# 어드미션 웹훅이 **모든 쓰기 요청의 동기 경로**에 있다. API 서버가 응답을
+# 기다린다. 다른 영역에 두면 파드 하나 만들 때마다 WAN 을 왕복한다.
+# → CONSTRAINTS.md · decisions/20260728_network-connectivity-and-access.md
+#
+# ⚠️ values 의 키 경로가 컨트롤러마다 다르다. **admissionController 만
+# `.container.resources` 이고 나머지 셋은 `.resources` 다.** 잘못 쓰면
+# 조용히 무시돼서 nodeSelector 가 안 걸린 채 아무 노드에나 뜬다.
+# (chart 3.8.2 values.yaml 확인)
+#
+# ── 착지 순서 ───────────────────────────────────────────────────
+#
+# 1. `governance/` 를 먼저 적용한다. `kyverno` 네임스페이스가 거기서 온다
+# 2. 이 Application 을 sync 한다
+# 3. `kubectl get polr -A` 로 기존 워크로드의 위반을 본다
+# 4. 필요한 예외를 `governance/exceptions/` 에 쓴다
+#
+# **CreateNamespace 를 켜지 않았다.** 켜면 ArgoCD 가 `kyverno` 네임스페이스를
+# **PSA 라벨 없이** 만든다. 없으면 sync 가 명확한 에러로 실패하고, 그게
+# 조용히 라벨 없는 네임스페이스가 생기는 것보다 낫다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: devops
+spec:
+  project: default
+  source:
+    repoURL: https://kyverno.github.io/kyverno/
+    chart: kyverno
+    # chart 3.8.2 = app v1.18.2 (2026-07-10). kubeVersion ">=1.25.0-0" 이라
+    # 우리 v1.36 을 만족한다 (ansible/vars/cluster.yml).
+    targetRevision: 3.8.2
+    helm:
+      values: |
+        x-node-selector: &aws-node
+          platform: aws
+          role: service
+        x-pod-labels: &kyverno-labels
+          app: kyverno
+          area: secops
+          platform: aws
+
+        # ClusterPolicy CRD 가 여기서 온다. 끄면 정책을 적용할 수 없다.
+        crds:
+          install: true
+
+        admissionController:
+          # ⚠️ 1 대다. 재시작하는 동안 어드미션 요청이 막힐 수 있다.
+          # 컨트롤플레인을 1대로 둔 것과 같은 판단이다 — 지킬 워크로드가
+          # 생기면 올린다 → decisions/20260803_control-plane-single-node.md
+          replicas: 1
+          nodeSelector: *aws-node
+          podLabels: *kyverno-labels
+          # 이 컨트롤러만 resources 가 container 아래다.
+          container:
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                memory: 384Mi
+
+        backgroundController:
+          # PolicyReport 를 만드는 것이 이 컨트롤러다.
+          # `background: true` 정책이 기존 자원을 스캔한 결과가 여기서 나온다.
+          replicas: 1
+          nodeSelector: *aws-node
+          podLabels: *kyverno-labels
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+
+        cleanupController:
+          replicas: 1
+          nodeSelector: *aws-node
+          podLabels: *kyverno-labels
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+
+        reportsController:
+          replicas: 1
+          nodeSelector: *aws-node
+          podLabels: *kyverno-labels
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 384Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+
+  syncPolicy:
+    syncOptions:
+      # Kyverno CRD 는 크다. 클라이언트 사이드 apply 는
+      # `metadata.annotations: Too long` 으로 실패한다.
+      - ServerSideApply=true

@@ -34,23 +34,3 @@ replacements:
           name: audio-tls
         fieldPaths:
           - spec.dnsNames.0
-  - source:
-      kind: ConfigMap
-      name: audio-edge-settings
-      fieldPath: data.acmeEmail
-    targets:
-      - select:
-          kind: ClusterIssuer
-          name: letsencrypt-production
-        fieldPaths:
-          - spec.acme.email
-  - source:
-      kind: ConfigMap
-      name: audio-edge-settings
-      fieldPath: data.route53ZoneID
-    targets:
-      - select:
-          kind: ClusterIssuer
-          name: letsencrypt-production
-        fieldPaths:
-          - spec.acme.solvers.0.dns01.route53.hostedZoneID
