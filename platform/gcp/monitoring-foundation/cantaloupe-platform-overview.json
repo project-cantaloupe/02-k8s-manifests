@@ -35,7 +35,7 @@
       "gridPos": {"h": 5, "w": 3, "x": 0, "y": 1},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
-      "targets": [{"expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "legendFormat": "Ready", "refId": "A"}, {"expr": "count(kube_node_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "legendFormat": "Total", "refId": "B"}],
+      "targets": [{"expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "instant": true, "legendFormat": "Ready", "refId": "A"}, {"expr": "count(kube_node_info * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "instant": true, "legendFormat": "Total", "refId": "B"}],
       "title": "Ready / Total Nodes",
       "type": "stat"
     },
@@ -46,7 +46,7 @@
       "gridPos": {"h": 5, "w": 3, "x": 3, "y": 1},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Running\"} * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",phase=\"Running\"} * on(namespace,pod) group_left(node) kube_pod_info * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "instant": true, "refId": "A"}],
       "title": "Running Pods",
       "type": "stat"
     },
@@ -132,8 +132,8 @@
       "id": 9,
       "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum by (label_platform,label_role) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{label_platform}} / {{label_role}} Actual", "refId": "A"},
-        {"expr": "sum by (label_platform,label_role) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{label_platform}} / {{label_role}} Declared Request", "refId": "B"}
+        {"expr": "sum by (label_platform,label_role) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "legendFormat": "{{label_platform}} / {{label_role}} Actual", "refId": "A"},
+        {"expr": "sum by (label_platform,label_role) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "legendFormat": "{{label_platform}} / {{label_role}} Declared Request", "refId": "B"}
       ],
       "title": "Platform CPU — Actual vs Declared Request",
       "type": "timeseries"
@@ -146,8 +146,8 @@
       "id": 10,
       "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum by (label_platform,label_role) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{label_platform}} / {{label_role}} Actual", "refId": "A"},
-        {"expr": "sum by (label_platform,label_role) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{label_platform}} / {{label_role}} Declared Request", "refId": "B"}
+        {"expr": "sum by (label_platform,label_role) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "legendFormat": "{{label_platform}} / {{label_role}} Actual", "refId": "A"},
+        {"expr": "sum by (label_platform,label_role) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "legendFormat": "{{label_platform}} / {{label_role}} Declared Request", "refId": "B"}
       ],
       "title": "Platform Memory — Actual vs Declared Request",
       "type": "timeseries"
@@ -159,7 +159,7 @@
       "gridPos": {"h": 7, "w": 12, "x": 0, "y": 15},
       "id": 11,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "valueMode": "color"},
-      "targets": [{"expr": "(100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])))) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "legendFormat": "{{node}}", "refId": "A"}],
+      "targets": [{"expr": "(100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])))) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "legendFormat": "{{node}}", "refId": "A"}],
       "title": "Node CPU Utilization (Host)",
       "type": "bargauge"
     },
@@ -170,7 +170,7 @@
       "gridPos": {"h": 7, "w": 12, "x": 12, "y": 15},
       "id": 12,
       "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "valueMode": "color"},
-      "targets": [{"expr": "(100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "legendFormat": "{{node}}", "refId": "A"}],
+      "targets": [{"expr": "(100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "legendFormat": "{{node}}", "refId": "A"}],
       "title": "Node Memory Utilization (Host)",
       "type": "bargauge"
     },
@@ -190,10 +190,10 @@
       "id": 13,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Namespace"}]},
       "targets": [
-        {"expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "A"},
-        {"expr": "sum by (namespace) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "B"},
-        {"expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "D"},
-        {"expr": "sum by (namespace) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "format": "table", "instant": true, "refId": "E"}
+        {"expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "format": "table", "instant": true, "refId": "A"},
+        {"expr": "sum by (namespace) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "format": "table", "instant": true, "refId": "B"},
+        {"expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "format": "table", "instant": true, "refId": "D"},
+        {"expr": "sum by (namespace) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "format": "table", "instant": true, "refId": "E"}
       ],
       "title": "Namespace Current Snapshot",
       "transformations": [{"id": "joinByField", "options": {"byField": "namespace", "mode": "outer"}}, {"id": "organize", "options": {"excludeByName": {"Time": true}, "indexByName": {"namespace": 0, "Value #A": 1, "Value #B": 2, "Value #D": 3, "Value #E": 4}, "renameByName": {"namespace": "Namespace", "Value #A": "CPU Actual", "Value #B": "CPU Request", "Value #D": "Memory Actual", "Value #E": "Memory Request"}}}],
@@ -207,8 +207,8 @@
       "id": 14,
       "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{namespace}} Actual", "refId": "A"},
-        {"expr": "sum by (namespace) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{namespace}} Request", "refId": "B"}
+        {"expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "legendFormat": "{{namespace}} Actual", "refId": "A"},
+        {"expr": "sum by (namespace) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "legendFormat": "{{namespace}} Request", "refId": "B"}
       ],
       "title": "Namespace CPU Trend",
       "type": "timeseries"
@@ -221,8 +221,8 @@
       "id": 27,
       "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{namespace}} Actual", "refId": "A"},
-        {"expr": "sum by (namespace) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})", "legendFormat": "{{namespace}} Request", "refId": "B"}
+        {"expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "legendFormat": "{{namespace}} Actual", "refId": "A"},
+        {"expr": "sum by (namespace) (kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})))", "legendFormat": "{{namespace}} Request", "refId": "B"}
       ],
       "title": "Namespace Memory Trend",
       "type": "timeseries"
@@ -246,7 +246,7 @@
       "gridPos": {"h": 8, "w": 8, "x": 8, "y": 31},
       "id": 16,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "CPU Cores"}]},
-      "targets": [{"expr": "topk(10, sum by (namespace,pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "format": "table", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "topk(10, sum by (namespace,pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))))", "format": "table", "instant": true, "refId": "A"}],
       "title": "Pod CPU Usage — Independent Top 10",
       "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true}, "indexByName": {"namespace": 0, "pod": 1, "Value": 2}, "renameByName": {"namespace": "Namespace", "pod": "Pod", "Value": "CPU Cores"}}}],
       "type": "table"
@@ -258,7 +258,7 @@
       "gridPos": {"h": 8, "w": 8, "x": 16, "y": 31},
       "id": 17,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "Memory Working Set"}]},
-      "targets": [{"expr": "topk(10, sum by (namespace,pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "format": "table", "instant": true, "refId": "A"}],
+      "targets": [{"expr": "topk(10, sum by (namespace,pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))))", "format": "table", "instant": true, "refId": "A"}],
       "title": "Pod Memory Usage — Independent Top 10",
       "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true}, "indexByName": {"namespace": 0, "pod": 1, "Value": 2}, "renameByName": {"namespace": "Namespace", "pod": "Pod", "Value": "Memory Working Set"}}}],
       "type": "table"
@@ -287,7 +287,7 @@
           "gridPos": {"h": 8, "w": 12, "x": 0, "y": 47},
           "id": 19,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-          "targets": [{"expr": "(100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*\"})) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "legendFormat": "{{node}} {{mountpoint}}", "refId": "A"}],
+          "targets": [{"expr": "(100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*\"})) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "legendFormat": "{{node}} {{mountpoint}}", "refId": "A"}],
           "title": "Node Filesystem Usage",
           "type": "timeseries"
         },
@@ -299,8 +299,8 @@
           "id": 20,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
           "targets": [
-            {"expr": "sum by (instance) (rate(node_network_receive_bytes_total{device!~\"lo|veth.*|cali.*|tailscale.*\"}[$__rate_interval])) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "legendFormat": "{{node}} RX", "refId": "A"},
-            {"expr": "sum by (instance) (rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|cali.*|tailscale.*\"}[$__rate_interval])) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "legendFormat": "{{node}} TX", "refId": "B"}
+            {"expr": "sum by (instance) (rate(node_network_receive_bytes_total{device!~\"lo|veth.*|cali.*|tailscale.*\"}[$__rate_interval])) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "legendFormat": "{{node}} RX", "refId": "A"},
+            {"expr": "sum by (instance) (rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|cali.*|tailscale.*\"}[$__rate_interval])) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "legendFormat": "{{node}} TX", "refId": "B"}
           ],
           "title": "Node Network",
           "type": "timeseries"
@@ -340,12 +340,12 @@
           "id": 22,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "CPU Actual"}]},
           "targets": [
-            {"expr": "label_join(sum by (namespace,pod,container) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}), \"workload\", \"/\", \"namespace\", \"pod\", \"container\")", "format": "table", "instant": true, "refId": "A"},
-            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "B"},
-            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_limits{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "C"},
-            {"expr": "sum by (workload) (label_join(container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "D"},
-            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "E"},
-            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_limits{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}, \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "F"}
+            {"expr": "label_join(sum by (namespace,pod,container) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[5m]) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))), \"workload\", \"/\", \"namespace\", \"pod\", \"container\")", "format": "table", "instant": true, "refId": "A"},
+            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})), \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "B"},
+            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_limits{namespace=~\"$namespace\",resource=\"cpu\",unit=\"core\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})), \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "C"},
+            {"expr": "sum by (workload) (label_join(container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})), \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "D"},
+            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_requests{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})), \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "E"},
+            {"expr": "sum by (workload) (label_join(kube_pod_container_resource_limits{namespace=~\"$namespace\",resource=\"memory\",unit=\"byte\"} * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"})), \"workload\", \"/\", \"namespace\", \"pod\", \"container\"))", "format": "table", "instant": true, "refId": "F"}
           ],
           "title": "Container Resource Detail",
           "transformations": [{"id": "joinByField", "options": {"byField": "workload", "mode": "outer"}}, {"id": "organize", "options": {"excludeByName": {"Time": true, "workload": true}, "indexByName": {"namespace": 0, "pod": 1, "container": 2, "Value #A": 3, "Value #B": 4, "Value #C": 5, "Value #D": 6, "Value #E": 7, "Value #F": 8}, "renameByName": {"namespace": "Namespace", "pod": "Pod", "container": "Container", "Value #A": "CPU Actual", "Value #B": "CPU Request", "Value #C": "CPU Limit", "Value #D": "Memory Actual", "Value #E": "Memory Request", "Value #F": "Memory Limit"}}}],
@@ -358,7 +358,7 @@
           "gridPos": {"h": 8, "w": 12, "x": 0, "y": 63},
           "id": 23,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
-          "targets": [{"expr": "(((1 - kube_node_status_condition{condition=\"Ready\",status=\"true\"}) == 1) or (kube_node_status_condition{condition=~\"MemoryPressure|DiskPressure|PIDPressure|NetworkUnavailable\",status=\"true\"} == 1)) * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "refId": "A"}],
+          "targets": [{"expr": "(((1 - kube_node_status_condition{condition=\"Ready\",status=\"true\"}) == 1) or (kube_node_status_condition{condition=~\"MemoryPressure|DiskPressure|PIDPressure|NetworkUnavailable\",status=\"true\"} == 1)) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "format": "table", "instant": true, "refId": "A"}],
           "title": "Unhealthy Node Conditions — Empty is Healthy",
           "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true, "service": true, "status": true, "Value": true}, "indexByName": {"node": 0, "condition": 1, "label_platform": 2, "label_role": 3}, "renameByName": {"node": "Node", "condition": "Problem", "label_platform": "Platform", "label_role": "Role"}}}],
           "type": "table"
@@ -370,7 +370,7 @@
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 63},
           "id": 24,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
-          "targets": [{"expr": "kube_node_spec_taint * on(node) group_left(label_platform,label_role) kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}", "format": "table", "instant": true, "refId": "A"}],
+          "targets": [{"expr": "kube_node_spec_taint * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "format": "table", "instant": true, "refId": "A"}],
           "title": "Node Taints",
           "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "container": true, "endpoint": true, "instance": true, "job": true, "service": true, "Value": true}, "indexByName": {"node": 0, "key": 1, "value": 2, "effect": 3, "label_platform": 4, "label_role": 5}, "renameByName": {"node": "Node", "key": "Taint Key", "value": "Value", "effect": "Effect", "label_platform": "Platform", "label_role": "Role"}}}],
           "type": "table"
