@@ -25,15 +25,54 @@ data:
         sendfile on;
         keepalive_timeout 65;
 
+        upstream core {
+            server harbor-core:8080;
+        }
+
         server {
             listen 80;
             server_name localhost;
 
-            # Nginx 웹 루트를 Harbor 실제 UI 파일 위치로 지정
             root /usr/share/nginx/html;
             index index.html;
 
-            # Angular SPA 라우팅 (모든 경로 요청을 index.html로 유입)
+            # 1. API 요청 (슬래시 제거하여 URL 형태 그대로 포워딩)
+            location /api/ {
+                proxy_pass http://core;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # 2. 로그인 및 인증 요청 (/c/login 등)
+            location /c/ {
+                proxy_pass http://core;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # 3. 인증 서비스 토큰 요청 추가
+            location /service/ {
+                proxy_pass http://core;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # 4. Registry v2 요청
+            location /v2/ {
+                proxy_pass http://core;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # 5. SPA 정적 라우팅
             location / {
                 try_files $uri $uri/ /index.html;
             }
@@ -73,7 +112,8 @@ spec:
         app: harbor-portal
     spec:
       nodeSelector:
-        kubernetes.io/hostname: cntlp-onp-wk-01
+        platform: onp
+        role: devops
       containers:
         - name: harbor-portal
           image: goharbor/harbor-portal:v2.10.0
@@ -84,7 +124,6 @@ spec:
               mountPath: /var/run
             - name: var-cache
               mountPath: /var/cache/nginx
-            # 👇 Nginx 설정 마운트 추가
             - name: config
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
@@ -93,7 +132,6 @@ spec:
           emptyDir: {}
         - name: var-cache
           emptyDir: {}
-        # 👇 ConfigMap 볼륨 추가
         - name: config
           configMap:
             name: harbor-portal-config
