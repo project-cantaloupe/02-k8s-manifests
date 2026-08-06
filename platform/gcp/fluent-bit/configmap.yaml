@@ -51,7 +51,7 @@ data:
     [FILTER]
         Name   grep
         Match  kube.*
-        Regex  $kubernetes['namespace_name'] ^(logging|devops|istio-system)$
+        Regex  $kubernetes['namespace_name'] ^(logging|devops|istio-system|monitoring)$
 
     # Harbor Portal emits NGINX access logs to stdout. Parse only matching
     # lines; all other records retain their original `log` field unchanged.
