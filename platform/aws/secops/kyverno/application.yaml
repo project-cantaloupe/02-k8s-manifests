@@ -13,6 +13,22 @@
 # 기다린다. 다른 영역에 두면 파드 하나 만들 때마다 WAN 을 왕복한다.
 # → CONSTRAINTS.md · decisions/20260728_network-connectivity-and-access.md
 #
+# ── 왜 aws 안에서도 role=control-plane 인가 ─────────────────────
+#
+# **istiod 와 같은 판단이다** (applications/istiod.yaml 참고).
+# `role=service` 워커는 t3.small 2 GiB 이고 그 메모리를 FFmpeg 가 써야 한다.
+# 2026-08-06 실측으로 실여유가 1034 MiB 뿐이었고 limits 는 이미 141%
+# 오버커밋이었다. 컨트롤플레인은 8 GiB 중 5 GiB 가 놀고 있다.
+#
+# **CPU 예약이 여기서 빡빡한 축이다.** cp-01 은 requests 1420m/2000m 이고
+# 이 차트가 250m 을 더 쓴다 → 1670m (84%). 실사용은 11.9% 라 돌아가는 데는
+# 문제가 없지만 **남는 예약이 330m 뿐**이다. cert-manager(50m)까지는 들어가고
+# 그 뒤로는 못 넣는다 → decisions/20260806_aws-node-placement.md
+#
+# ⚠️ **tolerations 가 반드시 같이 있어야 한다.** 컨트롤플레인 노드에는
+# `node-role.kubernetes.io/control-plane:NoSchedule` 테인트가 있어서,
+# nodeSelector 만 바꾸면 **파드가 Pending 에 머물고 에러는 안 난다.**
+#
 # ⚠️ values 의 키 경로가 컨트롤러마다 다르다. **admissionController 만
 # `.container.resources` 이고 나머지 셋은 `.resources` 다.** 잘못 쓰면
 # 조용히 무시돼서 nodeSelector 가 안 걸린 채 아무 노드에나 뜬다.
@@ -45,7 +61,12 @@ spec:
       values: |
         x-node-selector: &aws-node
           platform: aws
-          role: service
+          role: control-plane
+        # 컨트롤플레인 테인트를 견딘다. 없으면 조용히 Pending 이다.
+        x-tolerations: &cp-tolerations
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
         x-pod-labels: &kyverno-labels
           app: kyverno
           area: secops
@@ -61,6 +82,7 @@ spec:
           # 생기면 올린다 → decisions/20260803_control-plane-single-node.md
           replicas: 1
           nodeSelector: *aws-node
+          tolerations: *cp-tolerations
           podLabels: *kyverno-labels
           # 이 컨트롤러만 resources 가 container 아래다.
           container:
@@ -76,6 +98,7 @@ spec:
           # `background: true` 정책이 기존 자원을 스캔한 결과가 여기서 나온다.
           replicas: 1
           nodeSelector: *aws-node
+          tolerations: *cp-tolerations
           podLabels: *kyverno-labels
           resources:
             requests:
@@ -87,6 +110,7 @@ spec:
         cleanupController:
           replicas: 1
           nodeSelector: *aws-node
+          tolerations: *cp-tolerations
           podLabels: *kyverno-labels
           resources:
             requests:
@@ -98,6 +122,7 @@ spec:
         reportsController:
           replicas: 1
           nodeSelector: *aws-node
+          tolerations: *cp-tolerations
           podLabels: *kyverno-labels
           resources:
             requests:
