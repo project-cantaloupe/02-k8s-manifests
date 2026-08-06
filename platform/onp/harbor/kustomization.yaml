@@ -53,6 +53,10 @@ patches:
             containers:
               - name: harbor-core
                 env:
+                  - name: EXT_ENDPOINT
+                    value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
+                  - name: HARBOR_URL
+                    value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
                   - name: CONFIG_PATH
                     value: "/etc/harbor/core/app.conf"
                   - name: PORT
