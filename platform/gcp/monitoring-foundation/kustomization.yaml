@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - opencost-ui-nodeport.yaml
   - prometheus-ui-nodeport.yaml
+  - finops-recording-rules.yaml
 
 configMapGenerator:
   - name: cantaloupe-platform-overview

@@ -1,0 +1,144 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cantaloupe-finops-recording-rules
+  namespace: monitoring
+  labels:
+    release: monitoring
+    app: opencost
+    area: monitoring
+    cost-allocation: shared
+spec:
+  groups:
+    - name: cantaloupe.finops.cost
+      interval: 1m
+      rules:
+        - record: cantaloupe:node_total_cost_per_hour
+          expr: max by (node) (node_total_hourly_cost)
+
+        - record: cantaloupe:container_cpu_allocated_cost_per_hour
+          expr: |
+            max by (namespace, pod, container, node) (container_cpu_allocation)
+              * on (node) group_left()
+            max by (node) (node_cpu_hourly_cost)
+
+        - record: cantaloupe:container_memory_allocated_cost_per_hour
+          expr: |
+            (max by (namespace, pod, container, node) (container_memory_allocation_bytes) / 1024^3)
+              * on (node) group_left()
+            max by (node) (node_ram_hourly_cost)
+
+        - record: cantaloupe:container_allocated_cost_per_hour
+          expr: |
+            cantaloupe:container_cpu_allocated_cost_per_hour
+              +
+            cantaloupe:container_memory_allocated_cost_per_hour
+
+        - record: cantaloupe:container_cpu_request_cost_per_hour
+          expr: |
+            max by (namespace, pod, container, node) (
+              kube_pod_container_resource_requests{
+                job="kube-state-metrics",
+                resource="cpu",
+                unit="core"
+              }
+            )
+              * on (node) group_left()
+            max by (node) (node_cpu_hourly_cost)
+
+        - record: cantaloupe:container_memory_request_cost_per_hour
+          expr: |
+            (max by (namespace, pod, container, node) (
+              kube_pod_container_resource_requests{
+                job="kube-state-metrics",
+                resource="memory",
+                unit="byte"
+              }
+            ) / 1024^3)
+              * on (node) group_left()
+            max by (node) (node_ram_hourly_cost)
+
+        - record: cantaloupe:container_request_cost_per_hour
+          expr: |
+            cantaloupe:container_cpu_request_cost_per_hour
+              +
+            cantaloupe:container_memory_request_cost_per_hour
+
+        - record: cantaloupe:container_cpu_actual_cost_per_hour
+          expr: |
+            sum by (namespace, pod, container, node) (
+              rate(container_cpu_usage_seconds_total{
+                job="kubelet",
+                container!="",
+                container!="POD"
+              }[5m])
+            )
+              * on (node) group_left()
+            max by (node) (node_cpu_hourly_cost)
+
+        - record: cantaloupe:container_memory_actual_cost_per_hour
+          expr: |
+            (max by (namespace, pod, container, node) (
+              container_memory_working_set_bytes{
+                job="kubelet",
+                container!="",
+                container!="POD"
+              }
+            ) / 1024^3)
+              * on (node) group_left()
+            max by (node) (node_ram_hourly_cost)
+
+        - record: cantaloupe:container_actual_cost_per_hour
+          expr: |
+            cantaloupe:container_cpu_actual_cost_per_hour
+              +
+            cantaloupe:container_memory_actual_cost_per_hour
+
+        - record: cantaloupe:container_right_sizing_opportunity_per_hour
+          expr: |
+            clamp_min(
+              cantaloupe:container_request_cost_per_hour
+                -
+              cantaloupe:container_actual_cost_per_hour,
+              0
+            )
+
+        - record: cantaloupe:workload_allocated_cost_per_hour
+          expr: |
+            sum by (namespace, workload, workload_type) (
+              cantaloupe:container_allocated_cost_per_hour
+                * on (namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel
+            )
+
+        - record: cantaloupe:platform_role_node_cost_per_hour
+          expr: |
+            sum by (platform, role) (
+              cantaloupe:node_total_cost_per_hour
+                * on (node) group_left(platform, role)
+              label_replace(
+                label_replace(
+                  max by (node, label_platform, label_role) (
+                    kube_node_labels{label_platform!="", label_role!=""}
+                  ),
+                  "platform", "$1", "label_platform", "(.*)"
+                ),
+                "role", "$1", "label_role", "(.*)"
+              )
+            )
+
+        - record: cantaloupe:platform_role_allocated_cost_per_hour
+          expr: |
+            sum by (platform, role) (
+              cantaloupe:container_allocated_cost_per_hour
+                * on (node) group_left(platform, role)
+              label_replace(
+                label_replace(
+                  max by (node, label_platform, label_role) (
+                    kube_node_labels{label_platform!="", label_role!=""}
+                  ),
+                  "platform", "$1", "label_platform", "(.*)"
+                ),
+                "role", "$1", "label_role", "(.*)"
+              )
+            )
