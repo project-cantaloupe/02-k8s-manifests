@@ -7,11 +7,6 @@ podLabels:
   platform: gcp
   cost-allocation: shared
 
-# Bump this value whenever node-pricing.csv changes so Argo CD rolls the Pod
-# immediately instead of waiting for the CSV provider's hourly refresh.
-podAnnotations:
-  finops.opencost.io/pricing-version: "cantaloupe-uniform-v1"
-
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
@@ -29,11 +24,6 @@ opencost:
     role: monitoring
   exporter:
     defaultClusterId: cantaloupe
-    # Phase 1 uses one benchmark unit price across AWS, GCP, and on-premises.
-    # Prices therefore follow node CPU/RAM capacity and newly joined nodes are
-    # costed automatically without a node-name-specific CSV row.
-    extraEnv:
-      USE_CUSTOM_PROVIDER: "true"
     resources:
       requests:
         cpu: 100m
@@ -64,18 +54,13 @@ opencost:
       scheme: http
   cloudCost:
     enabled: false
-  # This is an internal FinOps benchmark, not an AWS/GCP invoice or public
-  # cloud list price. Phase 2 may introduce separate platform coefficients.
+  # Node totals and CPU/RAM allocation weights are generated from the catalog.
+  # Storage/network remain explicit fallbacks; missing node prices are alerted.
   customPricing:
     enabled: true
     provider: custom
     costModel:
-      description: Cantaloupe uniform benchmark allocation v1 (USD)
       customPricesEnabled: true
-      CPU: 0.03
-      spotCPU: 0.03
-      RAM: 0.004
-      spotRAM: 0.004
       GPU: 0
       storage: 0.000137
       zoneNetworkEgress: 0

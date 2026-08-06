@@ -15,6 +15,7 @@ spec:
         releaseName: opencost
         valueFiles:
           - $values/platform/gcp/opencost/values.yaml
+          - $values/platform/gcp/opencost/generated-values.yaml
     - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
       targetRevision: main
       ref: values

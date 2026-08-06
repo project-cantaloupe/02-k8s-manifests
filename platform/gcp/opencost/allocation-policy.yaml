@@ -1,0 +1,12 @@
+schemaVersion: v1
+version: normalized-node-total-v1
+method: normalized-node-total
+weights:
+  cpuUSDPerCoreHour: 0.028026
+  ramUSDPerGiBHour: 0.003739
+basis:
+  provider: gcp
+  region: asia-northeast3
+  family: E2
+  sourceRef: F10F-0364-8D62+B5E6-7318-DBF9
+note: These values split bundled node totals for allocation. They are not universal or AWS/On-prem public resource prices.

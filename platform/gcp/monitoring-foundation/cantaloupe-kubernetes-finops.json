@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Cantaloupe Kubernetes의 공통 벤치마크 비용을 Platform·Role·Namespace·Workload·Pod 단위로 분석하고 Request/Actual/Allocated 차이로 Right-sizing 후보를 찾는다. 실제 AWS/GCP 청구액이 아니다.",
+  "description": "AWS/GCP 서울 리전 공개 On-Demand 가격과 On-prem TCO 기준을 Platform·Role·Namespace·Workload·Pod 단위로 분석하고 Request/Actual/Allocated 차이로 Right-sizing 후보를 찾는다. 할인·세금 등을 반영한 실제 청구액은 아니다.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -54,7 +54,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "선택 범위의 Node 용량을 유지하는 시간당 벤치마크 비용이다. 실제 클라우드 청구액이 아니다.",
+      "description": "선택 범위의 Node 용량을 유지하는 시간당 공개가격/TCO 추정치다. 할인·세금 등을 반영한 실제 청구액이 아니다.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -715,12 +715,174 @@
       "type": "stat"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 39
+      },
+      "id": 500,
+      "panels": [],
+      "title": "Pricing Data Health",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "전체 Kubernetes Node 중 플랫폼 가격 카탈로그가 매칭된 비율이다. 100%가 정상이다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 90 },
+              { "color": "green", "value": 100 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 40 },
+      "id": 15,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "100 * count(max by(node) (kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 1) and on(node) cantaloupe:node_catalog_expected_cost_per_hour) / count(max by(node) (kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 1))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Catalog Coverage",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "가격 카탈로그에 platform·instance type 조합이 없는 Node 수다. 0이 정상이다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 40 },
+      "id": 16,
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto", "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "count(max by(node) (kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 1) unless on(node) cantaloupe:node_catalog_expected_cost_per_hour) or vector(0)",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Unmatched Nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "OpenCost가 출력한 Node 가격과 Git 가격 카탈로그가 다른 Node 수다. 0이 정상이다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 40 },
+      "id": 17,
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto", "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "count(abs(max by(node) (node_total_hourly_cost) - on(node) cantaloupe:node_catalog_expected_cost_per_hour) > 0.0005) or vector(0)",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Price Mismatch",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "가격 기준 적용일 이후 경과 일수다. 90일이 지나면 재검토 경고가 발생한다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "d"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 40 },
+      "id": 18,
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto", "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "(time() - cantaloupe:pricing_catalog_last_review_timestamp_seconds) / 86400",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Catalog Age",
+      "type": "stat"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
       },
       "id": 400,
       "panels": [
@@ -729,7 +891,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "description": "모든 Node의 공통 벤치마크 시간당 비용과 배치 라벨이다.",
+          "description": "Node별 리전 공개가격 또는 On-prem TCO 시간당 비용과 배치 라벨이다.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -744,7 +906,7 @@
             "h": 9,
             "w": 10,
             "x": 0,
-            "y": 40
+            "y": 45
           },
           "id": 13,
           "options": {
@@ -816,7 +978,7 @@
             "h": 9,
             "w": 14,
             "x": 10,
-            "y": 40
+            "y": 45
           },
           "id": 14,
           "options": {

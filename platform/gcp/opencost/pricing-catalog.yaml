@@ -1,0 +1,54 @@
+schemaVersion: v1
+version: cantaloupe-public-list-2026-08-06-v3
+currency: USD
+effectiveDate: "2026-08-06"
+lastReviewedAt: "2026-08-06"
+reviewAfterDays: 90
+nodeMatchField: metadata.labels.node.kubernetes.io/instance-type
+nodes:
+  - platform: aws
+    region: ap-northeast-2
+    instanceType: m7i-flex.large
+    purchaseOption: on-demand
+    hourlyPriceUSD: 0.11771
+    source: aws-public-price-list
+    sourceDate: "2026-08-06"
+    sourceRef: G8QSFBSEDGM5RXM8
+  - platform: aws
+    region: ap-northeast-2
+    instanceType: t3.small
+    purchaseOption: on-demand
+    hourlyPriceUSD: 0.026
+    source: aws-public-price-list
+    sourceDate: "2026-08-06"
+    sourceRef: PZHVQ3KFPA3RHA5V
+  - platform: gcp
+    region: asia-northeast3
+    instanceType: e2-custom-4-8192
+    purchaseOption: on-demand
+    hourlyPriceUSD: 0.1491168
+    source: gcp-public-pricing-calculator
+    sourceDate: "2026-08-06"
+    sourceRef: F10F-0364-8D62+B5E6-7318-DBF9
+  - platform: gcp
+    region: asia-northeast3
+    instanceType: e2-standard-4
+    purchaseOption: on-demand
+    hourlyPriceUSD: 0.171928
+    source: gcp-public-pricing-calculator
+    sourceDate: "2026-08-06"
+    sourceRef: 9304-94C4-2117+D715-4E57-BAFB
+  - platform: onp
+    region: on-premise
+    instanceType: custom-8vcpu-16gib
+    purchaseOption: owned
+    hourlyPriceUSD: 0.06
+    source: cantaloupe-tco-v1
+    sourceDate: "2026-08-06"
+    sourceRef: TCO-METHODOLOGY.md
+persistentVolumes:
+  - storageClass: gcp-pd-sc
+    hourlyPricePerGiBUSD: 0.000071233
+    source: gcp-public-pricing
+    sourceDate: "2026-08-06"
+    sourceRef: pd-standard-seoul-0.052-usd-per-gib-month
