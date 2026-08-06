@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: harbor-ingress
+  namespace: devops
+  annotations:
+    # Docker 이미지(대용량 레이어) 업로드를 위해 파일 크기 제한 해제
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: cntlp-onp-wk-01.tail270b85.ts.net
+    http:
+      paths:
+      # 1. UI 및 기타 요청 -> harbor-portal 또는 통합 Nginx
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: harbor-portal
+            port:
+              number: 80
+      # 2. 관리 API 요청 -> harbor-core
+      - path: /api/
+        pathType: Prefix
+        backend:
+          service:
+            name: harbor-core
+            port:
+              number: 8080
+      # 3. Docker Push/Pull API 요청 -> harbor-core (Core가 Registry 인증 및 처리를 대행)
+      - path: /v2/
+        pathType: Prefix
+        backend:
+          service:
+            name: harbor-core
+            port:
+              number: 8080
+      # 4. 서비스 인증 토큰 요청 -> harbor-core
+      - path: /service/
+        pathType: Prefix
+        backend:
+          service:
+            name: harbor-core
+            port:
+              number: 8080
