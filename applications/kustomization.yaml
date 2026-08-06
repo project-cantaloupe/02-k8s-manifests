@@ -6,6 +6,7 @@ resources:
   # governance-namespaces(-40)가 가장 먼저, governance-policies(10)가 마지막.
   - governance-namespaces.yaml
   - governance-policies.yaml
+  - argocd.yaml
   - jenkins.yaml
   - harbor.yaml
   - gcp-storage.yaml
@@ -18,8 +19,10 @@ resources:
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
   - opencost.yaml
-  - istio-ingress.yaml
+  - audio-ingress.yaml
   - secops.yaml
-  # ambient 가 실제로 도는지 확인하는 워크로드(mesh-smoke). wave 0 이라
-  # Istio 가 다 선 뒤에 뜬다 → tasks/doing/009 착지 확인 절
-  - audio-edge-smoke.yaml
+  - app-audio.yaml
+  # `audio-edge-smoke.yaml` 은 일부러 등록하지 않는다. ambient 가 실제로
+  # 도는지 볼 워크로드가 필요해서 만든 것인데, 이제 `app-audio` 가 진짜
+  # 워크로드를 `apps` 에 올린다. 파일은 남겨두되 배포하지 않는다
+  # → tasks/doing/009_istio-governance-reconcile.md

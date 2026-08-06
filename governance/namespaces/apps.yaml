@@ -1,16 +1,15 @@
 # 우리가 쓴 앱. 특권이 필요한 것이 없으므로 가장 높은 등급을 건다.
 #
 # ⚠️ **이 파일이 `apps` 네임스페이스의 유일한 소유자다.**
-# `platform/aws/audio-edge/base/namespace.yaml` 이 같은 객체를 정의하고
-# 있었다. Application 둘이 한 Namespace 를 소유하면 ArgoCD 가 서로 되돌리며
-# 싸우고, audio-edge 쪽에는 PSA 라벨이 없어서 그쪽이 이기면 하드닝이 통째로
-# 사라진다. 그 파일을 지우고 라벨을 여기로 흡수했다.
+# 같은 객체를 정의하던 파일이 둘 있었고 (`platform/aws/audio-edge/base/`,
+# `apps/audio/namespace.yaml`) 라벨을 여기로 흡수하고 지웠다. Application
+# 둘이 한 Namespace 를 소유하면 ArgoCD 가 서로 되돌리며 싸우고, 앱 쪽에는
+# PSA 라벨이 없어서 그쪽이 이기면 하드닝이 통째로 사라진다.
 #
 # ── 메시 참여는 ambient 다 ─────────────────────────────────────
 #
 # `istio.io/dataplane-mode: ambient` 가 이 네임스페이스의 파드를 메시에
-# 넣는다. **`istio-injection` 라벨은 없앴다** — 사이드카 주입 라벨이라
-# ambient 와 같이 두면 어느 쪽이 이기는지가 헷갈린다.
+# 넣는다. 파드 쪽에 아무 라벨도 필요 없다.
 #
 # ⚠️ **이 네임스페이스가 `restricted` 를 유지할 수 있는 것이 ambient 를
 # 고른 이유 그 자체다.**
@@ -21,6 +20,24 @@
 # 거부한다. 증상은 "Istio 를 켰더니 앱이 안 뜬다" 로 나타나 원인이 PSA 라는
 # 게 잘 안 드러난다. ambient 는 그 특권을 노드 DaemonSet 둘로 옮겼다
 # → governance/namespaces/{istio-cni,ztunnel}.yaml
+#
+# ── `istio-injection` 라벨을 두지 않는 이유는 그대로 유효하다 ──
+#
+# 오디오 갈래가 사이드카를 쓰던 때 알아낸 것이다. Istio 의 주입 Webhook 은
+# namespaceSelector 로 대상을 고르는데, **값이 `disabled` 면 그 Namespace 가
+# Webhook 대상에서 아예 빠진다.** 그러면 파드의 `sidecar.istio.io/inject`
+# 라벨은 평가조차 되지 않아 개별 주입도 막힌다. 라벨을 "꺼두는" 것과
+# "두지 않는" 것이 다르다.
+#
+# ambient 에서는 주입기를 안 쓰므로 이 함정에 걸릴 일이 없지만, **다시
+# 사이드카로 돌아가더라도 이 라벨을 `disabled` 로 적지 않는다.**
+#
+# ── 메시에서 빼는 것은 파드 라벨로 한다 ────────────────────────
+#
+# `istio.io/dataplane-mode: none` 을 파드에 붙이면 그 파드만 ztunnel 이
+# 안 잡는다. `audio-transcode` 가 그렇게 빠져 있다 — 통신 대상이 S3·SQS
+# 뿐이라 메시 이득이 없고, **트랙당 처리 비용에 메시 비용을 섞지 않는 것이
+# FinOps 측정 기준선의 일부**다 (apps/audio/worker/deployment.yaml).
 #
 # ⚠️ **대신 L7 이 공짜가 아니다.** ztunnel 은 L4 까지만 집행한다. 여기
 # 워크로드에 HTTP 메서드·경로 조건이나 DestinationRule 트래픽 정책이

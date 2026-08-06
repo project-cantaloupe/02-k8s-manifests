@@ -4,3 +4,19 @@ kind: Kustomization
 resources:
   - opencost-ui-nodeport.yaml
   - prometheus-ui-nodeport.yaml
+
+configMapGenerator:
+  - name: cantaloupe-platform-overview
+    namespace: monitoring
+    files:
+      - cantaloupe-platform-overview.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+        app: grafana
+        area: monitoring
+        platform: gcp
+        cost-allocation: shared
+      annotations:
+        grafana-folder: Cantaloupe

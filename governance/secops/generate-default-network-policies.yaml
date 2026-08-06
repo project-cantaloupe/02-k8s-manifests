@@ -13,7 +13,7 @@
 #   default-deny-ingress      들어오는 것 전부 차단
 #   allow-same-namespace      같은 네임스페이스 안은 허용
 #   allow-from-mesh           tailnet(100.64.0.0/10) — 노드·kubelet 프로브 포함
-#   allow-from-istio-ingress  Istio 게이트웨이 → 앱 (교차 네임스페이스)
+#   allow-from-audio-ingress  Istio 게이트웨이 → 앱 (교차 네임스페이스)
 #
 # 결과: **네임스페이스가 격리 단위가 된다.** 교차 네임스페이스 통신은
 # 메시와 게이트웨이 경로만 열리고 나머지는 막힌다.
@@ -87,10 +87,10 @@ spec:
                 # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
                 # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
                 # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
-                # istio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                # audio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
                 - cert-manager
                 - istio-system
-                - istio-ingress
+                - audio-ingress
                 # ambient 데이터플레인.
                 #
                 # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
@@ -139,10 +139,10 @@ spec:
                 # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
                 # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
                 # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
-                # istio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                # audio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
                 - cert-manager
                 - istio-system
-                - istio-ingress
+                - audio-ingress
                 # ambient 데이터플레인.
                 #
                 # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
@@ -190,10 +190,10 @@ spec:
                 # cert-manager 와 istiod 도 웹훅을 갖는다. 둘 다 kube-apiserver
                 # 가 컨트롤플레인의 호스트 네트워크에서 호출하므로 파드
                 # 셀렉터로 허용할 수 없다 — kyverno 와 같은 이유다.
-                # istio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
+                # audio-ingress 는 게이트웨이라 밖에서 오는 것을 받아야 한다.
                 - cert-manager
                 - istio-system
-                - istio-ingress
+                - audio-ingress
                 # ambient 데이터플레인.
                 #
                 # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
@@ -240,7 +240,7 @@ spec:
                   - ipBlock:
                       cidr: 100.64.0.0/10
 
-    - name: allow-from-istio-ingress
+    - name: allow-from-audio-ingress
       match:
         any:
           - resources:
@@ -258,7 +258,7 @@ spec:
                 - calico-apiserver
                 - cert-manager
                 - istio-system
-                - istio-ingress
+                - audio-ingress
                 # ambient 데이터플레인.
                 #
                 # ⚠️ **둘 다 hostNetwork 가 아니다.** 일반 파드라 podIP 를 받고
@@ -271,7 +271,7 @@ spec:
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
-        name: allow-from-istio-ingress
+        name: allow-from-audio-ingress
         namespace: "{{request.object.metadata.name}}"
         synchronize: true
         data:
@@ -283,7 +283,7 @@ spec:
             policyTypes: [Ingress]
             ingress:
               - from:
-                  # Istio 인그레스 게이트웨이는 `istio-ingress` 네임스페이스에
+                  # Istio 인그레스 게이트웨이는 `audio-ingress` 네임스페이스에
                   # 살고, 거기서 앱 파드로 가는 것은 **교차 네임스페이스
                   # 인그레스**라 default-deny 에 막힌다. 게이트웨이가 앱에
                   # 못 닿으면 외부 접근이 통째로 죽는다.
@@ -292,7 +292,7 @@ spec:
                   # 고르려면 자동으로 붙는 이 라벨을 쓴다.
                   - namespaceSelector:
                       matchLabels:
-                        kubernetes.io/metadata.name: istio-ingress
+                        kubernetes.io/metadata.name: audio-ingress
 
     - name: allow-from-ztunnel
       match:
@@ -312,7 +312,7 @@ spec:
                 - calico-apiserver
                 - cert-manager
                 - istio-system
-                - istio-ingress
+                - audio-ingress
                 - istio-cni
                 - ztunnel
       generate:

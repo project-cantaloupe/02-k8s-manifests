@@ -1,0 +1,73 @@
+# audio-api와 같은 Image의 다른 진입점이다. SQS를 소비하고 DB 상태와 Outbox를
+# 갱신한다.
+#
+# Mesh 안에서 들어오는 트래픽이 없고 대상이 전부 AWS 관리형 서비스와 RDS이므로
+# Sidecar를 주입하지 않는다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audio-events
+  namespace: apps
+  labels:
+    app: audio-events
+    area: apps
+    platform: aws
+    component: queue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audio-events
+  template:
+    metadata:
+      labels:
+        app: audio-events
+        area: apps
+        platform: aws
+        component: queue
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        - name: events
+          image: audio-api
+          imagePullPolicy: IfNotPresent
+          # 같은 Image의 다른 바이너리다. 둘 다 루트에 있다.
+          command: ["/audio-events"]
+          ports:
+            - name: http
+              containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: audio-settings
+            - secretRef:
+                name: audio-database
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 3
+            failureThreshold: 40
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi

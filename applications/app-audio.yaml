@@ -1,8 +1,11 @@
+# Audio Workload는 apps Namespace에서 실행한다. devops는 Argo CD, Jenkins,
+# Harbor 같은 DevOps 도구의 자리이므로 섞지 않는다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: audio-edge-smoke
+  name: app-audio
   namespace: devops
+  # Istio Base(-30), Istiod(-20), Gateway(-10) 이후에 배치한다.
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 spec:
@@ -10,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
     targetRevision: main
-    path: platform/aws/audio-edge/base
+    path: apps/audio
   destination:
     server: https://kubernetes.default.svc
     namespace: apps
@@ -25,8 +28,10 @@ spec:
         factor: 2
         maxDuration: 3m
     syncOptions:
-      # 네임스페이스는 governance/namespaces/ 가 만든다.
+      # 네임스페이스는 governance/namespaces/ 가 라벨과 함께 소유한다.
       # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
+      # → governance/namespaces/apps.yaml
       - CreateNamespace=false
       - ServerSideApply=true
+      # Istio CRD가 아직 없는 상태에서도 첫 동기화가 실패하지 않게 한다.
       - SkipDryRunOnMissingResource=true

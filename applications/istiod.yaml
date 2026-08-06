@@ -7,7 +7,11 @@
 # 왕복한다"* 이다. **istiod 도 어드미션 웹훅을 갖는다** — 검증 웹훅
 # (`istio-validator-istio-system`) 이 모든 Istio CR 쓰기 경로에 있고,
 # 홈랩 회선이 끊기면 `failurePolicy` 에 따라 쓰기가 막힌다.
-# cert-manager·Kyverno 와 같은 노드다.
+#
+# **aws 안에서도 `role=service` 가 아니라 `role=control-plane` 이다.**
+# service 워커는 t3.small 2 GiB 이고 그 메모리를 FFmpeg 가 써야 한다.
+# 대신 K8s 컨트롤플레인과 메시 컨트롤플레인의 장애 영역이 묶인다 —
+# 아래 values 주석에 그 트레이드오프를 적어뒀다.
 #
 # ── ambient 인 이유 ────────────────────────────────────────────
 #
@@ -62,10 +66,18 @@ spec:
         profile: ambient
         autoscaleEnabled: false
         replicaCount: 1
-        # cert-manager·Kyverno 와 같은 노드다. 위 주석 참조.
+        # On-Prem은 DevOps 전용 Node이므로 Istio를 두지 않는다. istiod는 AWS
+        # Audio Mesh의 mTLS에 필요하므로 삭제하지 않고 Control Plane Node로
+        # 옮긴다. Service Worker는 t3.small 2 GiB이며 FFmpeg가 그 메모리를
+        # 써야 하므로 대상에서 제외한다. Kubernetes Control Plane과 Istio
+        # Control Plane의 장애 영역이 묶이는 것을 트레이드오프로 수용한다.
         nodeSelector:
           platform: aws
-          role: service
+          role: control-plane
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
         resources:
           requests:
             cpu: 200m

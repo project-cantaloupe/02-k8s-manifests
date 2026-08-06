@@ -12,12 +12,26 @@ https://cntlp-onp-wk-01.tail270b85.ts.net/
 ```text
 MagicDNS HTTPS:443
   -> Tailscale Serve
-  -> https+insecure://127.0.0.1:31430
+  -> http://127.0.0.1:31430/argocd
   -> argocd-server
 ```
 
 NodePort `31430`은 Tailscale Serve의 로컬 backend다. 팀원이 직접 사용하는
 외부 주소로 관리하지 않는다.
+
+`server.insecure: "true"`이므로 backend는 평문 HTTP다. 경로에 `/argocd`가 붙는
+것은 `server.basehref`와 `server.rootpath` 설정 때문이다.
+
+Tailscale Serve 설정은 Git이 아니라 노드에서 직접 적용한다. Argo CD가 관리하지
+않으므로 매니페스트 병합 후 별도로 실행해야 한다.
+
+```bash
+tailscale serve --bg --set-path / http://127.0.0.1:31430/argocd
+tailscale serve status
+```
+
+이 NodePort 경로가 동작하는 것을 확인한 뒤에만 Istio Ingress 경유 경로를
+제거한다. 순서를 바꾸면 Argo CD UI와 그것을 복구할 수단을 동시에 잃는다.
 
 ## Tailscale 접근 조건
 

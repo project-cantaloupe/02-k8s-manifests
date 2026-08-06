@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: istio-ingress
+  name: audio-ingress
   namespace: devops
   annotations:
     argocd.argoproj.io/sync-wave: "-10"
@@ -12,15 +12,15 @@ spec:
     chart: gateway
     targetRevision: 1.30.3
     helm:
-      releaseName: istio-ingress
+      releaseName: audio-ingress
       values: |
-        name: istio-ingress
+        name: audio-ingress
         replicaCount: 1
         autoscaling:
           enabled: false
         serviceAccount:
           create: true
-          name: istio-ingress
+          name: audio-ingress
         service:
           type: NodePort
           externalTrafficPolicy: Local
@@ -41,12 +41,12 @@ spec:
               targetPort: 443
               nodePort: 30443
         labels:
-          app: istio-ingress
+          app: audio-ingress
           area: apps
-          platform: onp
+          platform: aws
         nodeSelector:
-          platform: onp
-          role: devops
+          platform: aws
+          role: service
         containerSecurityContext:
           runAsNonRoot: true
           runAsUser: 1337
@@ -63,7 +63,7 @@ spec:
             memory: 512Mi
   destination:
     server: https://kubernetes.default.svc
-    namespace: istio-ingress
+    namespace: audio-ingress
   syncPolicy:
     automated:
       prune: true

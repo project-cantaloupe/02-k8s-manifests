@@ -1,0 +1,25 @@
+# Audio Workload가 공유하는 Ingress Gateway 진입점이다. audio-web과 이후의
+# audio-api가 같은 Gateway에 붙는다.
+#
+# Gateway 리소스는 Gateway Pod와 같은 Namespace에 두고, selector로 그 Pod의
+# 라벨을 잡는다. audio-ingress Application(Helm gateway chart)이 만드는
+# Deployment의 라벨이 app: audio-ingress다.
+#
+# platform/aws/audio-edge/base에도 같은 이름의 Gateway가 있으나 그쪽은 실제
+# 이미지가 없던 시기에 쓰던 Echo Smoke 검증용이고 Root Application에 등록돼
+# 있지 않다. 실제 Workload가 생겼으므로 Audio Stack이 Gateway를 소유한다.
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: audio-gateway
+  namespace: audio-ingress
+spec:
+  selector:
+    app: audio-ingress
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"

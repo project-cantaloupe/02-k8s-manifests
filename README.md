@@ -70,11 +70,15 @@ mTLS를 먼저 검증한다. Canary 분배는 애플리케이션 버전 전환 �
 않는다.
 
 Audio Edge Application 정의는 코드로 먼저 병합한 뒤 `istio-base`, `istiod`,
-`istio-ingress`, `audio-edge-smoke` 순서로 Root 목록에 추가한다. 각 단계는 이전
+`audio-ingress`, `audio-edge-smoke` 순서로 Root 목록에 추가한다. 각 단계는 이전
 구성의 실제 Ready 상태를 확인한 뒤 진행한다.
 
+DevOps UI(Argo CD·Jenkins·Harbor)는 Istio를 경유하지 않는다. Tailscale과 각
+서비스의 NodePort로 직접 접근한다. On-Prem Node에는 Istio Workload를 두지 않으며
+`istiod`는 AWS Control Plane Node에서 실행한다.
+
 Production TLS overlay와 cert-manager Application은 Route53 도메인과
-self-managed Kubernetes OIDC 준비 전까지 Root 목록에 등록하지 않는다.
+cert-manager의 AWS 자격증명 경로가 확정되기 전까지 Root 목록에 등록하지 않는다.
 
 ## 모니터링
 

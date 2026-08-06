@@ -42,7 +42,7 @@ spec:
         maxDuration: 3m
     syncOptions:
       # ⚠️ **이미 존재하는 네임스페이스에 라벨을 얹는다.** `apps`·
-      # `istio-system`·`istio-ingress`·`logging`·`messaging` 은 ArgoCD 가
+      # `istio-system`·`audio-ingress`·`logging`·`messaging` 은 ArgoCD 가
       # `CreateNamespace=true` 로 이미 만들어놨고 PSA 라벨이 없다
       # (2026-08-05 실측). ServerSideApply 로 필드 소유권을 가져온다.
       - ServerSideApply=true

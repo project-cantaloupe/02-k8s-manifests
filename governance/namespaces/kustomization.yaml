@@ -23,11 +23,11 @@ kind: Kustomization
 
 resources:
   - apps.yaml
+  - audio-ingress.yaml
   - cert-manager.yaml
   - devops.yaml
   - finops.yaml
   - istio-cni.yaml
-  - istio-ingress.yaml
   - istio-system.yaml
   - kyverno.yaml
   - logging.yaml
