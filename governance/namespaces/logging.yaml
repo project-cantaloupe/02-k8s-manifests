@@ -19,6 +19,7 @@ kind: Namespace
 metadata:
   name: logging
   labels:
+    area: logging
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/warn: baseline
     pod-security.kubernetes.io/audit: baseline

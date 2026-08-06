@@ -11,6 +11,7 @@ kind: Namespace
 metadata:
   name: devops
   labels:
+    area: devops
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/warn: restricted
