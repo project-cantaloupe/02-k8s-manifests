@@ -40,3 +40,47 @@ Microsoft Azure Migrate Business Case의 공개 On-prem TCO 모델을 기준으�
 
 실제 장비 구매가, 전력계 측정값 또는 조직의 인건비 기준을 확보하면 이 문서의
 가정과 `pricing-catalog.yaml`의 최종 시간당 가격만 함께 갱신한다.
+
+## On-prem Right-sizing Profile
+
+On-prem 추천은 Cloud VM SKU를 흉내 내지 않고 회사가 실제로 제공할 수 있는
+가상 하드웨어 Profile 중에서 선택한다. 현재 물리 호스트는 12 vCPU 환산과
+24 GiB를 제공하고, 전체 시간당 TCO는 기존 `8 vCPU/16 GiB = $0.06/hour`
+산정과 일치하도록 `$0.09/hour`로 역산한다.
+
+Profile 비용은 CPU 예약비율과 Memory 예약비율 중 더 큰 값을 사용한다. 이는
+한 자원이 병목이면 남은 호스트 용량을 다른 VM에 완전히 재배치할 수 없다는
+보수적 가정이다.
+
+```text
+profile hourly TCO
+= host hourly TCO
+  * max(profile vCPU / host vCPU, profile GiB / host GiB)
+```
+
+| Profile | vCPU | Memory | 시간당 TCO |
+| --- | ---: | ---: | ---: |
+| onp-small | 2 | 4 GiB | $0.015 |
+| onp-medium | 4 | 8 GiB | $0.030 |
+| onp-memory-balanced | 4 | 12 GiB | $0.045 |
+| onp-large | 8 | 16 GiB | $0.060 |
+
+추천 필요 용량은 최근 7일 Node 전체 Container 사용량 P95에 CPU/Memory 30%
+여유를 적용하고 OS·kubelet을 위해 0.5 CPU와 1 GiB를 추가한다. 이 필요 용량을
+만족하는 가장 저렴한 Profile을 권장한다.
+
+추천과 적용 가능 여부는 별도다. 현재 Pod Request 합계가 권장 Profile의 90%를
+넘으면 `Workload Right-sizing 선행`으로 판단한다. 최근 OOMKilled 또는 Node
+MemoryPressure가 있으면 사양 축소를 안전하다고 표시하지 않는다. 추천은 자동
+적용하지 않으며 Drain, 재스케줄링, 장애 시 여유와 서비스 SLO를 검증한 뒤
+승인한다.
+
+관측 신뢰도는 6시간 미만, 6~24시간, 24시간~7일, 7일 이상으로 분리한다.
+최소 24시간이 확보되기 전에는 Profile과 예상 절감액을 참고값으로만 표시하며
+`검토 가능`으로 판정하지 않는다. 이 기준은 짧은 프로젝트에서도 후보를 숨기지
+않으면서 장기 검증이 끝난 것처럼 과장하지 않기 위한 안전장치다.
+
+정책의 실행 가능한 단일 원본은 `onprem-rightsizing-policy.yaml`이며,
+`generate_onprem_rightsizing.py`가 Prometheus Recording/Alert Rule을 생성한다.
+실제 서버 재고나 회사 TCO가 확보되면 Profile과 Host TCO만 변경하고 같은 추천
+및 검증 흐름을 유지한다.

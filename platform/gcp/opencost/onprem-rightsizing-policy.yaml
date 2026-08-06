@@ -1,0 +1,52 @@
+schemaVersion: v1
+version: cantaloupe-onprem-rightsizing-v1
+currency: USD
+lookback: 7d
+resolution: 5m
+
+# Recommendation capacity = observed P95 * headroom + host reserve.
+# Current Kubernetes Requests are checked separately to decide whether the
+# recommendation can be applied now or requires Workload right-sizing first.
+safety:
+  cpuHeadroomRatio: 1.30
+  memoryHeadroomRatio: 1.30
+  systemReservedCPU: 0.50
+  systemReservedMemoryGiB: 1.0
+  maxSchedulableRatio: 0.90
+  blockOnOOMKilled: true
+  blockOnMemoryPressure: true
+
+tcoModel:
+  method: proportional-reserved-capacity
+  physicalHostCapacity:
+    vcpu: 12
+    memoryGiB: 24
+  physicalHostHourlyTCOUSD: 0.09
+  source: cantaloupe-tco-v1
+  sourceRef: TCO-METHODOLOGY.md
+  note: Profile cost is host TCO multiplied by the larger of CPU or Memory reserved-capacity ratios.
+
+profiles:
+  - name: onp-small
+    instanceType: custom-2vcpu-4gib
+    vcpu: 2
+    memoryGiB: 4
+  - name: onp-medium
+    instanceType: custom-4vcpu-8gib
+    vcpu: 4
+    memoryGiB: 8
+  - name: onp-memory-balanced
+    instanceType: custom-4vcpu-12gib
+    vcpu: 4
+    memoryGiB: 12
+  - name: onp-large
+    instanceType: custom-8vcpu-16gib
+    vcpu: 8
+    memoryGiB: 16
+
+recommendation:
+  minimumMonthlySavingsUSD: 1.0
+  requireCheaperProfile: true
+  approvalRequired: true
+  automaticApply: false
+

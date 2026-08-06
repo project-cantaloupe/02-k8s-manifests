@@ -1,0 +1,31 @@
+schemaVersion: v1
+version: cantaloupe-provider-recommendations-2026-08-07
+generatedAt: "2026-08-07T00:00:00Z"
+providers:
+  gcp:
+    status: ready
+    source: gcp-recommender
+    note: MachineTypeRecommender API verified with an ACTIVE recommendation.
+  aws:
+    status: analyzing
+    source: aws-compute-optimizer
+    note: Compute Optimizer is Active but currently returns no EC2 recommendations.
+recommendations:
+  - platform: gcp
+    resource: cntlp-gcp-wk-02
+    location: asia-northeast3-a
+    currentProfile: e2-standard-4
+    recommendedProfile: e2-custom-4-7936
+    currentVCPU: 4
+    recommendedVCPU: 4
+    currentMemoryGiB: 16
+    recommendedMemoryGiB: 7.75
+    estimatedMonthlySavingsUSD: 16.477507887
+    estimatedMonthlySavingsLocal: 23921.057304042
+    localCurrency: KRW
+    source: gcp-recommender
+    state: ACTIVE
+    priority: P4
+    lastRefreshTime: "2026-08-04T06:08:25Z"
+    sourceRef: google.compute.instance.MachineTypeRecommender
+

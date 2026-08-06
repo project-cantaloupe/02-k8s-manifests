@@ -47,6 +47,93 @@ checksum과 검증 규칙으로 변환한다. 공급자 응답 필드나 API 버
 클라우드 API가 GitHub에 접근하는 방식이 아니라 GitHub Actions가 읽기 권한으로
 가격 API를 조회하고, 검증된 변경만 PR로 제안하도록 구성한다.
 
+가격 카탈로그는 모든 Cloud SKU의 복제본이 아니다. 현재 실행 중인 Node 유형,
+Terraform/Karpenter에서 실제 허용한 유형, 적용 승인이 끝난 추천 후보만 포함한다.
+GCP Recommender나 AWS Compute Optimizer 후보는 먼저 별도 Recommendation Cache에
+저장한다. Provider가 공식 예상 절감액을 제공하면 가격표에 후보를 즉시 추가하지
+않고 그 값을 표시한다. 실제 적용을 승인할 때만 공식 가격 Resolver가 해당 후보
+하나를 조회하고 가격 PR을 만든다.
+
+따라서 Provider가 새로운 VM 유형을 추천해도 OpenCost 현재 비용 계산은 영향을
+받지 않는다. 미등록 유형을 실제 NodePool/Terraform에 허용하려는 변경만 가격표
+Coverage 검증을 통과해야 한다.
+
+## On-prem Right-sizing
+
+On-prem은 Provider Recommender가 없으므로 회사 서버 재고와 TCO를 기반으로 자체
+추천한다. `onprem-rightsizing-policy.yaml`에는 실제 제공 가능한 Profile, Host
+TCO와 안전 여유가 있고, 생성된 Recording Rule은 다음을 계산한다.
+
+- 최근 7일 Node CPU/Memory P95
+- P95 30% 여유와 OS/kubelet 예약량을 포함한 필요 용량
+- 필요 용량을 만족하는 가장 저렴한 내부 Profile
+- 현재 Profile과 권장 Profile의 월 TCO 차이
+- 현재 Pod Request가 권장 Profile에 스케줄 가능한지
+- 최근 OOMKilled와 Node MemoryPressure 안전 신호
+
+`권장 Profile`과 `즉시 적용 가능`은 다르다. P95 기준으로 축소 가능해도 현재
+Request가 들어가지 않으면 Workload Right-sizing을 먼저 수행한다. 모든 추천은
+검토·승인 대상이며 VM이나 Workload를 자동 변경하지 않는다.
+
+## Workload 관측 신뢰도
+
+전체 Kubernetes Workload에는 인위적인 부하 테스트를 요구하지 않는다. 현재
+Prometheus에 자연스럽게 축적된 데이터로 최대 7일 P95를 계산하고, 확보된 표본
+기간을 권장값과 별도로 표시한다.
+
+| 관측 시간 | 분류 | 사용 방법 |
+| --- | --- | --- |
+| 6시간 미만 | 데이터 부족 | 권장값 적용 금지 |
+| 6~24시간 | 초기 후보 | 추가 관측 대상 |
+| 24시간~7일 | 검토 가능 | OOM·Request·재스케줄링 확인 후 검토 |
+| 7일 이상 | 운영 기준 충족 | 운영 Right-sizing 후보 |
+
+`검토 가능`은 자동 변경 승인이 아니다. 실제 비용 절감은 VM 축소·제거 또는
+Karpenter Node 종료가 발생했을 때만 실현된 것으로 구분한다. 통제된 전후 부하
+실험은 전체 플랫폼이 아니라 Audio Worker 대시보드에서 별도로 수행한다.
+
+## Provider VM Recommendation Cache
+
+`provider-recommendations.yaml`은 Credential이나 Provider 원본 응답을 저장하지
+않고 대시보드에 필요한 비민감 필드만 정규화한다. GCP/AWS CLI 원본 JSON은 로컬
+임시파일 또는 Keyless CI Workspace에서만 다루고 Git에 커밋하지 않는다.
+
+추천이 없는 VM은 정상 상태일 수 있으므로 VM별 `추천 없음` 또는 개별 추천의
+나이에 대한 Alert는 만들지 않는다. 자동 수집 파이프라인을 운영하게 되면 개별
+VM이 아니라 마지막 수집 작업의 성공 여부만 별도로 감시한다.
+
+```bash
+# GCP: Workload Identity Federation 또는 사용자 gcloud 인증으로 Snapshot 조회
+gcloud recommender recommendations list \
+  --recommender=google.compute.instance.MachineTypeRecommender \
+  --project="$GCP_PROJECT_ID" \
+  --location="$GCP_ZONE" \
+  --format=json > /tmp/gcp-recommendations.json
+
+# AWS: Compute Optimizer가 Active여도 분석 중이면 빈 목록이 정상이다.
+aws compute-optimizer get-ec2-instance-recommendations \
+  --region "$AWS_REGION" > /tmp/aws-recommendations.json
+
+# 비민감 공통 Cache로 정규화
+python platform/gcp/opencost/sync_provider_recommendations.py \
+  --gcp-json /tmp/gcp-recommendations.json \
+  --aws-json /tmp/aws-recommendations.json \
+  --aws-status analyzing
+
+# Grafana가 조회할 Recording Rule 생성
+python platform/gcp/opencost/generate_provider_recommendations.py
+python platform/gcp/opencost/generate_provider_recommendations.py --check
+```
+
+운영 자동화는 Scheduled CI가 OIDC/WIF 단기 Token으로 조회하고 변경 PR만 만든다.
+장기 GCP Service Account Key나 AWS Access Key를 Kubernetes/GitHub Secret에 넣지
+않는다. AWS 분석 결과가 없으면 `analyzing`, 추천이 없으면
+`no-active-recommendation` 상태를 유지하며 예상 절감 총액에 포함하지 않는다.
+
+Provider 추천 후보는 OpenCost 가격표와 분리한다. 실제 적용이 승인된 후보만
+공식 가격 Resolver를 거쳐 `pricing-catalog.yaml`로 승격하고, Merge 전에 기존
+Schema·CSV·Checksum·Coverage 검증을 통과해야 한다.
+
 ## 자동 매칭 방식
 
 - OpenCost CSV Provider는 `topology.kubernetes.io/region`과
@@ -71,6 +158,10 @@ python platform/gcp/opencost/generate_pricing.py
 
 # 3. 생성 파일이 최신인지 검증
 python platform/gcp/opencost/generate_pricing.py --check
+
+# 4. On-prem Profile 추천 Rule 생성 및 검증
+python platform/gcp/opencost/generate_onprem_rightsizing.py
+python platform/gcp/opencost/generate_onprem_rightsizing.py --check
 ```
 
 카탈로그와 생성 파일은 한 커밋으로 관리한다. `--check`는 수동 생성 파일 수정,

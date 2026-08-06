@@ -5,6 +5,8 @@ resources:
   - opencost-ui-nodeport.yaml
   - prometheus-ui-nodeport.yaml
   - finops-recording-rules.yaml
+  - onprem-rightsizing-rules.yaml
+  - provider-recommendation-rules.yaml
 
 configMapGenerator:
   - name: cantaloupe-platform-overview
