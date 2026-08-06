@@ -9,6 +9,6 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
-      nodePort: 30080
+      nodePort: 31432
   selector:
     app: harbor-portal
