@@ -13,7 +13,7 @@ spec:
     metadata:
       annotations:
         fluentbit.io/exclude: "true"
-        checksum/fluent-bit-config: "platform-routing-v1"
+        checksum/fluent-bit-config: "normalization-v1"
       labels:
         app: fluent-bit
         area: logging
@@ -22,6 +22,43 @@ spec:
       # AWS control-plane의 NoSchedule taint를 포함해 모든 현재 노드에 1개씩 배치한다.
       tolerations:
         - operator: Exists
+      initContainers:
+        - name: read-node-platform
+          image: curlimages/curl:8.10.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 0
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              api="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}"
+              token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              platform=$(curl --fail --silent --show-error \
+                --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+                -H "Authorization: Bearer ${token}" \
+                "${api}/api/v1/nodes/${NODE_NAME}" \
+                | sed -n 's/.*"platform":"\([^"]*\)".*/\1/p')
+
+              test -n "${platform}"
+              printf '%s\n' "${platform}" > /fluent-bit/state/collector_platform
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          volumeMounts:
+            - name: state
+              mountPath: /fluent-bit/state
       containers:
         - name: fluent-bit
           image: cr.fluentbit.io/fluent/fluent-bit:3.1.9

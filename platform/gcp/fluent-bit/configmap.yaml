@@ -53,6 +53,14 @@ data:
         Match  kube.*
         Regex  $kubernetes['namespace_name'] ^(logging|devops|istio-system)$
 
+    # Dashboard query fields are flattened here while the original `log` and
+    # Kubernetes metadata are retained for incident investigation.
+    [FILTER]
+        Name    lua
+        Match   kube.*
+        Script  /fluent-bit/etc/platform-normalize.lua
+        Call    normalize
+
     [OUTPUT]
         Name                opensearch
         Match               kube.*
@@ -70,3 +78,44 @@ data:
         Regex        ^(?<time>[^ ]+) (?<stream>stdout|stderr) (?<logtag>[^ ]+) (?<log>.*)$
         Time_Key     time
         Time_Format  %Y-%m-%dT%H:%M:%S.%L%z
+  platform-normalize.lua: |
+    -- Common schema for platform log dashboards. `collector_platform` is
+    -- read once from the node label captured by the init container.
+    local collector_platform = nil
+
+    local function get_collector_platform()
+      if collector_platform ~= nil then
+        return collector_platform
+      end
+
+      local file = io.open("/fluent-bit/state/collector_platform", "r")
+      if file == nil then
+        collector_platform = "unknown"
+        return collector_platform
+      end
+
+      collector_platform = file:read("*l") or "unknown"
+      file:close()
+      return collector_platform
+    end
+
+    function normalize(tag, timestamp, record)
+      local kubernetes = record["kubernetes"] or {}
+      local pod_labels = kubernetes["labels"] or {}
+      local namespace_metadata = record["kubernetes_namespace"] or {}
+      local namespace_labels = namespace_metadata["labels"] or {}
+
+      record["namespace"] = kubernetes["namespace_name"] or "unknown"
+      record["area"] = pod_labels["area"] or namespace_labels["area"] or "unknown"
+      record["app"] = pod_labels["app"] or pod_labels["app.kubernetes.io/name"] or kubernetes["container_name"] or "unknown"
+      record["collector_platform"] = get_collector_platform()
+      record["pod"] = kubernetes["pod_name"] or "unknown"
+      record["container"] = kubernetes["container_name"] or "unknown"
+      record["message"] = record["msg"] or record["message"] or record["log"] or ""
+
+      if record["level"] == nil then
+        record["level"] = "unknown"
+      end
+
+      return 1, timestamp, record
+    end
