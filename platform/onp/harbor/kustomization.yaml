@@ -24,6 +24,7 @@ patches:
       metadata:
         name: harbor
       spec:
+        type: NodePort
         externalTrafficPolicy: Cluster
         selector:
           app: harbor-portal
