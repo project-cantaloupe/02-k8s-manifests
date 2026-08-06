@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: devops
 
 resources:
+  - harbor-service.yaml
   - harbor-components.yaml
   - harbor-core-config.yaml
   - redis.yaml
@@ -24,13 +25,14 @@ patches:
       metadata:
         name: harbor
       spec:
+        type: NodePort
         externalTrafficPolicy: Cluster
         selector:
-          app: harbor-portal
+          app: harbor-core
         ports:
           - name: http
             port: 80
-            targetPort: 80
+            targetPort: 8080
             nodePort: 31432
 
   # 2. Harbor Core 패치 (nodeSelector 통일)
@@ -51,6 +53,10 @@ patches:
             containers:
               - name: harbor-core
                 env:
+                  - name: EXT_ENDPOINT
+                    value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
+                  - name: HARBOR_URL
+                    value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
                   - name: CONFIG_PATH
                     value: "/etc/harbor/core/app.conf"
                   - name: PORT

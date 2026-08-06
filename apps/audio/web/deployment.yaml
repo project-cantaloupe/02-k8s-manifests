@@ -39,7 +39,11 @@ spec:
       containers:
         - name: web
           image: audio-web
-          imagePullPolicy: IfNotPresent
+          # newTag가 dev라는 가변 태그다. IfNotPresent면 노드에 같은 이름의
+          # 이미지가 있는 한 레지스트리를 조회하지 않아, 재푸시해도 파드가
+          # 계속 옛 이미지를 쓴다. rollout restart로도 갱신되지 않는다.
+          # CI가 digest를 커밋하게 되면 그때 고정 digest로 바꾼다.
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080

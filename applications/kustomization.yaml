@@ -7,7 +7,6 @@ resources:
   - governance-namespaces.yaml
   - governance-policies.yaml
   - argocd.yaml
-  - jenkins.yaml
   - harbor.yaml
   - gcp-storage.yaml
   - logging-stack.yaml
