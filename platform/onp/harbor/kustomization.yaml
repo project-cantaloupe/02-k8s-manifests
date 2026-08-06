@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: devops
 
 resources:
+  - harbor-service.yaml
   - harbor-components.yaml
   - harbor-core-config.yaml
   - redis.yaml
