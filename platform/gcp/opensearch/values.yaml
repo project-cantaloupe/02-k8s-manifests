@@ -20,7 +20,7 @@ sysctlInit:
 persistence:
   enabled: true
   enableInitChown: true
-  storageClass: "gcp-pd-sc"
+  storageClass: "gcp-pd-retain"
   size: "30Gi"
 
 resources:
