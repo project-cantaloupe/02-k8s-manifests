@@ -24,9 +24,21 @@ data:
 
   # CloudFront 배포 도메인과 Key Pair ID는 서명된 URL에 그대로 노출되는 공개
   # 값이므로 Git에서 관리해도 된다. 개인키만 Secret으로 마운트한다.
+  #
+  # CLOUDFRONT_KEY_PAIR_ID는 cloudfront-signing-key Secret의 개인키와 반드시
+  # 짝이어야 한다. 어긋나면 서명은 정상 생성되지만 CloudFront가 403을 낸다.
+  # 값을 바꾼 뒤에는 아래 두 지문이 같은지 확인한다.
+  #
+  #   kubectl -n apps get secret cloudfront-signing-key \
+  #     -o jsonpath='{.data.cloudfront-private-key\.pem}' | base64 -d \
+  #     | openssl rsa -pubout -outform DER | openssl dgst -sha256
+  #
+  #   aws cloudfront get-public-key --id <ID> \
+  #     --query 'PublicKey.PublicKeyConfig.EncodedKey' --output text \
+  #     | openssl rsa -pubin -outform DER | openssl dgst -sha256
   PLAYBACK_URL_MODE: cloudfront
   CLOUDFRONT_BASE_URL: https://d8htm75hft1yx.cloudfront.net
-  CLOUDFRONT_KEY_PAIR_ID: K2XLCZCZS58LEO
+  CLOUDFRONT_KEY_PAIR_ID: KX2K2HOOI3JM5
   CLOUDFRONT_PRIVATE_KEY_FILE: /var/run/secrets/cntlp/cloudfront-private-key.pem
 
   # Worker 조정값. transcode Queue의 Visibility Timeout과 일치시킨다.
