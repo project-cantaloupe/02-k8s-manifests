@@ -36,12 +36,12 @@ spec:
               listen 8080;
               default_type application/json;
 
-              # 1. 일반 GET/기본 경로
+              # 핵심: 정의되지 않은 모든 요청(Catch-All)에 기본 JSON 객체 응답
               location / {
-                  return 200 '{}';
+                  return 200 '{"job_id":"dummy-job-id-0000","status":"success"}';
               }
 
-              # 2. Config & Stats
+              # Config & Stats
               location /api/v1/config {
                   return 200 '{"protocol":"http","port":8080}';
               }
@@ -49,12 +49,12 @@ spec:
                   return 200 '[]';
               }
 
-              # 3. Queues 조회
+              # Queue 목록 조회
               location /api/v2.0/jobservice/queues {
                   return 200 '[{"job_type":"default","count":0,"latency":0,"paused":false}]';
               }
 
-              # 4. Job Submit (핵심: Job ID JSON 객체 반환)
+              # Job 제출 API
               location /api/v1/jobs {
                   return 202 '{"job_id":"dummy-job-id-0000"}';
               }
