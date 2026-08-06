@@ -32,3 +32,27 @@ spec:
           image: goharbor/registry-photon:v2.10.0
           ports:
             - containerPort: 5000
+          volumeMounts:
+            # 1. ConfigMap 설정 파일 마운트
+            - mountPath: /etc/registry/config.yml
+              name: registry-config
+              subPath: config.yml
+            # 2. 이미지 저장소 PVC 마운트
+            - mountPath: /storage
+              name: harbor-data
+              subPath: registry
+            # 3. [핵심!] 토큰 인증서 파일 마운트
+            - mountPath: /etc/registry/root.crt
+              name: token-service-cert
+              subPath: tls.crt
+      volumes:
+        - name: registry-config
+          configMap:
+            name: harbor-registry-config
+        - name: harbor-data
+          persistentVolumeClaim:
+            claimName: harbor-data-pvc
+        # [핵심!] harbor-token-service Secret 참조
+        - name: token-service-cert
+          secret:
+            secretName: harbor-token-service
