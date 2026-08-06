@@ -9,6 +9,8 @@ data:
     runmode = dev
     enableadmin = false
 
+    ext_endpoint = https://cntlp-onp-wk-01.tail270b85.ts.net
+
     [cache]
     type = redis
     key = redis
