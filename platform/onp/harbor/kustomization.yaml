@@ -15,7 +15,7 @@ resources:
   - pvc.yaml
 
 patches:
-  # 1. Harbor Service 패치
+  # 1. Harbor Service 패치 (harbor-portal의 80포트를 바라보게 원복)
   - target:
       kind: Service
       name: harbor
@@ -28,14 +28,14 @@ patches:
         type: NodePort
         externalTrafficPolicy: Cluster
         selector:
-          app: harbor-core
+          app: harbor-portal
         ports:
           - name: http
             port: 80
-            targetPort: 8080
+            targetPort: 80
             nodePort: 31432
 
-  # 2. Harbor Core 패치 (nodeSelector 통일)
+  # 2. Harbor Core 패치
   - target:
       kind: Deployment
       name: harbor-core
@@ -92,15 +92,15 @@ patches:
                 configMap:
                   name: harbor-core-config
 
-  # 3. Harbor Registry 패치 (nodeSelector 통일)
+  # 3. Harbor Portal 패치 (Core 서비스 연결 환경변수 추가)
   - target:
       kind: Deployment
-      name: harbor-registry
+      name: harbor-portal
     patch: |-
       apiVersion: apps/v1
       kind: Deployment
       metadata:
-        name: harbor-registry
+        name: harbor-portal
       spec:
         template:
           spec:
@@ -108,12 +108,7 @@ patches:
               platform: onp
               role: devops
             containers:
-              - name: registry
-                volumeMounts:
-                  - name: registry-config
-                    mountPath: /etc/registry/config.yml
-                    subPath: config.yml
-            volumes:
-              - name: registry-config
-                configMap:
-                  name: harbor-registry-config
+              - name: harbor-portal
+                env:
+                  - name: HARBOR_CORE_URL
+                    value: "http://harbor-core:8080"
