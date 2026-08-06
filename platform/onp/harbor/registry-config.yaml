@@ -8,8 +8,21 @@ data:
     version: 0.1
     log:
       level: info
-      fields:
-        service: registry
+    http:
+      addr: :5000
+      relativeurls: true   # <--- 이 항목을 true로 추가/변경해 주세요!
+      secret: a-secret-value
+      debug:
+        addr: :5001
+    auth:
+      htpasswd:
+        realm: basic-realm
+        path: /etc/registry/htpasswd
+      token:
+        issuer: harbor-token-issuer
+        realm: https://cntlp-onp-wk-01.tail270b85.ts.net/service/token # <--- https:// 외부주소로 변경
+        rootcertbundle: /etc/registry/root.crt
+        service: harbor-registry
     storage:
       cache:
         layerinfo: redis
