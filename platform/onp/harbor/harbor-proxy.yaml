@@ -6,70 +6,48 @@ metadata:
 data:
   nginx.conf: |
     worker_processes auto;
-    events { worker_connections 1024; }
-    http {
-      client_max_body_size 0; # 대용량 도커 레이어 업로드 허용
-      
-      upstream portal { server harbor-portal.devops.svc.cluster.local:80; }
-      upstream core { server harbor-core.devops.svc.cluster.local:8080; }
-
-      server {
-        listen 80;
-        
-        location / {
-          proxy_pass http://portal;
-        }
-        location /api/ {
-          proxy_pass http://core;
-        }
-        location /v2/ {
-          proxy_pass http://core;
-        }
-        location /service/ {
-          proxy_pass http://core;
-        }
-      }
+    events {
+        worker_connections 1024;
     }
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: harbor-proxy
-  namespace: devops
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: harbor-proxy
-  template:
-    metadata:
-      labels:
-        app: harbor-proxy
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-        volumeMounts:
-        - name: config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
-      volumes:
-      - name: config
-        configMap:
-          name: harbor-proxy-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: harbor-proxy-nodeport
-  namespace: devops
-spec:
-  type: NodePort
-  selector:
-    app: harbor-proxy
-  ports:
-  - port: 80
-    targetPort: 80
-    nodePort: 31432  # 기존에 쓰시던 NodePort 그대로 활용
+    http {
+        include       mime.types;
+        default_type  application/octet-stream;
+        sendfile        on;
+        keepalive_timeout  65;
+
+        # 업로드 제한 해제 (Docker Push 대비)
+        client_max_body_size 0;
+
+        server {
+            listen 80;
+
+            # 프록시 필수 헤더 공통 설정
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # CSRF 방지를 위한 Cookie/Header 처리
+            proxy_cookie_path / "/; HTTPOnly; Secure";
+
+            # UI 및 API 요청 -> harbor-core
+            location / {
+                proxy_pass http://harbor-core:8080;
+            }
+
+            # v2 API 요청 (Docker Registry)
+            location /v2/ {
+                proxy_pass http://harbor-core:8080/v2/;
+            }
+            
+            # 서비스 API 요청
+            location /api/ {
+                proxy_pass http://harbor-core:8080/api/;
+            }
+            
+            # 인증/토큰 요청
+            location /service/ {
+                proxy_pass http://harbor-core:8080/service/;
+            }
+        }
+    }
