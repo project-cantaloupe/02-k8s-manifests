@@ -12,6 +12,14 @@ image:
 
 replicaCount: 1
 
+# Dashboards is reachable only through Tailscale Serve on the GCP logging
+# node. NodePort provides the local upstream; it is not exposed by a public
+# cloud load balancer.
+service:
+  type: NodePort
+  port: 5601
+  nodePort: 30561
+
 resources:
   requests:
     cpu: 100m
