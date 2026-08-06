@@ -79,3 +79,32 @@ patches:
                     value: "HARBOR_JOBSERVICE_SECRET_123456"
                   - name: CSRF_KEY
                     value: "12345678901234567890123456789012"
+
+  # 3. Harbor Registry 패치 (harbor-data 볼륨 포함)
+  - target:
+      kind: Deployment
+      name: harbor-registry
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: harbor-registry
+      spec:
+        template:
+          spec:
+            nodeSelector:
+              platform: onp
+              role: devops
+            containers:
+              - name: registry
+                volumeMounts:
+                  - name: registry-config
+                    mountPath: /etc/registry/config.yml
+                    subPath: config.yml
+            volumes:
+              - name: registry-config
+                configMap:
+                  name: harbor-registry-config
+              - name: harbor-data
+                persistentVolumeClaim:
+                  claimName: harbor-data-pvc
