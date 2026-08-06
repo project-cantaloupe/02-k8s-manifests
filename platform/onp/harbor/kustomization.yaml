@@ -15,7 +15,7 @@ resources:
   - pvc.yaml
 
 patches:
-  # 1. Harbor Service 패치 (harbor-portal의 80포트를 바라보게 원복)
+  # 1. Harbor Service (Portal 80 포트로 확실히 연결)
   - target:
       kind: Service
       name: harbor
@@ -26,7 +26,6 @@ patches:
         name: harbor
       spec:
         type: NodePort
-        externalTrafficPolicy: Cluster
         selector:
           app: harbor-portal
         ports:
@@ -35,7 +34,7 @@ patches:
             targetPort: 80
             nodePort: 31432
 
-  # 2. Harbor Core 패치
+  # 2. Harbor Core (외부 접근 주소 지정)
   - target:
       kind: Deployment
       name: harbor-core
@@ -47,9 +46,6 @@ patches:
       spec:
         template:
           spec:
-            nodeSelector:
-              platform: onp
-              role: devops
             containers:
               - name: harbor-core
                 env:
@@ -57,58 +53,3 @@ patches:
                     value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
                   - name: HARBOR_URL
                     value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
-                  - name: CONFIG_PATH
-                    value: "/etc/harbor/core/app.conf"
-                  - name: PORT
-                    value: "8080"
-                  - name: CACHE_TYPE
-                    value: "redis"
-                  - name: REDIS_URL
-                    value: "redis://harbor-redis:6379/0"
-                  - name: _REDIS_URL_CORE
-                    value: "redis://harbor-redis:6379/0"
-                  - name: POSTGRESQL_HOST
-                    value: "postgresql"
-                  - name: POSTGRESQL_PORT
-                    value: "5432"
-                  - name: POSTGRESQL_PASSWORD
-                    value: "root123"
-                  - name: POSTGRESQL_DATABASE
-                    value: "registry"
-                  - name: REGISTRY_URL
-                    value: "http://harbor-registry:5000"
-                  - name: CORE_SECRET
-                    value: "HARBOR_CORE_SECRET_123456"
-                  - name: JOBSERVICE_SECRET
-                    value: "HARBOR_JOBSERVICE_SECRET_123456"
-                  - name: CSRF_KEY
-                    value: "12345678901234567890123456789012"
-                volumeMounts:
-                  - name: config-volume
-                    mountPath: /etc/harbor/core/app.conf
-                    subPath: app.conf
-            volumes:
-              - name: config-volume
-                configMap:
-                  name: harbor-core-config
-
-  # 3. Harbor Portal 패치 (Core 서비스 연결 환경변수 추가)
-  - target:
-      kind: Deployment
-      name: harbor-portal
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: harbor-portal
-      spec:
-        template:
-          spec:
-            nodeSelector:
-              platform: onp
-              role: devops
-            containers:
-              - name: harbor-portal
-                env:
-                  - name: HARBOR_CORE_URL
-                    value: "http://harbor-core:8080"
