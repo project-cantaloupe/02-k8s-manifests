@@ -54,6 +54,7 @@ data:
         "mappings": {
           "dynamic": false,
           "properties": {
+            "@timestamp": { "type": "date" },
             "namespace": { "type": "keyword" },
             "area": { "type": "keyword" },
             "app": { "type": "keyword" },
