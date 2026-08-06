@@ -9,1179 +9,1845 @@
         },
         "enable": true,
         "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
+        "iconColor": "rgba(0,211,255,1)",
         "name": "Annotations & Alerts",
         "type": "dashboard"
       }
     ]
   },
-  "description": "AWS/GCP 서울 리전 공개 On-Demand 가격과 On-prem TCO 기준을 Platform·Role·Namespace·Workload·Pod 단위로 분석하고 Request/Actual/Allocated 차이로 Right-sizing 후보를 찾는다. 할인·세금 등을 반영한 실제 청구액은 아니다.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [
-    {
-      "asDropdown": false,
-      "icon": "external link",
-      "includeVars": true,
-      "keepTime": true,
-      "tags": [],
-      "targetBlank": false,
-      "title": "Platform Overview",
-      "tooltip": "운영 상태 대시보드로 이동",
-      "type": "link",
-      "url": "/grafana/d/cantaloupe-platform-overview/cantaloupe-platform-overview"
-    }
-  ],
+  "links": [],
   "liveNow": false,
   "panels": [
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
       "id": 100,
-      "panels": [],
-      "title": "Cost Overview — Estimated Benchmark",
-      "type": "row"
+      "title": "1. FinOps Summary — 지출, 낭비, 절감 상태",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "선택 범위의 Node 용량을 유지하는 시간당 공개가격/TCO 추정치다. 할인·세금 등을 반영한 실제 청구액이 아니다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 4,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 1
-      },
       "id": 1,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "expr": "sum(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"})",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Node Cost / hour",
-      "type": "stat"
-    },
-    {
+      "title": "월 예상 Node 비용",
+      "type": "stat",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "현재 Node 구성이 한 달(730시간) 유지된다고 가정한 추정치다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 4,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
       "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 1
-      },
-      "id": 2,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "expr": "730 * sum(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"})",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Estimated / month",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "OpenCost가 Request와 사용량을 기준으로 Container에 할당한 CPU·Memory 비용이다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 4,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 1
-      },
-      "id": 3,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "expr": "sum(cantaloupe:platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"})",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Allocated Compute / hour",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Node 비용에서 Workload 할당 컴퓨팅 비용을 뺀 미할당 용량 신호다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 4,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 1
-      },
-      "id": 4,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "expr": "clamp_min(sum(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}) - sum(cantaloupe:platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}), 0)",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Idle Compute / hour",
-      "type": "stat"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 5
+        "y": 1,
+        "w": 4,
+        "h": 4
       },
-      "id": 200,
-      "panels": [],
-      "title": "Cost Allocation",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "실선/범례로 플랫폼·역할별 전체 Node 비용과 Workload 할당 비용의 차이를 본다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 4,
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 6
-      },
-      "id": 5,
+      "description": "현재 실행 중인 Node Run Rate를 730시간으로 환산한 공개가격/TCO 기준값입니다.",
+      "targets": [
+        {
+          "expr": "730 * sum(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "월 예상 Node 비용"
+        }
+      ],
       "options": {
-        "legend": {
+        "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}",
-          "legendFormat": "{{platform}} / {{role}} Node",
-          "refId": "A"
-        },
-        {
-          "expr": "cantaloupe:platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}",
-          "legendFormat": "{{platform}} / {{role}} Allocated",
-          "refId": "B"
-        }
-      ],
-      "title": "Platform Cost Trend — Node vs Allocated",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "현재 플랫폼·역할별 Node 시간당 비용이다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 4,
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      },
-      "id": 6,
-      "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 12,
-        "minVizWidth": 0,
         "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color"
-      },
-      "targets": [
-        {
-          "expr": "cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}",
-          "instant": true,
-          "legendFormat": "{{platform}} / {{role}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Current Cost by Platform / Role",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "선택 범위에서 할당 비용이 큰 Namespace를 찾는다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 4,
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 14
-      },
-      "id": 7,
-      "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 12,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color"
-      },
-      "targets": [
-        {
-          "expr": "topk(10, sum by (namespace) (cantaloupe:namespace_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"}))",
-          "instant": true,
-          "legendFormat": "{{namespace}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Namespace Allocated Cost Top 10",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Deployment·StatefulSet·DaemonSet 단위 비용 순위다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 4,
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 14
-      },
-      "id": 8,
-      "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 12,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color"
-      },
-      "targets": [
-        {
-          "expr": "topk(10, sum by (namespace,workload,workload_type) (cantaloupe:workload_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"}))",
-          "instant": true,
-          "legendFormat": "{{namespace}} / {{workload_type}} / {{workload}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Workload Allocated Cost Top 10",
-      "type": "bargauge"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 22
-      },
-      "id": 300,
-      "panels": [],
-      "title": "Efficiency & Right-sizing",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Request는 선언값, Actual은 실제 사용량의 가격 환산값, Allocated는 OpenCost 할당 비용이다. 서로 같은 의미가 아니다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 4,
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 23
-      },
-      "id": 9,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "sum(cantaloupe:pod_platform_role_request_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
-          "legendFormat": "Declared Request",
-          "refId": "A"
-        },
-        {
-          "expr": "sum(cantaloupe:pod_platform_role_actual_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
-          "legendFormat": "Actual Usage Equivalent",
-          "refId": "B"
-        },
-        {
-          "expr": "sum(cantaloupe:pod_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
-          "legendFormat": "OpenCost Allocated",
-          "refId": "C"
-        }
-      ],
-      "title": "Request vs Actual vs Allocated Cost",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Request 비용이 Actual 비용보다 큰 차이만 표시하는 후보 신호다. 즉시 변경값이 아니라 P95·성능 검증이 필요하다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 4,
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 23
-      },
-      "id": 10,
-      "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 12,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color"
-      },
-      "targets": [
-        {
-          "expr": "topk(10, cantaloupe:pod_platform_role_right_sizing_opportunity_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
-          "instant": true,
-          "legendFormat": "{{namespace}} / {{pod}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Right-sizing Opportunity Top 10",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "현재 할당 비용이 큰 Pod를 독립적으로 정렬한다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "decimals": 4,
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 18,
-        "x": 0,
-        "y": 31
-      },
-      "id": 11,
-      "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 12,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "valueMode": "color"
-      },
-      "targets": [
-        {
-          "expr": "topk(10, cantaloupe:pod_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
-          "instant": true,
-          "legendFormat": "{{namespace}} / {{pod}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Pod Allocated Cost Top 10",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "실제 사용량은 있지만 CPU·Memory Request 비용을 계산할 수 없는 Pod 수다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 31
-      },
-      "id": 12,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "expr": "count(cantaloupe:pod_platform_role_actual_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"} unless on(platform,role,namespace,pod) cantaloupe:pod_platform_role_request_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"}) or vector(0)",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Pods without Requests",
-      "type": "stat"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 39
-      },
-      "id": 500,
-      "panels": [],
-      "title": "Pricing Data Health",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "전체 Kubernetes Node 중 플랫폼 가격 카탈로그가 매칭된 비율이다. 100%가 정상이다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "decimals": 0,
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "orange", "value": 90 },
-              { "color": "green", "value": 100 }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 40 },
-      "id": 15,
-      "options": {
+        "textMode": "value",
         "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "auto",
-        "wideLayout": true
+        "justifyMode": "center"
       },
-      "targets": [
-        {
-          "expr": "100 * count(max by(node) (kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 1) and on(node) cantaloupe:node_catalog_expected_cost_per_hour) / count(max by(node) (kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 1))",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Catalog Coverage",
-      "type": "stat"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "가격 카탈로그에 platform·instance type 조합이 없는 Node 수다. 0이 정상이다.",
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
-            ]
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
           }
         },
         "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 40 },
-      "id": 16,
-      "options": {
-        "colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "auto", "wideLayout": true
-      },
-      "targets": [
-        {
-          "expr": "count(max by(node) (kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 1) unless on(node) cantaloupe:node_catalog_expected_cost_per_hour) or vector(0)",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Unmatched Nodes",
-      "type": "stat"
+      }
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "OpenCost가 출력한 Node 가격과 Git 가격 카탈로그가 다른 Node 수다. 0이 정상이다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
+      "id": 2,
+      "title": "월 Idle 비용",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 40 },
-      "id": 17,
-      "options": {
-        "colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "auto", "wideLayout": true
-      },
-      "targets": [
-        {
-          "expr": "count(abs(max by(node) (node_total_hourly_cost) - on(node) cantaloupe:node_catalog_expected_cost_per_hour) > 0.0005) or vector(0)",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Price Mismatch",
-      "type": "stat"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "가격 기준 적용일 이후 경과 일수다. 90일이 지나면 재검토 경고가 발생한다.",
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 75 },
-              { "color": "red", "value": 90 }
-            ]
-          },
-          "unit": "d"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 40 },
-      "id": 18,
-      "options": {
-        "colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "auto", "wideLayout": true
-      },
-      "targets": [
-        {
-          "expr": "(time() - cantaloupe:pricing_catalog_last_review_timestamp_seconds) / 86400",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Catalog Age",
-      "type": "stat"
-    },
-    {
-      "collapsed": true,
       "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 44
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
       },
-      "id": 400,
-      "panels": [
+      "description": "Node 비용 중 Workload에 배분되지 않은 월 환산 비용입니다.",
+      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "Node별 리전 공개가격 또는 On-prem TCO 시간당 비용과 배치 라벨이다.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "decimals": 4,
-              "unit": "currencyUSD"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 10,
-            "x": 0,
-            "y": 45
-          },
-          "id": 13,
-          "options": {
-            "cellHeight": "sm",
-            "footer": {
-              "show": false
-            },
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "Cost / hour"
-              }
-            ]
-          },
-          "targets": [
-            {
-              "expr": "label_replace(label_replace(max by(node) (node_total_hourly_cost) * on(node) group_left(label_platform,label_role) max by(node,label_platform,label_role)(kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}),\"platform\",\"$1\",\"label_platform\",\"(.*)\"),\"role\",\"$1\",\"label_role\",\"(.*)\")",
-              "format": "table",
-              "instant": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Node Price Detail",
-          "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true,
-                  "__name__": true,
-                  "label_platform": true,
-                  "label_role": true
-                },
-                "indexByName": {
-                  "node": 0,
-                  "platform": 1,
-                  "role": 2,
-                  "Value": 3
-                },
-                "renameByName": {
-                  "node": "Node",
-                  "platform": "Platform",
-                  "role": "Role",
-                  "Value": "Cost / hour"
-                }
-              }
-            }
-          ],
-          "type": "table"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "description": "Pod별 Request·Actual·Allocated·Right-sizing 후보 비용을 한 행에서 비교한다.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "decimals": 4,
-              "unit": "currencyUSD"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 14,
-            "x": 10,
-            "y": 45
-          },
-          "id": 14,
-          "options": {
-            "cellHeight": "sm",
-            "footer": {
-              "show": false
-            },
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "Allocated / hour"
-              }
-            ]
-          },
-          "targets": [
-            {
-              "expr": "label_join(cantaloupe:pod_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"},\"key\",\"/\",\"namespace\",\"pod\")",
-              "format": "table",
-              "instant": true,
-              "refId": "A"
-            },
-            {
-              "expr": "label_join(cantaloupe:pod_platform_role_request_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"},\"key\",\"/\",\"namespace\",\"pod\")",
-              "format": "table",
-              "instant": true,
-              "refId": "B"
-            },
-            {
-              "expr": "label_join(cantaloupe:pod_platform_role_actual_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"},\"key\",\"/\",\"namespace\",\"pod\")",
-              "format": "table",
-              "instant": true,
-              "refId": "C"
-            },
-            {
-              "expr": "label_join(cantaloupe:pod_platform_role_right_sizing_opportunity_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"},\"key\",\"/\",\"namespace\",\"pod\")",
-              "format": "table",
-              "instant": true,
-              "refId": "D"
-            }
-          ],
-          "title": "Pod Cost Detail",
-          "transformations": [
-            {
-              "id": "joinByField",
-              "options": {
-                "byField": "key",
-                "mode": "outer"
-              }
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true,
-                  "key": true
-                },
-                "indexByName": {
-                  "platform": 0,
-                  "role": 1,
-                  "namespace": 2,
-                  "pod": 3,
-                  "Value #B": 4,
-                  "Value #C": 5,
-                  "Value #A": 6,
-                  "Value #D": 7
-                },
-                "renameByName": {
-                  "platform": "Platform",
-                  "role": "Role",
-                  "namespace": "Namespace",
-                  "pod": "Pod",
-                  "Value #A": "Allocated / hour",
-                  "Value #B": "Request / hour",
-                  "Value #C": "Actual / hour",
-                  "Value #D": "Opportunity / hour"
-                }
-              }
-            }
-          ],
-          "type": "table"
+          "expr": "730 * clamp_min(sum(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\"}) - sum(cantaloupe:platform_role_allocated_cost_per_hour{platform=~\"$platform\"}),0)",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "월 Idle 비용"
         }
       ],
-      "title": "Cost Detail",
-      "type": "row"
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Workload 잠재 절감",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "P95와 안전 여유를 반영한 권장 Request 기준 잠재 배분비용 절감입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_potential_savings_per_month{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "Workload 잠재 절감"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Provider VM 공식 절감",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "GCP Recommender 또는 AWS Compute Optimizer가 제공한 공식 월 예상 절감입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:provider_vm_estimated_monthly_savings{platform=~\"$platform\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "Provider VM 공식 절감"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "On-prem TCO 잠재 절감",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "내부 TCO Profile 기준 월 잠재 절감입니다. 실제 현금 청구 절감과 구분합니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:onprem_node_potential_savings_per_month)",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "On-prem TCO 잠재 절감"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Karpenter 실현 절감",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "AWS Web 동적 Node 비용의 전일 동시간 대비 감소입니다. Karpenter 연결 후 활성화됩니다.",
+      "targets": [
+        {
+          "expr": "clamp_min(avg_over_time((sum(cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{label_capacity_source=\"karpenter\"})))[1h:] offset 24h) - avg_over_time((sum(cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{label_capacity_source=\"karpenter\"})))[1h:]),0)",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "Karpenter 실현 절감"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 200,
+      "title": "2. Cost & Opportunity — 어디에 쓰고 어디부터 줄일 것인가",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 7,
+      "title": "Platform 월 비용",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 6,
+        "h": 8
+      },
+      "description": "플랫폼별 현재 Node 월 Run Rate입니다.",
+      "targets": [
+        {
+          "expr": "sort_desc(730 * sum by(platform) (cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\"}))",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{platform}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "minVizWidth": 10,
+        "minVizHeight": 16,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Namespace 월 배분비용",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 6,
+        "w": 6,
+        "h": 8
+      },
+      "description": "비용이 큰 Namespace를 먼저 확인합니다.",
+      "targets": [
+        {
+          "expr": "topk(8,730 * sum by(namespace) (cantaloupe:namespace_platform_role_allocated_cost_per_hour{platform=~\"$platform\",namespace=~\"$namespace\"}))",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{namespace}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "minVizWidth": 10,
+        "minVizHeight": 16,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Workload 절감 후보",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 6,
+        "h": 8
+      },
+      "description": "P95 기반 권장 Request로 회수 가능한 월 배분비용입니다.",
+      "targets": [
+        {
+          "expr": "topk(8,cantaloupe:workload_potential_savings_per_month{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{namespace}} / {{workload}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "minVizWidth": 10,
+        "minVizHeight": 16,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "VM 절감 후보",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 6,
+        "w": 6,
+        "h": 8
+      },
+      "description": "Provider 공식 추천과 On-prem TCO 추천을 함께 비교합니다. Source는 상세에서 확인합니다.",
+      "targets": [
+        {
+          "expr": "topk(8,cantaloupe:provider_vm_estimated_monthly_savings{platform=~\"$platform\"} or cantaloupe:onprem_node_potential_savings_per_month)",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "{{platform}} {{node}}"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "minVizWidth": 10,
+        "minVizHeight": 16,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 300,
+      "title": "3. Workload Right-sizing — 관측 신뢰도와 검토 후보",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "관측 신뢰도",
+      "description": "0 데이터 부족(<6h), 1 초기 후보(6~24h), 2 검토 가능(24h~7d), 3 운영 기준 충족(7d 이상). 권장값과 별개의 안전 판단이다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "min(cantaloupe:workload_observation_confidence{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "데이터 없음",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "데이터 부족",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "초기 후보",
+                  "color": "yellow"
+                },
+                "2": {
+                  "text": "검토 가능",
+                  "color": "green"
+                },
+                "3": {
+                  "text": "운영 기준 충족",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "관측 시간",
+      "description": "선택 범위에서 가장 짧게 관측된 Workload의 표본 시간이다. 7일을 기다려야 값이 생기는 것이 아니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "min(cantaloupe:workload_observation_hours{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "noValue": "데이터 없음",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "CPU Request",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 15,
+        "w": 5,
+        "h": 4
+      },
+      "description": "현재 선언된 CPU Request 합계입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_cpu_requests_cores{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "CPU Request"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "gray"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "title": "CPU Actual P95",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 15,
+        "w": 5,
+        "h": 4
+      },
+      "description": "최근 7일 CPU 사용량 P95입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_cpu_p95_7d_cores{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "CPU Actual P95"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "권장 CPU Request",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 15,
+        "w": 5,
+        "h": 4
+      },
+      "description": "P95 25% 여유와 최소 100m를 적용한 검토값입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_recommended_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "권장 CPU Request"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "title": "회수 가능 CPU",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 15,
+        "w": 5,
+        "h": 4
+      },
+      "description": "현재 Request와 권장값의 차이입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_reclaimable_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "회수 가능 CPU"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "title": "Memory Request",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 19,
+        "w": 5,
+        "h": 4
+      },
+      "description": "현재 선언된 Memory Request 합계입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_memory_requests_bytes{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "Memory Request"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "gray"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 16,
+      "title": "Memory Actual P95",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 19,
+        "w": 5,
+        "h": 4
+      },
+      "description": "최근 7일 Memory Working Set P95입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_memory_p95_7d_bytes{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "Memory Actual P95"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 17,
+      "title": "권장 Memory Request",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 19,
+        "w": 5,
+        "h": 4
+      },
+      "description": "P95 20% 여유, 최소 128Mi, 64Mi 올림을 적용한 검토값입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_recommended_memory_bytes{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "권장 Memory Request"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 18,
+      "title": "회수 가능 Memory",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 19,
+        "w": 5,
+        "h": 4
+      },
+      "description": "현재 Request와 권장값의 차이입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:workload_reclaimable_memory_bytes{namespace=~\"$namespace\",workload=~\"$workload\"})",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "회수 가능 Memory"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 400,
+      "title": "4. VM Right-sizing — Provider 공식 추천과 On-prem 자체 추천",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 19,
+      "title": "Provider 공식 VM 추천",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 10
+      },
+      "description": "GCP Recommender와 AWS Compute Optimizer의 비민감 Snapshot입니다. AWS 분석 중에는 행이 없고 상단 상태에 analyzing으로 유지됩니다.",
+      "targets": [
+        {
+          "expr": "cantaloupe:provider_vm_recommendation_info{platform=~\"$platform\"}",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:provider_vm_estimated_monthly_savings{platform=~\"$platform\"}",
+          "refId": "B",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:provider_vm_current_vcpu{platform=~\"$platform\"}",
+          "refId": "C",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:provider_vm_recommended_vcpu{platform=~\"$platform\"}",
+          "refId": "D",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:provider_vm_current_memory_bytes{platform=~\"$platform\"}",
+          "refId": "E",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:provider_vm_recommended_memory_bytes{platform=~\"$platform\"}",
+          "refId": "F",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "node",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value #A": true,
+              "priority": true,
+              "state": true
+            },
+            "indexByName": {
+              "platform": 0,
+              "node": 1,
+              "current_profile": 2,
+              "recommended_profile": 3,
+              "Value #C": 4,
+              "Value #D": 5,
+              "Value #E": 6,
+              "Value #F": 7,
+              "Value #B": 8,
+              "source": 9
+            },
+            "renameByName": {
+              "platform": "Platform",
+              "node": "VM",
+              "current_profile": "현재 사양",
+              "recommended_profile": "권장 사양",
+              "Value #C": "현재 vCPU",
+              "Value #D": "권장 vCPU",
+              "Value #E": "현재 Memory",
+              "Value #F": "권장 Memory",
+              "Value #B": "월 예상 절감",
+              "source": "Source"
+            }
+          }
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "월 예상 절감",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*Memory/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "월 예상 절감"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "colored-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "title": "On-prem 자체 VM 추천",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 10
+      },
+      "description": "실제 서버 Profile과 내부 TCO를 사용합니다. 최소 24시간 관측, Request 적합성, OOM 및 MemoryPressure 검증을 모두 통과해야 검토 가능으로 표시합니다.",
+      "targets": [
+        {
+          "expr": "cantaloupe:onprem_node_recommendation_info",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:onprem_node_required_cpu_cores",
+          "refId": "B",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:onprem_node_recommended_vcpu",
+          "refId": "C",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:onprem_node_required_memory_bytes",
+          "refId": "D",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:onprem_node_recommended_memory_bytes",
+          "refId": "E",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:onprem_node_potential_savings_per_month",
+          "refId": "F",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "cantaloupe:onprem_node_recommendation_safe_to_review or on(node) (0 * cantaloupe:onprem_node_recommendation_info)",
+          "refId": "G",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "node",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value #A": true
+            },
+            "indexByName": {
+              "node": 0,
+              "recommended_profile": 1,
+              "Value #B": 2,
+              "Value #C": 3,
+              "Value #D": 4,
+              "Value #E": 5,
+              "Value #F": 6,
+              "Value #G": 7
+            },
+            "renameByName": {
+              "node": "Node",
+              "recommended_profile": "권장 Profile",
+              "Value #B": "필요 CPU",
+              "Value #C": "권장 vCPU",
+              "Value #D": "필요 Memory",
+              "Value #E": "권장 Memory",
+              "Value #F": "월 TCO 절감",
+              "Value #G": "검토 상태"
+            }
+          }
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "월 TCO 절감",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*Memory/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "월 TCO 절감"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "colored-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+            "options": "검토 상태"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                          "text": "보류",
+                        "color": "orange"
+                      },
+                      "1": {
+                          "text": "검토 가능",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 500,
+      "title": "5. AWS Web + Karpenter — 실제 Node 감소와 비용",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": true,
+      "panels": []
+    },
+    {
+      "id": 21,
+      "title": "동적 Node",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 4,
+        "h": 4
+      },
+      "description": "현재 Karpenter 동적 Node 수입니다.",
+      "targets": [
+        {
+          "expr": "sum(max by(node) (kube_node_labels{label_platform=\"aws\",label_role=\"service\",label_capacity_source=\"karpenter\"}))",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "동적 Node"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 22,
+      "title": "동적 Node 비용",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 35,
+        "w": 4,
+        "h": 4
+      },
+      "description": "현재 Karpenter Node 시간당 비용입니다.",
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{label_platform=\"aws\",label_role=\"service\",label_capacity_source=\"karpenter\"}))",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "동적 Node 비용"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 23,
+      "title": "생성 NodeClaim",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 35,
+        "w": 4,
+        "h": 4
+      },
+      "description": "선택 기간에 생성된 NodeClaim 수입니다.",
+      "targets": [
+        {
+          "expr": "sum(increase(karpenter_nodeclaims_created_total[$__range]))",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "생성 NodeClaim"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 24,
+      "title": "종료 NodeClaim",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 35,
+        "w": 4,
+        "h": 4
+      },
+      "description": "선택 기간에 종료된 NodeClaim 수입니다.",
+      "targets": [
+        {
+          "expr": "sum(increase(karpenter_nodeclaims_terminated_total[$__range]))",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "종료 NodeClaim"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 25,
+      "title": "Unschedulable",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 35,
+        "w": 4,
+        "h": 4
+      },
+      "description": "현재 Karpenter가 배치하지 못한 Pod 수입니다.",
+      "targets": [
+        {
+          "expr": "sum(karpenter_scheduler_unschedulable_pods_count)",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "Unschedulable"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 26,
+      "title": "Startup P95",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 35,
+        "w": 4,
+        "h": 4
+      },
+      "description": "Karpenter Pod 시작 P95입니다.",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le)(rate(karpenter_pods_startup_duration_seconds_bucket[5m])))",
+          "refId": "A",
+          "instant": true,
+          "legendFormat": "Startup P95"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      }
     }
   ],
   "refresh": "1m",
   "schemaVersion": 39,
   "tags": [
     "cantaloupe",
-    "kubernetes",
     "finops",
-    "opencost"
+    "opencost",
+    "rightsizing",
+    "onprem",
+    "karpenter",
+    "preview"
   ],
   "templating": {
     "list": [
       {
-        "allValue": ".*",
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "label_values(cantaloupe:platform_role_node_cost_per_hour, platform)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Platform",
-        "multi": true,
         "name": "platform",
-        "options": [],
-        "query": {
-          "query": "label_values(cantaloupe:platform_role_node_cost_per_hour, platform)",
-          "refId": "var-platform"
+        "label": "Platform",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
         },
+        "query": {
+          "query": "label_values(cantaloupe:platform_role_node_cost_per_hour,platform)",
+          "refId": "platform"
+        },
+        "definition": "label_values(cantaloupe:platform_role_node_cost_per_hour,platform)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
         "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      },
-      {
-        "allValue": ".*",
         "current": {
-          "selected": true,
           "text": "All",
           "value": "$__all"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "label_values(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\"}, role)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Node role",
-        "multi": true,
-        "name": "role",
-        "options": [],
-        "query": {
-          "query": "label_values(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\"}, role)",
-          "refId": "var-role"
-        },
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
+        }
       },
       {
-        "allValue": ".*",
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "label_values(cantaloupe:namespace_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}, namespace)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Namespace",
-        "multi": true,
         "name": "namespace",
-        "options": [],
-        "query": {
-          "query": "label_values(cantaloupe:namespace_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}, namespace)",
-          "refId": "var-namespace"
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
         },
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
+        "query": {
+          "query": "label_values(cantaloupe:workload_cpu_requests_cores,namespace)",
+          "refId": "namespace"
+        },
+        "definition": "label_values(cantaloupe:workload_cpu_requests_cores,namespace)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 1,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "workload",
+        "label": "Workload",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(cantaloupe:workload_cpu_requests_cores{namespace=~\"$namespace\"},workload)",
+          "refId": "workload"
+        },
+        "definition": "label_values(cantaloupe:workload_cpu_requests_cores{namespace=~\"$namespace\"},workload)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 1,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       }
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-24h",
     "to": "now"
   },
-  "timepicker": {
-    "refresh_intervals": [
-      "30s",
-      "1m",
-      "5m"
-    ],
-    "time_options": [
-      "1h",
-      "3h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d"
-    ]
-  },
+  "timepicker": {},
   "timezone": "browser",
   "title": "Cantaloupe Kubernetes FinOps",
   "uid": "cantaloupe-kubernetes-finops",
