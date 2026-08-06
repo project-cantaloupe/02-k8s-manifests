@@ -12,3 +12,16 @@ spec:
       nodePort: 31432
   selector:
     app: harbor-portal
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harbor-core
+  namespace: devops
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: harbor-core
