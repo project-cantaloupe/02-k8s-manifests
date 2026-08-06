@@ -25,7 +25,6 @@ data:
         sendfile on;
         keepalive_timeout 65;
 
-        # 업스트림 백엔드 정의
         upstream core {
             server harbor-core:8080;
         }
@@ -37,7 +36,7 @@ data:
             root /usr/share/nginx/html;
             index index.html;
 
-            # 1. Harbor API 요청 포워딩
+            # 1. API 요청을 harbor-core로 프록시
             location /api/ {
                 proxy_pass http://core/api/;
                 proxy_set_header Host $host;
@@ -46,7 +45,7 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # 2. Harbor 인증 및 로그인 요청 (/c/login 등) 포워딩
+            # 2. 로그인/인증 요청을 harbor-core로 프록시
             location /c/ {
                 proxy_pass http://core/c/;
                 proxy_set_header Host $host;
@@ -55,7 +54,7 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # 3. Harbor v2 OCI/Docker Registry API 포워딩
+            # 3. Registry v2 요청을 harbor-core로 프록시
             location /v2/ {
                 proxy_pass http://core/v2/;
                 proxy_set_header Host $host;
@@ -64,16 +63,7 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # 4. OIDC / OAuth 라우팅 (필요 시)
-            location /service/ {
-                proxy_pass http://core/service/;
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-            }
-
-            # 5. Angular SPA 정적 라우팅 (맨 마지막 위치)
+            # 4. SPA 정적 페이지 라우팅
             location / {
                 try_files $uri $uri/ /index.html;
             }
