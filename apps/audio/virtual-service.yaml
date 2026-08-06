@@ -1,0 +1,38 @@
+# Gateway로 들어온 요청의 경로 분기를 한 곳에서 관리한다. VirtualService를
+# 서비스별로 나누면 같은 Gateway와 host에 대해 매칭 순서가 불분명해진다.
+#
+# 더 구체적인 /v1 을 먼저 두고 나머지를 Web이 받는다.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: audio
+  namespace: apps
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - audio-ingress/audio-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /v1/
+      route:
+        - destination:
+            host: audio-api.apps.svc.cluster.local
+            port:
+              number: 80
+    - match:
+        - uri:
+            prefix: /healthz
+        - uri:
+            prefix: /readyz
+      route:
+        - destination:
+            host: audio-api.apps.svc.cluster.local
+            port:
+              number: 80
+    - route:
+        - destination:
+            host: audio-web.apps.svc.cluster.local
+            port:
+              number: 80

@@ -1,0 +1,79 @@
+# FFmpeg로 MP3와 waveform을 만든다. SQS를 long polling하고 메시지를 한 건씩
+# 처리한다.
+#
+# Sidecar를 주입하지 않는다. 통신 대상이 S3와 SQS뿐이라 Mesh 이득이 없고,
+# 트랙당 처리 비용에 Mesh 비용을 섞지 않기 위해서다. 이 결정은 FinOps 측정
+# 기준선의 일부다.
+#
+# DB에 직접 접속하지 않으므로 DATABASE_URL이 필요 없다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audio-transcode
+  namespace: apps
+  labels:
+    app: audio-transcode
+    area: apps
+    platform: aws
+    component: transcode
+spec:
+  replicas: 1
+  # FFmpeg 작업 중 교체되면 메시지가 Visibility Timeout까지 묶이므로 순차 교체한다.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: audio-transcode
+  template:
+    metadata:
+      labels:
+        app: audio-transcode
+        area: apps
+        platform: aws
+        component: transcode
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      # SQS 메시지를 처리 중일 때 강제 종료되지 않도록 여유를 준다.
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: transcode
+          image: audio-worker
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: audio-settings
+          # HTTP 헬스 엔드포인트가 없다. Prometheus metrics 포트로 기동을 확인한다.
+          startupProbe:
+            tcpSocket:
+              port: metrics
+            periodSeconds: 3
+            failureThreshold: 40
+          livenessProbe:
+            tcpSocket:
+              port: metrics
+            periodSeconds: 30
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          # FFmpeg가 중간 산출물을 디스크에 쓴다. 읽기 전용 루트이므로 작업
+          # 공간을 별도로 준다.
+          volumeMounts:
+            - name: work
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: work
+          emptyDir: {}
