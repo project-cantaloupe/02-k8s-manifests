@@ -13,28 +13,15 @@ resources:
   - harbor-components.yaml
   - harbor-service.yaml
   - portal.yaml
-  - harbor-proxy.yaml   # <-- harbor.yaml 은 지우고 Proxy만 남깁니다!
+  - harbor-proxy.yaml
 
 patches:
-  # 1. 기존 harbor Service 패치 (harbor-proxy와의 NodePort 31432 포트 충돌 방지)
-  - target:
-      kind: Service
-      name: harbor
-    patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: harbor
-      spec:
-        type: ClusterIP
-        selector:
-          app: harbor-portal
-        ports:
-          - name: http
-            port: 80
-            targetPort: 80
+  # -------------------------------------------------------------
+  # 기존 1. Harbor Service 패치 구문을 통째로 삭제했습니다!
+  # (harbor-proxy-nodeport가 31432 포트로 완벽히 대체함)
+  # -------------------------------------------------------------
 
-  # 2. Harbor Core 환경변수 패치
+  # 1. Harbor Core 패치 (외부 접근 Endpoint 및 필수 환경변수 적용)
   - target:
       kind: Deployment
       name: harbor-core
@@ -80,7 +67,7 @@ patches:
                   - name: CSRF_KEY
                     value: "12345678901234567890123456789012"
 
-  # 3. Harbor Registry 볼륨 패치
+  # 2. Harbor Registry 패치 (harbor-data 볼륨 포함)
   - target:
       kind: Deployment
       name: harbor-registry
