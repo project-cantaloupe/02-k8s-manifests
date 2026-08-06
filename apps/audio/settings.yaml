@@ -26,7 +26,7 @@ data:
   # 값이므로 Git에서 관리해도 된다. 개인키만 Secret으로 마운트한다.
   PLAYBACK_URL_MODE: cloudfront
   CLOUDFRONT_BASE_URL: https://d8htm75hft1yx.cloudfront.net
-  CLOUDFRONT_KEY_PAIR_ID: K18OQ52Q0GYBJR
+  CLOUDFRONT_KEY_PAIR_ID: K2XLCZCZS58LEO
   CLOUDFRONT_PRIVATE_KEY_FILE: /var/run/secrets/cntlp/cloudfront-private-key.pem
 
   # Worker 조정값. transcode Queue의 Visibility Timeout과 일치시킨다.
