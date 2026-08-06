@@ -80,13 +80,35 @@ unset DB_SECRET
 
 Control Plane Node에서 키 쌍을 만든다.
 
+**개인키는 PKCS#1 형식이어야 한다.** `audio-api`가 쓰는 AWS SDK의
+`cloudfrontsign.LoadPEMPrivKeyFile`이 `x509.ParsePKCS1PrivateKey`를 사용하므로
+PKCS#8을 넣으면 기동 시 실패한다.
+
+```text
+load CloudFront private key: x509: failed to parse private key
+(use ParsePKCS8PrivateKey instead for this key format)
+```
+
+`openssl genpkey`는 PKCS#8(`BEGIN PRIVATE KEY`)을 만든다. 변환이 필요하다.
+
 ```bash
 umask 077
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+  -out /tmp/cloudfront-pkcs8.pem
+openssl rsa -traditional -in /tmp/cloudfront-pkcs8.pem \
   -out /tmp/cloudfront-private-key.pem
 openssl pkey -in /tmp/cloudfront-private-key.pem -pubout \
   -out /tmp/cloudfront-public-key.pub
 ```
+
+첫 줄이 `-----BEGIN RSA PRIVATE KEY-----`인지 확인한다.
+
+```bash
+head -1 /tmp/cloudfront-private-key.pem
+```
+
+형식만 바뀌고 키 자체는 같으므로 공개키도 동일하다. 이미 등록된 키를 변환하는
+경우 CloudFront를 다시 적용할 필요가 없다.
 
 같은 노드에서 바로 Kubernetes Secret을 만든다.
 
@@ -114,7 +136,8 @@ AWS_PROFILE=cntlp terraform -chdir=terraform/aws/audio apply
 반영이 끝나면 노드의 개인키 파일을 지운다. Kubernetes Secret에만 남는다.
 
 ```bash
-shred -u /tmp/cloudfront-private-key.pem /tmp/cloudfront-public-key.pub
+shred -u /tmp/cloudfront-pkcs8.pem /tmp/cloudfront-private-key.pem \
+  /tmp/cloudfront-public-key.pub
 ```
 
 > 조직 표준 시크릿 저장소는 HashiCorp Vault다. 구축 중이라 이번에는 Kubernetes
