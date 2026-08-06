@@ -142,3 +142,101 @@ spec:
                 "role", "$1", "label_role", "(.*)"
               )
             )
+
+        - record: cantaloupe:namespace_platform_role_allocated_cost_per_hour
+          expr: |
+            sum by (platform, role, namespace) (
+              cantaloupe:container_allocated_cost_per_hour
+                * on (node) group_left(platform, role)
+              label_replace(
+                label_replace(
+                  max by (node, label_platform, label_role) (
+                    kube_node_labels{label_platform!="", label_role!=""}
+                  ),
+                  "platform", "$1", "label_platform", "(.*)"
+                ),
+                "role", "$1", "label_role", "(.*)"
+              )
+            )
+
+        - record: cantaloupe:workload_platform_role_allocated_cost_per_hour
+          expr: |
+            sum by (platform, role, namespace, workload, workload_type) (
+              cantaloupe:container_allocated_cost_per_hour
+                * on (namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel
+                * on (node) group_left(platform, role)
+              label_replace(
+                label_replace(
+                  max by (node, label_platform, label_role) (
+                    kube_node_labels{label_platform!="", label_role!=""}
+                  ),
+                  "platform", "$1", "label_platform", "(.*)"
+                ),
+                "role", "$1", "label_role", "(.*)"
+              )
+            )
+
+        - record: cantaloupe:pod_platform_role_allocated_cost_per_hour
+          expr: |
+            sum by (platform, role, namespace, pod) (
+              cantaloupe:container_allocated_cost_per_hour
+                * on (node) group_left(platform, role)
+              label_replace(
+                label_replace(
+                  max by (node, label_platform, label_role) (
+                    kube_node_labels{label_platform!="", label_role!=""}
+                  ),
+                  "platform", "$1", "label_platform", "(.*)"
+                ),
+                "role", "$1", "label_role", "(.*)"
+              )
+            )
+
+        - record: cantaloupe:pod_platform_role_request_cost_per_hour
+          expr: |
+            sum by (platform, role, namespace, pod) (
+              cantaloupe:container_request_cost_per_hour
+                * on (node) group_left(platform, role)
+              label_replace(
+                label_replace(
+                  max by (node, label_platform, label_role) (
+                    kube_node_labels{label_platform!="", label_role!=""}
+                  ),
+                  "platform", "$1", "label_platform", "(.*)"
+                ),
+                "role", "$1", "label_role", "(.*)"
+              )
+            )
+
+        - record: cantaloupe:pod_platform_role_actual_cost_per_hour
+          expr: |
+            sum by (platform, role, namespace, pod) (
+              cantaloupe:container_actual_cost_per_hour
+                * on (node) group_left(platform, role)
+              label_replace(
+                label_replace(
+                  max by (node, label_platform, label_role) (
+                    kube_node_labels{label_platform!="", label_role!=""}
+                  ),
+                  "platform", "$1", "label_platform", "(.*)"
+                ),
+                "role", "$1", "label_role", "(.*)"
+              )
+            )
+
+        - record: cantaloupe:pod_platform_role_right_sizing_opportunity_per_hour
+          expr: |
+            sum by (platform, role, namespace, pod) (
+              cantaloupe:container_right_sizing_opportunity_per_hour
+                * on (node) group_left(platform, role)
+              label_replace(
+                label_replace(
+                  max by (node, label_platform, label_role) (
+                    kube_node_labels{label_platform!="", label_role!=""}
+                  ),
+                  "platform", "$1", "label_platform", "(.*)"
+                ),
+                "role", "$1", "label_role", "(.*)"
+              )
+            )

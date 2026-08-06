@@ -1,0 +1,1028 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Cantaloupe Kubernetes의 공통 벤치마크 비용을 Platform·Role·Namespace·Workload·Pod 단위로 분석하고 Request/Actual/Allocated 차이로 Right-sizing 후보를 찾는다. 실제 AWS/GCP 청구액이 아니다.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Platform Overview",
+      "tooltip": "운영 상태 대시보드로 이동",
+      "type": "link",
+      "url": "/grafana/d/cantaloupe-platform-overview/cantaloupe-platform-overview"
+    }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "panels": [],
+      "title": "Cost Overview — Estimated Benchmark",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 범위의 Node 용량을 유지하는 시간당 벤치마크 비용이다. 실제 클라우드 청구액이 아니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"})",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Node Cost / hour",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 Node 구성이 한 달(730시간) 유지된다고 가정한 추정치다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "730 * sum(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"})",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Estimated / month",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "OpenCost가 Request와 사용량을 기준으로 Container에 할당한 CPU·Memory 비용이다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"})",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Allocated Compute / hour",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Node 비용에서 Workload 할당 컴퓨팅 비용을 뺀 미할당 용량 신호다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "clamp_min(sum(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}) - sum(cantaloupe:platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}), 0)",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Idle Compute / hour",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 200,
+      "panels": [],
+      "title": "Cost Allocation",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "실선/범례로 플랫폼·역할별 전체 Node 비용과 Workload 할당 비용의 차이를 본다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 4,
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}",
+          "legendFormat": "{{platform}} / {{role}} Node",
+          "refId": "A"
+        },
+        {
+          "expr": "cantaloupe:platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}",
+          "legendFormat": "{{platform}} / {{role}} Allocated",
+          "refId": "B"
+        }
+      ],
+      "title": "Platform Cost Trend — Node vs Allocated",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 플랫폼·역할별 Node 시간당 비용이다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 4,
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "id": 6,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 12,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "expr": "cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}",
+          "instant": true,
+          "legendFormat": "{{platform}} / {{role}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Current Cost by Platform / Role",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 범위에서 할당 비용이 큰 Namespace를 찾는다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 4,
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "id": 7,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 12,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (namespace) (cantaloupe:namespace_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"}))",
+          "instant": true,
+          "legendFormat": "{{namespace}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Namespace Allocated Cost Top 10",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Deployment·StatefulSet·DaemonSet 단위 비용 순위다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 4,
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "id": 8,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 12,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (namespace,workload,workload_type) (cantaloupe:workload_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"}))",
+          "instant": true,
+          "legendFormat": "{{namespace}} / {{workload_type}} / {{workload}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Workload Allocated Cost Top 10",
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 300,
+      "panels": [],
+      "title": "Efficiency & Right-sizing",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Request는 선언값, Actual은 실제 사용량의 가격 환산값, Allocated는 OpenCost 할당 비용이다. 서로 같은 의미가 아니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 4,
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(cantaloupe:pod_platform_role_request_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
+          "legendFormat": "Declared Request",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(cantaloupe:pod_platform_role_actual_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
+          "legendFormat": "Actual Usage Equivalent",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(cantaloupe:pod_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
+          "legendFormat": "OpenCost Allocated",
+          "refId": "C"
+        }
+      ],
+      "title": "Request vs Actual vs Allocated Cost",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Request 비용이 Actual 비용보다 큰 차이만 표시하는 후보 신호다. 즉시 변경값이 아니라 P95·성능 검증이 필요하다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 4,
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "id": 10,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 12,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, cantaloupe:pod_platform_role_right_sizing_opportunity_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
+          "instant": true,
+          "legendFormat": "{{namespace}} / {{pod}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Right-sizing Opportunity Top 10",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 할당 비용이 큰 Pod를 독립적으로 정렬한다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 4,
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 0,
+        "y": 31
+      },
+      "id": 11,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 12,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, cantaloupe:pod_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"})",
+          "instant": true,
+          "legendFormat": "{{namespace}} / {{pod}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Pod Allocated Cost Top 10",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "실제 사용량은 있지만 CPU·Memory Request 비용을 계산할 수 없는 Pod 수다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 31
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "count(cantaloupe:pod_platform_role_actual_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"} unless on(platform,role,namespace,pod) cantaloupe:pod_platform_role_request_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"}) or vector(0)",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Pods without Requests",
+      "type": "stat"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "id": 400,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "모든 Node의 공통 벤치마크 시간당 비용과 배치 라벨이다.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "decimals": 4,
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 10,
+            "x": 0,
+            "y": 40
+          },
+          "id": 13,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Cost / hour"
+              }
+            ]
+          },
+          "targets": [
+            {
+              "expr": "label_replace(label_replace(max by(node) (node_total_hourly_cost) * on(node) group_left(label_platform,label_role) max by(node,label_platform,label_role)(kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}),\"platform\",\"$1\",\"label_platform\",\"(.*)\"),\"role\",\"$1\",\"label_role\",\"(.*)\")",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Node Price Detail",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "label_platform": true,
+                  "label_role": true
+                },
+                "indexByName": {
+                  "node": 0,
+                  "platform": 1,
+                  "role": 2,
+                  "Value": 3
+                },
+                "renameByName": {
+                  "node": "Node",
+                  "platform": "Platform",
+                  "role": "Role",
+                  "Value": "Cost / hour"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Pod별 Request·Actual·Allocated·Right-sizing 후보 비용을 한 행에서 비교한다.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "decimals": 4,
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 14,
+            "x": 10,
+            "y": 40
+          },
+          "id": 14,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "Allocated / hour"
+              }
+            ]
+          },
+          "targets": [
+            {
+              "expr": "label_join(cantaloupe:pod_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"},\"key\",\"/\",\"namespace\",\"pod\")",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            },
+            {
+              "expr": "label_join(cantaloupe:pod_platform_role_request_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"},\"key\",\"/\",\"namespace\",\"pod\")",
+              "format": "table",
+              "instant": true,
+              "refId": "B"
+            },
+            {
+              "expr": "label_join(cantaloupe:pod_platform_role_actual_cost_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"},\"key\",\"/\",\"namespace\",\"pod\")",
+              "format": "table",
+              "instant": true,
+              "refId": "C"
+            },
+            {
+              "expr": "label_join(cantaloupe:pod_platform_role_right_sizing_opportunity_per_hour{platform=~\"$platform\",role=~\"$role\",namespace=~\"$namespace\"},\"key\",\"/\",\"namespace\",\"pod\")",
+              "format": "table",
+              "instant": true,
+              "refId": "D"
+            }
+          ],
+          "title": "Pod Cost Detail",
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "key",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "key": true
+                },
+                "indexByName": {
+                  "platform": 0,
+                  "role": 1,
+                  "namespace": 2,
+                  "pod": 3,
+                  "Value #B": 4,
+                  "Value #C": 5,
+                  "Value #A": 6,
+                  "Value #D": 7
+                },
+                "renameByName": {
+                  "platform": "Platform",
+                  "role": "Role",
+                  "namespace": "Namespace",
+                  "pod": "Pod",
+                  "Value #A": "Allocated / hour",
+                  "Value #B": "Request / hour",
+                  "Value #C": "Actual / hour",
+                  "Value #D": "Opportunity / hour"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        }
+      ],
+      "title": "Cost Detail",
+      "type": "row"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": [
+    "cantaloupe",
+    "kubernetes",
+    "finops",
+    "opencost"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(cantaloupe:platform_role_node_cost_per_hour, platform)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Platform",
+        "multi": true,
+        "name": "platform",
+        "options": [],
+        "query": {
+          "query": "label_values(cantaloupe:platform_role_node_cost_per_hour, platform)",
+          "refId": "var-platform"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\"}, role)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Node role",
+        "multi": true,
+        "name": "role",
+        "options": [],
+        "query": {
+          "query": "label_values(cantaloupe:platform_role_node_cost_per_hour{platform=~\"$platform\"}, role)",
+          "refId": "var-role"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(cantaloupe:namespace_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}, namespace)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Namespace",
+        "multi": true,
+        "name": "namespace",
+        "options": [],
+        "query": {
+          "query": "label_values(cantaloupe:namespace_platform_role_allocated_cost_per_hour{platform=~\"$platform\",role=~\"$role\"}, namespace)",
+          "refId": "var-namespace"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "time_options": [
+      "1h",
+      "3h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Cantaloupe Kubernetes FinOps",
+  "uid": "cantaloupe-kubernetes-finops",
+  "version": 1,
+  "weekStart": ""
+}
