@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harbor-jobservice
+  namespace: devops
+  labels:
+    app: harbor-jobservice
+    area: devops
+    platform: onp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harbor-jobservice
+  template:
+    metadata:
+      labels:
+        app: harbor-jobservice
+        area: devops
+        platform: onp
+    spec:
+      nodeSelector:
+        platform: onp
+        role: devops
+      containers:
+      - name: dummy-jobservice
+        image: nginx:alpine
+        ports:
+        - containerPort: 8080
+        command: ["/bin/sh", "-c", "echo 'server { listen 8080; location / { return 200 \"{}\"; } }' > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harbor-jobservice
+  namespace: devops
+  labels:
+    app: harbor-jobservice
+    area: devops
+    platform: onp
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: harbor-jobservice
