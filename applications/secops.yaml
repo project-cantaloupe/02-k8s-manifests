@@ -3,6 +3,10 @@ kind: Application
 metadata:
   name: secops
   namespace: devops
+  # wave 0 — governance-namespaces(-40)가 만든 `kyverno`·`cert-manager`
+  # 네임스페이스가 이미 있어야 한다. 기본값이지만 명시해 둔다.
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:
@@ -22,3 +26,18 @@ spec:
       # devops 는 governance/namespaces/devops.yaml 이 만든다.
       # 여기서 만들면 Pod Security Admission 라벨이 안 붙는다.
       - CreateNamespace=false
+      # ⚠️ **이게 없으면 카탈로그 전체가 착지하지 못한다.**
+      #
+      # 이 경로에 `cert-manager/cluster-issuer.yaml` 이 있는데 ClusterIssuer 는
+      # cert-manager CRD 를 쓴다. 그 차트(`applications/cert-manager.yaml`)는
+      # IRSA 선행 때문에 아직 등록돼 있지 않다. ArgoCD 는 sync 전에 전체를
+      # dry-run 하고 **하나라도 실패하면 아무것도 적용하지 않는다.**
+      #
+      # 그러면 같은 경로의 `kyverno/application.yaml` 까지 못 뜨고, Kyverno 가
+      # 없으니 `governance-policies`(wave 10)도 CRD 가 없어 실패한다.
+      # **ClusterIssuer 하나가 정책 엔진 전체를 막는 사슬이다.**
+      #
+      # 2026-08-06 컨트롤플레인에서 실제로 확인한 메시지:
+      #   no matches for kind "ClusterIssuer" in version "cert-manager.io/v1"
+      #   ensure CRDs are installed first
+      - SkipDryRunOnMissingResource=true
