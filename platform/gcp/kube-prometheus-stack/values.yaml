@@ -5,17 +5,56 @@ commonLabels:
   cost-allocation: shared
 
 alertmanager:
-  enabled: false
+  enabled: true
+  apiVersion: v2
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by:
+        - namespace
+        - alertname
+        - severity
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: "null"
+    receivers:
+      - name: "null"
+  alertmanagerSpec:
+    replicas: 1
+    retention: 120h
+    nodeSelector:
+      platform: gcp
+      role: monitoring
+    podMetadata:
+      labels:
+        app: alertmanager
+        area: monitoring
+        platform: gcp
+        cost-allocation: shared
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+    alertmanagerConfigSelector:
+      matchLabels:
+        alertmanager-config: cantaloupe-slack
+    # Cluster-wide alerts do not always have a namespace label. Do not let the
+    # default OnNamespace strategy silently exclude node and cluster alerts.
+    alertmanagerConfigMatcherStrategy:
+      type: None
 
-# Alertmanager is intentionally deferred in the initial resource-constrained
-# deployment. Keep real target alerts, but omit rules that only make sense when
-# an Alertmanager and a dead-man-switch receiver are configured.
+# Watchdog is a continuously firing dead-man switch and requires a separate
+# heartbeat service. Keep it disabled; warning/critical operational rules are
+# routed to Slack by the AlertmanagerConfig below.
 defaultRules:
   disabled:
-    PrometheusNotConnectedToAlertmanagers: true
     Watchdog: true
   rules:
-    alertmanager: false
+    alertmanager: true
 
 # kubeadm control-plane components bind their metrics locally in the current
 # cluster. Keep false targets out until those endpoints are intentionally
@@ -37,12 +76,7 @@ grafana:
       domain: cntlp-gcp-wk-01.tail270b85.ts.net
       root_url: https://cntlp-gcp-wk-01.tail270b85.ts.net/grafana/
       serve_from_sub_path: true
-  # Remove datasources that were previously provisioned by this chart but are
-  # no longer present in Git (for example the disabled Alertmanager source).
   prune: true
-  deleteDatasources:
-    - name: Alertmanager
-      orgId: 1
   defaultDashboardsTimezone: Asia/Seoul
   defaultDashboardsEditable: true
   testFramework:
@@ -107,7 +141,7 @@ grafana:
         foldersFromFilesStructure: true
     datasources:
       alertmanager:
-        enabled: false
+        enabled: true
       resources:
         requests:
           cpu: 10m
@@ -235,3 +269,48 @@ prometheus:
     ruleSelectorNilUsesHelmValues: false
     ruleSelector: {}
     ruleNamespaceSelector: {}
+
+# The webhook value is never stored in Git. The referenced Secret must be
+# created directly in the monitoring namespace before this configuration is
+# synchronized. Only actionable warning/critical alerts reach Slack.
+extraManifests:
+  - apiVersion: monitoring.coreos.com/v1alpha1
+    kind: AlertmanagerConfig
+    metadata:
+      name: cantaloupe-slack
+      namespace: monitoring
+      labels:
+        alertmanager-config: cantaloupe-slack
+    spec:
+      route:
+        receiver: slack-platform-alerts
+        groupBy:
+          - namespace
+          - alertname
+          - severity
+        groupWait: 30s
+        groupInterval: 5m
+        repeatInterval: 4h
+        matchers:
+          - name: severity
+            matchType: =~
+            value: warning|critical
+      receivers:
+        - name: slack-platform-alerts
+          slackConfigs:
+            - apiURL:
+                name: alertmanager-slack-webhook
+                key: api-url
+              sendResolved: true
+              title: >-
+                [{{ `{{ .Status | toUpper }}` }}][PROMETHEUS][{{ `{{ .CommonLabels.severity | toUpper }}` }}]
+                {{ `{{ .CommonLabels.alertname }}` }}
+              text: >-
+                *Summary:* {{ `{{ .CommonAnnotations.summary }}` }}
+                {{ `{{ if .CommonAnnotations.description }}` }}\n*Description:* {{ `{{ .CommonAnnotations.description }}` }}{{ `{{ end }}` }}
+                {{ `{{ if .CommonLabels.namespace }}` }}\n*Namespace:* `{{ `{{ .CommonLabels.namespace }}` }}`{{ `{{ end }}` }}
+                {{ `{{ if .CommonLabels.pod }}` }}\n*Pod:* `{{ `{{ .CommonLabels.pod }}` }}`{{ `{{ end }}` }}
+                {{ `{{ if .CommonLabels.node }}` }}\n*Node:* `{{ `{{ .CommonLabels.node }}` }}`{{ `{{ end }}` }}
+                \n*Alerts:* {{ `{{ len .Alerts }}` }} · *Starts:* {{ `{{ (index .Alerts 0).StartsAt }}` }}
+              color: >-
+                {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
