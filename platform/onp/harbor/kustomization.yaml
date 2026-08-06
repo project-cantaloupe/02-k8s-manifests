@@ -12,7 +12,6 @@ resources:
   - harbor-core-config.yaml
   - harbor-components.yaml
   - harbor-service.yaml
-  - harbor.yaml
   - portal.yaml
   - harbor-proxy.yaml
 
