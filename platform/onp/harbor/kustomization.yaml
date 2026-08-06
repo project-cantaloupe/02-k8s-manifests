@@ -4,16 +4,16 @@ kind: Kustomization
 namespace: devops
 
 resources:
-  - harbor-service.yaml
-  - harbor-components.yaml
-  - harbor-core-config.yaml
-  - redis.yaml
-  - postgres.yaml
-  - registry-config.yaml
-  - portal.yaml
-  - registry.yaml
   - pvc.yaml
-  - dummy-jobservice.yaml
+  - postgres.yaml
+  - redis.yaml
+  - registry-config.yaml
+  - registry.yaml
+  - harbor-core-config.yaml
+  - harbor-components.yaml
+  - harbor-service.yaml
+  - harbor.yaml
+  - portal.yaml
   - harbor-proxy.yaml
 
 patches:
