@@ -41,7 +41,7 @@ data:
       endpoints:
         - name: harbor
           disabled: false
-          url: http://harbor-core:8080/service/notifications
+          url: http://harbor-core:8080/api/v2.0/notifications/stat
           timeout: 3000ms
           threshold: 5
           backoff: 1s
