@@ -45,12 +45,12 @@ data:
 
             # 1. Harbor Core API
             location /api/ {
-                proxy_pass http://core/api/;
+                proxy_pass http://core/api;
             }
 
             # 2. 로그인 및 기타 제어
             location /c/ {
-                proxy_pass http://core/c/;
+                proxy_pass http://core/c;
             }
 
             # 3. 토큰 발급 및 Notification (✨ 뒤에 /service/ 를 정확히 붙여서 포워딩)
@@ -60,7 +60,7 @@ data:
 
             # 4. Registry v2 (Docker Push/Pull)
             location /v2/ {
-                proxy_pass http://registry/v2/;
+                proxy_pass http://registry/v2;
                 client_max_body_size 0;
                 proxy_request_buffering off;
                 proxy_buffering off;
