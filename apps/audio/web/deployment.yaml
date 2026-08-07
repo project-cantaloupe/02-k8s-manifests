@@ -31,18 +31,11 @@ spec:
         # `restricted`라 `istio-init`의 NET_ADMIN·NET_RAW가 어드미션에서
         # 거부된다. ambient는 그 특권을 노드 DaemonSet으로 옮긴 방식이다.
     spec:
-      # GHCR 패키지가 private이므로 Pull 자격증명이 필요하다. Secret은 Token을
-      # 담으므로 Git에 넣지 않고 클러스터에서 직접 만든다. 생성 방법은
-      # apps/audio/README.md 참고.
-      imagePullSecrets:
-        - name: ghcr-pull
       containers:
         - name: web
           image: audio-web
-          # newTag가 dev라는 가변 태그다. IfNotPresent면 노드에 같은 이름의
-          # 이미지가 있는 한 레지스트리를 조회하지 않아, 재푸시해도 파드가
-          # 계속 옛 이미지를 쓴다. rollout restart로도 갱신되지 않는다.
-          # CI가 digest를 커밋하게 되면 그때 고정 digest로 바꾼다.
+          # GitHub Actions가 Harbor에 푸시한 커밋 SHA 태그를 사용한다.
+          # 이후 digest 고정으로 전환하면 태그 재지정 가능성까지 제거할 수 있다.
           imagePullPolicy: Always
           ports:
             - name: http

@@ -49,6 +49,20 @@ AuthorizationPolicy나 DestinationRule의 트래픽 정책은 waypoint 프록시
 나중에 Pod 단위 지정으로 되돌리려 해도 무시된다. "끄는 것"과 "두지 않는 것"이
 다르다.
 
+## Harbor 이미지 Pull
+
+Audio 이미지는 Tailscale HTTPS Harbor에서 받는다.
+
+```text
+cntlp-onp-wk-01.tail270b85.ts.net/library/app-audio-api:<git-sha>
+cntlp-onp-wk-01.tail270b85.ts.net/library/web:<git-sha>
+cntlp-onp-wk-01.tail270b85.ts.net/library/worker:<git-sha>
+```
+
+`library` 프로젝트는 공개 Pull로 운영하므로 `imagePullSecrets`가 필요 없다. Push는
+`03-app-audio` GitHub Actions만 Harbor 자격증명으로 수행한다. AWS Service Node는
+Tailscale DNS와 HTTPS 경로로 Harbor에 접근할 수 있어야 한다.
+
 ## 클러스터에서 직접 만들어야 하는 것
 
 Git에 넣을 수 없는 값들이다. 클러스터를 다시 만들면 이 단계도 다시 해야 한다.
@@ -56,18 +70,7 @@ Git에 넣을 수 없는 값들이다. 클러스터를 다시 만들면 이 단�
 장기적으로는 External Secrets Operator로 Secrets Manager에서 동기화하는 방향이
 맞다. 지금은 임시 조치다.
 
-### 1. `ghcr-pull` — 이미지 Pull Secret
-
-GHCR 패키지가 private이므로 필요하다. `read:packages` 권한 Token이면 충분하다.
-
-```bash
-kubectl -n apps create secret docker-registry ghcr-pull \
-  --docker-server=ghcr.io \
-  --docker-username=<github-username> \
-  --docker-password=<read-packages-token>
-```
-
-### 2. `audio-database` — DATABASE_URL
+### 1. `audio-database` — DATABASE_URL
 
 RDS가 `manage_master_user_password`로 관리하는 Secret에서 비밀번호를 읽어 만든다.
 
@@ -89,7 +92,7 @@ kubectl -n apps create secret generic audio-database \
 unset DB_SECRET
 ```
 
-### 3. `cloudfront-signing-key` — CloudFront 서명 개인키
+### 2. `cloudfront-signing-key` — CloudFront 서명 개인키
 
 **개인키는 Control Plane Node에서 만들고 그 노드 밖으로 내보내지 않는다.**
 공개키만 Terraform에 전달한다. 노트북에서 키를 만들면 개인키가 AWS 밖에 존재하게
@@ -180,11 +183,18 @@ kubectl -n apps run psql-migrate --rm -it --restart=Never \
 AWS Node가 모두 x86_64이므로 아키텍처를 명시한다. Apple Silicon에서 그냥
 빌드하면 arm64 이미지가 올라가 Pod가 `exec format error`로 기동하지 않는다.
 
+`03-app-audio/main` Push 시 GitHub Actions가 `latest`와 커밋 SHA 태그를 Harbor에
+푸시하고, 이 저장소의 세 Kustomization을 같은 SHA로 갱신한다. Cross-repository
+갱신에는 `03-app-audio`의 `MANIFESTS_TOKEN` Secret이 필요하다. 이 토큰은
+`02-k8s-manifests` Contents 쓰기 권한만 가진다.
+
+수동으로 확인할 때도 동일한 Harbor 경로와 `linux/amd64`를 사용한다.
+
 ```bash
 cd 03-app-audio
-docker build --platform linux/amd64 \
-  -t ghcr.io/project-cantaloupe/audio-web:dev services/web
-docker push ghcr.io/project-cantaloupe/audio-web:dev
+docker buildx build --platform linux/amd64 \
+  -t cntlp-onp-wk-01.tail270b85.ts.net/library/web:<git-sha> \
+  --push services/web
 ```
 
 `VITE_*` 값은 빌드 시점에 박힌다. 런타임 환경변수로 바꿀 수 없다. `audio-api`가
