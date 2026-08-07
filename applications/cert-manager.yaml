@@ -1,8 +1,21 @@
-# Route53 Hosted Zone과 cert-manager의 AWS 자격증명 경로가 확정된 뒤 Root 목록에
-# 등록한다. 이 PoC는 Workload IAM(OIDC)을 채택하지 않고 AWS Service Worker의
-# Node Instance Profile을 사용하므로, DNS-01에 필요한 Route53 권한을 Node Role에
-# 추가할지 먼저 결정해야 한다. Node Role은 Audio 권한 합집합이므로 Route53을
-# 더하면 권한 범위가 그만큼 넓어진다.
+# 자격증명 경로가 확정돼 Root 목록에 등록했다 (2026-08-06).
+#
+# 이 PoC는 Workload IAM(IRSA)을 채택하지 않는다. `--service-account-issuer` 가
+# `https://kubernetes.default.svc.cluster.local` 이라 AWS가 OIDC 디스커버리
+# 문서를 가지러 올 수 없어서다. 대신 **AWS Service Worker의 Node Instance
+# Profile**(`cntlp-aws-worker-node`)에서 IMDS로 자격증명을 가져온다.
+# 별도 환경 변수도 Token Volume도 두지 않는다.
+#
+# ⚠️ **Node Role은 Audio 권한 합집합이라 Route53을 더하면 그 노드의 모든
+# 파드가 같은 권한을 갖는다.** 그래서 인라인 정책
+# `cntlp-aws-cert-manager-node` 를 호스팅 존 하나로 좁히고, 레코드 이름을
+# `_acme-challenge.*` 로, 타입을 TXT로 제한했다. 정책 원문과 부착 명령은
+# → decisions/20260806_cert-manager-node-instance-profile.md
+#
+# ⚠️ **nodeSelector가 `role: service` 까지 걸려 있어야 한다.** 인스턴스
+# 프로파일이 붙은 것은 `cntlp-aws-wk-01` 뿐이고, cp-01은 다른 역할
+# (`cntlp-aws-control-plane-node`)이라 Route53 권한이 없다. 다른 노드로 새면
+# DNS-01이 AccessDenied로 죽는다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

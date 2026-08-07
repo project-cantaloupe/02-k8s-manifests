@@ -4,9 +4,14 @@
 # 직접 배포한다. 여기는 그 위에 얹는 ClusterIssuer 뿐이다.
 #
 # ⚠️ **순서** — ClusterIssuer 는 cert-manager 의 CRD 를 쓴다. 차트가 먼저
-# 서지 않으면 `no matches for kind ClusterIssuer` 로 실패한다. 지금은
-# `applications/cert-manager.yaml` 이 Root 목록에 등록돼 있지 않아
-# (SA OIDC 선행) 이 카탈로그도 같은 이유로 기다리는 상태다.
+# 서지 않으면 `no matches for kind ClusterIssuer` 로 실패한다. 그 순서는
+# sync-wave 가 잡는다 — `applications/cert-manager.yaml`(-5)이
+# `applications/secops.yaml`(0)보다 먼저다.
+#
+# 2026-08-06 이전에는 `cert-manager.yaml` 이 Root 목록에 아예 없어서 이
+# 카탈로그 전체가 실패했고, **같은 묶음에 있던 `kyverno/` 까지 못 떴다.**
+# ClusterIssuer 하나가 정책 엔진을 막고 있었다
+# → decisions/20260806_cert-manager-node-instance-profile.md
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
