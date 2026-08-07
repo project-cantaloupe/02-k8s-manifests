@@ -1,0 +1,29 @@
+# 관측 전용이다. Recommender는 status.recommendation만 기록하고 Pod 또는
+# Deployment request를 변경하지 않는다.
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: audio-api-recommendation
+  namespace: apps
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: audio-api
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: api
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsOnly
+        minAllowed:
+          cpu: 20m
+          memory: 32Mi
+        maxAllowed:
+          cpu: "2"
+          memory: 2Gi

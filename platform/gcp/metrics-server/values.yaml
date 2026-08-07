@@ -1,0 +1,30 @@
+# Official metrics-server chart 3.13.1 / app 0.8.1.
+# Kubernetes 1.36 kubelet serving certificates are verified; do not add
+# --kubelet-insecure-tls as a workaround.
+replicas: 1
+
+nodeSelector:
+  platform: gcp
+  role: monitoring
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceMonitor:
+  enabled: false
