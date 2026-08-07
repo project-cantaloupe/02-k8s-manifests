@@ -11,4 +11,4 @@ resources:
 images:
   - name: audio-api
     newName: cntlp-onp-wk-01.tail270b85.ts.net/library/app-audio-api
-    newTag: b7ffcfc3399b742dc7e7f534f064061762d6bf6a
+    newTag: dba86181a47122fc280ed69fbb06f521ffa80d3c
