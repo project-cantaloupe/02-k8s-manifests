@@ -6,9 +6,19 @@ resources:
   - prometheus-ui-nodeport.yaml
   - finops-recording-rules.yaml
   - onprem-rightsizing-rules.yaml
-  - provider-recommendation-rules.yaml
+  - gcp-recommender-collector.yaml
 
 configMapGenerator:
+  - name: gcp-recommender-collector
+    namespace: monitoring
+    files:
+      - gcp_recommender_collector.py
+    options:
+      labels:
+        app: gcp-recommender-collector
+        area: monitoring
+        category: finops
+
   - name: cantaloupe-platform-overview
     namespace: monitoring
     files:

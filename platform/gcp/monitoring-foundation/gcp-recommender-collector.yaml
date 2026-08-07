@@ -1,0 +1,204 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gcp-recommender-collector
+  namespace: monitoring
+  labels:
+    app: gcp-recommender-collector
+    area: monitoring
+    category: finops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gcp-recommender-node-reader
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gcp-recommender-node-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gcp-recommender-node-reader
+subjects:
+  - kind: ServiceAccount
+    name: gcp-recommender-collector
+    namespace: monitoring
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cantaloupe-finops-pushgateway
+  namespace: monitoring
+  labels:
+    app: cantaloupe-finops-pushgateway
+    area: monitoring
+    category: finops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cantaloupe-finops-pushgateway
+  template:
+    metadata:
+      labels:
+        app: cantaloupe-finops-pushgateway
+        area: monitoring
+        category: finops
+        platform: gcp
+        cost-allocation: shared
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        platform: gcp
+        role: monitoring
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: pushgateway
+          image: prom/pushgateway:v1.11.3
+          args:
+            - --web.listen-address=:9091
+          ports:
+            - name: http
+              containerPort: 9091
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cantaloupe-finops-pushgateway
+  namespace: monitoring
+  labels:
+    app: cantaloupe-finops-pushgateway
+    area: monitoring
+    category: finops
+spec:
+  selector:
+    app: cantaloupe-finops-pushgateway
+  ports:
+    - name: http
+      port: 9091
+      targetPort: http
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cantaloupe-finops-pushgateway
+  namespace: monitoring
+  labels:
+    release: monitoring
+    app: cantaloupe-finops-pushgateway
+    area: monitoring
+    category: finops
+spec:
+  selector:
+    matchLabels:
+      app: cantaloupe-finops-pushgateway
+  endpoints:
+    - port: http
+      interval: 1m
+      honorLabels: true
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gcp-recommender-collector
+  namespace: monitoring
+  labels:
+    app: gcp-recommender-collector
+    area: monitoring
+    category: finops
+spec:
+  # GCP refreshes recommendations periodically; four checks per day also
+  # repopulate the ephemeral Pushgateway soon after a restart.
+  schedule: "15 */6 * * *"
+  timeZone: Asia/Seoul
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: gcp-recommender-collector
+            area: monitoring
+            category: finops
+            platform: gcp
+            cost-allocation: shared
+        spec:
+          serviceAccountName: gcp-recommender-collector
+          restartPolicy: Never
+          nodeSelector:
+            platform: gcp
+            role: monitoring
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: collector
+              image: python:3.12.11-alpine3.22
+              command: ["python", "/opt/cantaloupe/gcp_recommender_collector.py"]
+              env:
+                - name: PUSHGATEWAY_URL
+                  value: http://cantaloupe-finops-pushgateway.monitoring.svc:9091
+              volumeMounts:
+                - name: collector
+                  mountPath: /opt/cantaloupe
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 32Mi
+                limits:
+                  memory: 96Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                readOnlyRootFilesystem: true
+          volumes:
+            - name: collector
+              configMap:
+                name: gcp-recommender-collector
+            - name: tmp
+              emptyDir: {}
