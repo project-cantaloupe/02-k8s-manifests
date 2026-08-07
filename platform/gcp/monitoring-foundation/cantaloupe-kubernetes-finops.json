@@ -2569,7 +2569,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### A — actionable\n\n업무 및 일반 플랫폼 Deployment. VPA/FinOps 방향 일치, OOM·throttling·HPA guardrail 통과 후 PR 검토.\n\n### B — stateful_manual\n\nPrometheus, Alertmanager, OpenSearch, Harbor DB/Redis, Argo CD Controller. 관찰하되 실행 가능 절감액에서 제외.\n\n### C — VPA 미등록\n\n- DaemonSet: 노드별 분석\n- Job/CronJob: 실행별 분석\n- Admission·보안·CNI·CSI: 장애 영향이 절감보다 큼\n- Metrics Server/VPA: 자기참조 방지\n\nRequests 변경은 자동 반영하지 않으며 Git PR과 소유자 승인을 거친다."
+        "content": "### A — actionable\n\n업무 및 일반 플랫폼 Deployment. VPA/FinOps 방향 일치, OOM·throttling·HPA guardrail 통과 후 PR 검토.\n\n### B — stateful_manual\n\nOpenSearch, Harbor DB/Redis, Argo CD Controller. 관찰하되 실행 가능 절감액에서 제외.\n\n### C — VPA 미등록\n\n- DaemonSet: 노드별 분석\n- Job/CronJob: 실행별 분석\n- Admission·보안·CNI·CSI: 장애 영향이 절감보다 큼\n- Operator-managed Prometheus/Alertmanager: VPA topmost-controller 제약\n- Metrics Server/VPA: 자기참조 방지\n\nRequests 변경은 자동 반영하지 않으며 Git PR과 소유자 승인을 거친다."
       }
     }
   ],

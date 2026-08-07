@@ -45,21 +45,22 @@ throttling, HPA, 대표 부하 구간을 함께 검토하고 Deployment request�
 | C `critical_system` | 미등록 | 표시만 | Admission·보안·네트워크·스토리지 핵심 경로 |
 
 A에는 업무 Deployment 전체와 Grafana, OpenCost, exporter, dashboard 등 일반
-플랫폼 Deployment를 포함한다. B에는 Prometheus, Alertmanager, OpenSearch,
-Harbor DB/Redis 등 현재 StatefulSet을 포함하되 실행 가능한 절감액에는 합산하지
+플랫폼 Deployment를 포함한다. B에는 OpenSearch, Harbor DB/Redis 등 직접
+관리되는 StatefulSet을 포함하되 실행 가능한 절감액에는 합산하지
 않는다. C 제외는 비용을 숨기는 것이 아니라 VPA 단일 추천값이 해당 워크로드의
 운영 단위를 대표하지 못하거나 장애 영향이 절감 효과보다 크기 때문이다.
 
-현재 인벤토리는 총 27개다.
+현재 인벤토리는 총 26개다.
 
-- A 21개: Audio 5개, Grafana, OpenCost, kube-state-metrics, FinOps
+- A 22개: Audio 5개, Grafana, OpenCost, kube-state-metrics, FinOps
   Pushgateway, CloudWatch Exporter, OpenSearch Dashboards, Argo CD 일반
-  Deployment 6개, Harbor 일반 Deployment 4개
-- B 6개: Argo CD Application Controller, Prometheus, Alertmanager, OpenSearch,
-  Harbor Database, Harbor Redis
+  Deployment 6개, Harbor 일반 Deployment 5개
+- B 4개: Argo CD Application Controller, OpenSearch, Harbor Database,
+  Harbor Redis
 - C: node-exporter/Fluent Bit/CNI/CSI/ztunnel 같은 DaemonSet, 모든
   Job/CronJob, Kyverno/cert-manager/external-secrets/Istio 같은 보안·Admission
-  경로, Metrics Server와 VPA 자체
+  경로, Metrics Server와 VPA 자체, Operator가 생성해 직접 targetRef로 사용할
+  수 없는 Prometheus/Alertmanager StatefulSet
 
 대상 이름과 Class는 `resources/vpa-platform-workloads.yaml`에 선언해 대상
 변경과 리뷰 근거가 Git 이력에 남는다.
