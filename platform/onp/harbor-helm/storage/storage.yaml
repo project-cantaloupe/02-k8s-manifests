@@ -151,7 +151,7 @@ spec:
       labels:
         app.kubernetes.io/name: harbor-v2-storage-permissions
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
       nodeSelector:
         platform: onp
         role: devops
