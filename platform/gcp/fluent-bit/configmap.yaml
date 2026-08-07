@@ -148,6 +148,7 @@ data:
       -- are not platform failures; 5xx is a server-side error.
       local http_status = tonumber(record["http_status"])
       if http_status ~= nil then
+        normalized["http_status_class"] = tostring(math.floor(http_status / 100)) .. "xx"
         if http_status >= 500 then
           normalized["level"] = "error"
         elseif http_status >= 400 then

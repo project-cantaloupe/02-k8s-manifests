@@ -65,6 +65,7 @@ data:
             "level": { "type": "keyword" },
             "message": { "type": "text" },
             "http_status": { "type": "integer" },
+            "http_status_class": { "type": "keyword" },
             "http_method": { "type": "keyword" },
             "http_route": { "type": "keyword" }
           }
