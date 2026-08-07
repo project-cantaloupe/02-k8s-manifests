@@ -1,0 +1,198 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-v2-registry-pv
+spec:
+  capacity:
+    storage: 30Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/registry
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-registry
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-registry-pv
+  resources:
+    requests:
+      storage: 30Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-v2-jobservice-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/jobservice
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-jobservice
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-jobservice-pv
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-v2-database-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/database
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-database
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-database-pv
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-v2-redis-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/redis
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-redis
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-redis-pv
+  resources:
+    requests:
+      storage: 2Gi
+---
+# hostPath DirectoryOrCreate makes directories root-owned. Harbor components run
+# unprivileged, so initialize ownership once before the Helm Application starts.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: harbor-v2-storage-permissions
+  namespace: harbor-system
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: harbor-v2-storage-permissions
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        platform: onp
+        role: devops
+      containers:
+        - name: permissions
+          image: busybox:1.36
+          command: [sh, -ec]
+          args:
+            - |
+              # Only the volume roots need initialization. Recursing through a
+              # live database/registry can race with files created by Harbor.
+              chown 10000:10000 /storage/registry /storage/jobservice
+              chown 999:999 /storage/database /storage/redis
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, FOWNER]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: registry
+              mountPath: /storage/registry
+            - name: jobservice
+              mountPath: /storage/jobservice
+            - name: database
+              mountPath: /storage/database
+            - name: redis
+              mountPath: /storage/redis
+      volumes:
+        - name: registry
+          persistentVolumeClaim:
+            claimName: harbor-v2-registry
+        - name: jobservice
+          persistentVolumeClaim:
+            claimName: harbor-v2-jobservice
+        - name: database
+          persistentVolumeClaim:
+            claimName: harbor-v2-database
+        - name: redis
+          persistentVolumeClaim:
+            claimName: harbor-v2-redis

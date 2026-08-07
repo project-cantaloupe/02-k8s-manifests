@@ -1,0 +1,109 @@
+replicaCount: 1
+
+pod:
+  labels:
+    area: monitoring
+    platform: aws
+    cost-allocation: shared
+
+nodeSelector:
+  platform: aws
+  role: service
+
+serviceAccount:
+  create: true
+  automountServiceAccountToken: false
+
+rbac:
+  create: false
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 96Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  # S3 storage metrics are published once per day. Scraping more frequently
+  # only repeats paid CloudWatch API requests without producing new data.
+  interval: 24h
+  timeout: 60s
+  labels:
+    release: monitoring
+
+# CloudWatch S3 samples arrive once per day. Prometheus instant queries only
+# look back a few minutes by default, so carry the latest daily sample forward
+# through recording rules evaluated by Prometheus.
+prometheusRule:
+  enabled: true
+  namespace: monitoring
+  labels:
+    release: monitoring
+  rules:
+    - record: cantaloupe:aws_s3_bucket_size_bytes
+      expr: last_over_time(aws_s3_bucket_size_bytes_average[48h])
+    - record: cantaloupe:aws_s3_number_of_objects
+      expr: last_over_time(aws_s3_number_of_objects_average[48h])
+    - record: cantaloupe:cloudwatch_exporter_scrape_error
+      expr: last_over_time(cloudwatch_exporter_scrape_error[48h])
+
+# The pod runs only on an AWS service Worker and obtains temporary credentials
+# from the existing cntlp-aws-worker-node EC2 Instance Profile. No access key is
+# stored in Git or Kubernetes.
+config: |-
+  region: ap-northeast-2
+  list_metrics_cache_ttl: 3600
+  metrics:
+    # S3 storage metrics are published by AWS once per day. Explicit dimension
+    # selections avoid discovery calls and begin returning samples as soon as
+    # AWS publishes the first datapoint.
+    - aws_namespace: AWS/S3
+      aws_metric_name: BucketSizeBytes
+      aws_dimensions: [BucketName, StorageType]
+      aws_dimension_select:
+        BucketName:
+          - cntlp-aws-quarantine
+          - cntlp-aws-transcode
+        StorageType:
+          - StandardStorage
+          - StandardIAStorage
+          - GlacierInstantRetrievalStorage
+      aws_statistics: [Average]
+      period_seconds: 86400
+      range_seconds: 604800
+      delay_seconds: 0
+      set_timestamp: false
+
+    - aws_namespace: AWS/S3
+      aws_metric_name: NumberOfObjects
+      aws_dimensions: [BucketName, StorageType]
+      aws_dimension_select:
+        BucketName:
+          - cntlp-aws-quarantine
+          - cntlp-aws-transcode
+        StorageType:
+          - AllStorageTypes
+      aws_statistics: [Average]
+      period_seconds: 86400
+      range_seconds: 604800
+      delay_seconds: 0
+      set_timestamp: false

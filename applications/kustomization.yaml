@@ -14,8 +14,12 @@ resources:
   # → findings/20260806_skipdryrun-does-not-cover-missing-crd.md
   # → tasks/todo/008_identity-and-sso.md
   - cert-manager.yaml
+  # wave -5. `ExternalSecret` CRD 를 여기서 설치한다. 이걸 쓰는 워크로드보다
+  # 먼저 서야 한다 → applications/external-secrets.yaml
+  - external-secrets.yaml
   - argocd.yaml
-  - harbor.yaml
+  - harbor-helm-storage.yaml
+  - harbor-helm.yaml
   - gcp-storage.yaml
   # wave -5. AWS 워커의 영구 볼륨. 여기 없으면 `gcp-pd-*` 두 개만 남고
   # AWS 노드의 PVC 는 프로비저너가 GCP 라 조용히 Pending 에 머문다
@@ -29,6 +33,7 @@ resources:
   - ztunnel.yaml
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
+  - cloudwatch-exporter.yaml
   - opencost.yaml
   - audio-ingress.yaml
   - secops.yaml

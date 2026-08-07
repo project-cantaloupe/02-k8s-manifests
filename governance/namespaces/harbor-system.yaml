@@ -1,0 +1,12 @@
+# Official Harbor Helm release. Keep it separate from the legacy Harbor in devops
+# so migration and rollback do not share state or credentials.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: harbor-system
+  labels:
+    area: devops
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

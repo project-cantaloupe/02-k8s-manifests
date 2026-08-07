@@ -13,7 +13,6 @@ resources:
   - harbor-components.yaml
   - harbor-service.yaml
   - portal.yaml
-  - harbor-proxy.yaml
 
 patches:
   # -----------------------------------------------------------------

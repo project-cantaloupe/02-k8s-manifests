@@ -17,11 +17,6 @@ data:
         include /etc/nginx/mime.types;
         default_type application/octet-stream;
 
-        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
-                        '$status $body_bytes_sent "$http_referer" '
-                        '"$http_user_agent" "$http_x_forwarded_for"';
-
-        access_log /var/log/nginx/access.log main;
         sendfile on;
         keepalive_timeout 65;
 
@@ -29,7 +24,6 @@ data:
             server harbor-core:8080;
         }
 
-        # ✨ 추가: harbor-registry 백엔드 upstream 정의
         upstream registry {
             server harbor-registry:5000;
         }
@@ -41,55 +35,43 @@ data:
             root /usr/share/nginx/html;
             index index.html;
 
-            # 1. API 요청
+            # Reverse Proxy 필수 헤더 전달
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Authorization $http_authorization;
+            proxy_pass_header Authorization;
+
+            # 1. Harbor Core API
             location /api/ {
                 proxy_pass http://core;
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # 2. 로그인 및 인증 요청 (/c/login 등)
+            # 2. 로그인 및 기타 제어
             location /c/ {
                 proxy_pass http://core;
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # 3. 인증 서비스 토큰 요청
+            # 3. 토큰 발급 및 Notification (✨ http://core 로 지정하여 경로 전체 전달)
             location /service/ {
                 proxy_pass http://core;
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # 4. Registry v2 요청 (✨ harbor-registry로 포워딩 및 Authorization 헤더 인계)
+            # 4. Registry v2 (Docker Push/Pull)
             location /v2/ {
                 proxy_pass http://registry;
-                proxy_set_header Host $http_host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_set_header Authorization $http_authorization;
-
                 client_max_body_size 0;
                 proxy_request_buffering off;
                 proxy_buffering off;
+                
+                proxy_hide_header Header-Name;
+                add_header Docker-Distribution-Api-Version "registry/2.0" always;
             }
 
-            # 5. SPA 정적 라우팅
+            # 5. UI Portal
             location / {
                 try_files $uri $uri/ /index.html;
-            }
-
-            error_page 500 502 503 504 /50x.html;
-            location = /50x.html {
-                root /usr/share/nginx/html;
             }
         }
     }
@@ -100,11 +82,14 @@ metadata:
   name: harbor-portal
   namespace: devops
 spec:
-  ports:
-    - port: 80
-      targetPort: 80
+  type: NodePort
   selector:
     app: harbor-portal
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 31432
 ---
 apiVersion: apps/v1
 kind: Deployment

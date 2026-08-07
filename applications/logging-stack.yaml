@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
     targetRevision: main
-    path: smoke/logging-stack
+    path: platform/gcp/logging-stack
   destination:
     server: https://kubernetes.default.svc
     namespace: devops

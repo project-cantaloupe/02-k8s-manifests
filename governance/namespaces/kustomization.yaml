@@ -26,7 +26,9 @@ resources:
   - audio-ingress.yaml
   - cert-manager.yaml
   - devops.yaml
+  - external-secrets.yaml
   - finops.yaml
+  - harbor-system.yaml
   - istio-cni.yaml
   - istio-system.yaml
   - kyverno.yaml
