@@ -127,6 +127,12 @@ Compute Optimizer의 `OPTIMIZED` 결과는 변경 후보가 아니며, `UNDER_PR
 월 예상 절감액이 0이면 임의 가격표로 절감액을 만들어내지 않는다. 추천이 아직 없는
 Node도 수집 장애로 취급하지 않는다.
 
+대시보드는 Provider별 상태 의미가 다른 문제를 피하기 위해 공통 `decision` 라벨을
+사용한다. AWS는 Compute Optimizer Finding을 그대로 사용하고, GCP는 공식 응답의
+현재·권장 vCPU/Memory 차이만 비교해 `OVER_PROVISIONED`, `UNDER_PROVISIONED`,
+`CHANGE_TYPE`으로 정규화한다. 이 값은 추천 방향을 통합 표시하기 위한 것이며
+Provider 원본 추천을 변경하거나 자동 승인하는 값이 아니다.
+
 Provider 추천 후보는 OpenCost 가격표와 분리한다. 실제 적용이 승인된 후보만
 공식 가격 Resolver를 거쳐 `pricing-catalog.yaml`로 승격하고, Merge 전에 기존
 Schema·CSV·Checksum·Coverage 검증을 통과해야 한다.

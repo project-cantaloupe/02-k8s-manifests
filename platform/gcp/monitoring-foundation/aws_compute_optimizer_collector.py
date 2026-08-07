@@ -114,6 +114,7 @@ def parse_recommendations(payload, nodes, specs):
             "recommended_memory_bytes": recommended_specs.get("memory_bytes", 0),
             "monthly_savings_usd": savings.get("value", 0) if savings.get("currency", "USD") == "USD" else 0,
             "state": recommendation.get("finding", "UNKNOWN"),
+            "decision": recommendation.get("finding", "UNKNOWN"),
             "priority": f'rank-{top.get("rank", 1)}',
             "last_refresh": timestamp_seconds(recommendation.get("lastRefreshTimestamp")),
         })
@@ -132,6 +133,7 @@ def recommendation_metrics(recommendations):
             "current_profile": item["current_profile"],
             "recommended_profile": item["recommended_profile"],
             "state": item["state"],
+            "decision": item["decision"],
             "priority": item["priority"],
         }
         lines.append(sample("cantaloupe:provider_vm_recommendation_info", 1, info))

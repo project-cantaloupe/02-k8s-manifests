@@ -134,18 +134,29 @@ def parse_recommendation(recommendation, nodes):
     current = overview.get("currentMachineType", {})
     recommended = overview.get("recommendedMachineType", {})
     cost = recommendation.get("primaryImpact", {}).get("costProjection", {})
+    current_cpu = current.get("guestCpus", 0)
+    recommended_cpu = recommended.get("guestCpus", 0)
+    current_memory = current.get("memoryBytes", 0)
+    recommended_memory = recommended.get("memoryBytes", 0)
+    if recommended_cpu > current_cpu or recommended_memory > current_memory:
+        decision = "UNDER_PROVISIONED"
+    elif recommended_cpu < current_cpu or recommended_memory < current_memory:
+        decision = "OVER_PROVISIONED"
+    else:
+        decision = "CHANGE_TYPE"
     # A saving is represented by a negative projected cost delta.
     savings = max(0.0, -money_value(cost.get("cost", {})))
     return {
         **node,
         "current_profile": current.get("name", node["current_profile"]),
         "recommended_profile": recommended.get("name", "unknown"),
-        "current_vcpu": current.get("guestCpus", 0),
-        "recommended_vcpu": recommended.get("guestCpus", 0),
-        "current_memory_bytes": current.get("memoryBytes", 0),
-        "recommended_memory_bytes": recommended.get("memoryBytes", 0),
+        "current_vcpu": current_cpu,
+        "recommended_vcpu": recommended_cpu,
+        "current_memory_bytes": current_memory,
+        "recommended_memory_bytes": recommended_memory,
         "monthly_savings_usd": savings,
         "state": recommendation.get("stateInfo", {}).get("state", "UNKNOWN"),
+        "decision": decision,
         "priority": recommendation.get("priority", "UNSPECIFIED"),
         "last_refresh": timestamp_seconds(recommendation.get("lastRefreshTime")),
     }
@@ -169,6 +180,7 @@ def recommendation_metrics(recommendations):
             "current_profile": item["current_profile"],
             "recommended_profile": item["recommended_profile"],
             "state": item["state"],
+            "decision": item["decision"],
             "priority": item["priority"],
         }
         lines.append(sample("cantaloupe:provider_vm_recommendation_info", 1, info))
