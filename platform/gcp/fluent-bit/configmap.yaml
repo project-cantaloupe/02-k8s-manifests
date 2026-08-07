@@ -142,7 +142,22 @@ data:
       normalized["collector_node"] = record["collector_node"] or "unknown"
       normalized["pod"] = kubernetes["pod_name"] or "unknown"
       normalized["container"] = kubernetes["container_name"] or "unknown"
-      normalized["level"] = record["level"] or "unknown"
+      -- Structured application logs provide their own severity. NGINX access
+      -- logs do not, so derive a consistent severity from their HTTP status.
+      -- Keep 4xx as warning because many client errors (for example 401/404)
+      -- are not platform failures; 5xx is a server-side error.
+      local http_status = tonumber(record["http_status"])
+      if http_status ~= nil then
+        if http_status >= 500 then
+          normalized["level"] = "error"
+        elseif http_status >= 400 then
+          normalized["level"] = "warning"
+        else
+          normalized["level"] = "info"
+        end
+      else
+        normalized["level"] = string.lower(record["level"] or "unknown")
+      end
       normalized["message"] = record["msg"] or record["message"] or record["log"] or ""
 
       -- Avoid storing high-cardinality image digests as a separate parsed
