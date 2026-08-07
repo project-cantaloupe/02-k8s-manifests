@@ -8,24 +8,10 @@ updater:
 recommender:
   enabled: true
   replicas: 1
-  # Bootstrap the recommendation model from the retained Prometheus history,
-  # then continue ingesting fresh samples from metrics.k8s.io. The project has
-  # seven days of retention, so querying eight days is unnecessary.
+  # VPA 1.7.0 checkpoint storage persists recommender samples; fresh samples
+  # continue to come from metrics.k8s.io. The separate FinOps dashboard uses
+  # Prometheus retention for immediate 7-day P95/P99/Max evidence.
   extraArgs:
-    - --storage=prometheus
-    - --prometheus-address=http://monitoring-prometheus.monitoring.svc:9090
-    - --prometheus-cadvisor-job-name=kubelet
-    # kube-prometheus-stack uses current Kubernetes label names rather than
-    # the legacy kubernetes-cadvisor/pod_name/name convention assumed by VPA.
-    - --container-name-label=container
-    - --container-pod-name-label=pod
-    - --container-namespace-label=namespace
-    - --metric-for-pod-labels=kube_pod_labels{job="kube-state-metrics"}
-    - --pod-name-label=pod
-    - --pod-namespace-label=namespace
-    - --pod-label-prefix=label_
-    - --history-length=7d
-    - --history-resolution=1h
     # The upstream defaults are 25m/250Mi. CPU stays upstream-default; memory
     # follows the smallest declared application request so low-footprint
     # workloads remain distinguishable. Recommendations are never auto-applied.
