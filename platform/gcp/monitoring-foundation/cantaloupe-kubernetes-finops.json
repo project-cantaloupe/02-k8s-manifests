@@ -2339,6 +2339,238 @@
           }
         ]
       }
+    },
+    {
+      "id": 600,
+      "type": "row",
+      "title": "7. VPA Cross-validation — 공식 모델과 FinOps 근거 교차검증",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 63
+      },
+      "panels": []
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "Kubernetes Right-sizing Decision — Current / FinOps / VPA",
+      "description": "A(actionable)는 실행 검토 후보, B(stateful_manual)는 관찰·수동 검토 전용이다. 검토 가능=1도 자동 승인이 아니며 workload owner PR이 필요하다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 18,
+        "x": 0,
+        "y": 64
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_join(cantaloupe:workload_container_cpu_request_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "label_join(cantaloupe:workload_container_cpu_request_candidate_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "C",
+          "expr": "label_join(cantaloupe:workload_container_vpa_target_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "D",
+          "expr": "label_join(cantaloupe:workload_container_memory_request_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "E",
+          "expr": "label_join(cantaloupe:workload_container_memory_request_candidate_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "F",
+          "expr": "label_join(cantaloupe:workload_container_vpa_target_memory_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "G",
+          "expr": "label_join(cantaloupe:workload_container_vpa_upper_memory_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "H",
+          "expr": "label_join(cantaloupe:workload_container_request_candidate_savings_per_month{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "I",
+          "expr": "label_join(cantaloupe:workload_container_observation_hours{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "J",
+          "expr": "label_join(cantaloupe:workload_container_vpa_finops_direction_agreement{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "K",
+          "expr": "label_join(cantaloupe:workload_container_vpa_safe_to_review{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "target",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "namespace": true,
+              "workload": true,
+              "workload_type": true,
+              "container": true,
+              "bound": true,
+              "vpa": true,
+              "job": true,
+              "instance": true
+            },
+            "indexByName": {
+              "target": 0,
+              "rightsizing_class": 1,
+              "review_policy": 2,
+              "Value #A": 3,
+              "Value #B": 4,
+              "Value #C": 5,
+              "Value #D": 6,
+              "Value #E": 7,
+              "Value #F": 8,
+              "Value #G": 9,
+              "Value #H": 10,
+              "Value #I": 11,
+              "Value #J": 12,
+              "Value #K": 13
+            },
+            "renameByName": {
+              "target": "대상",
+              "rightsizing_class": "Class",
+              "review_policy": "Review",
+              "Value #A": "현재 CPU",
+              "Value #B": "FinOps CPU",
+              "Value #C": "VPA CPU",
+              "Value #D": "현재 Memory",
+              "Value #E": "FinOps Memory",
+              "Value #F": "VPA Memory",
+              "Value #G": "VPA Upper Memory",
+              "Value #H": "월 Allocation 기회",
+              "Value #I": "관찰 시간",
+              "Value #J": "방향 일치",
+              "Value #K": "검토 가능"
+            }
+          }
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "footer": {
+          "show": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "CPU$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "cores"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "Memory$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "월 Allocation 기회"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "관찰 시간"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "type": "text",
+      "title": "대상·제외 정책",
+      "gridPos": {
+        "h": 13,
+        "w": 6,
+        "x": 18,
+        "y": 64
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### A — actionable\n\n업무 및 일반 플랫폼 Deployment. VPA/FinOps 방향 일치, OOM·throttling·HPA guardrail 통과 후 PR 검토.\n\n### B — stateful_manual\n\nPrometheus, Alertmanager, OpenSearch, Harbor DB/Redis, Argo CD Controller. 관찰하되 실행 가능 절감액에서 제외.\n\n### C — VPA 미등록\n\n- DaemonSet: 노드별 분석\n- Job/CronJob: 실행별 분석\n- Admission·보안·CNI·CSI: 장애 영향이 절감보다 큼\n- Metrics Server/VPA: 자기참조 방지\n\nRequests 변경은 자동 반영하지 않으며 Git PR과 소유자 승인을 거친다."
+      }
     }
   ],
   "refresh": "1m",

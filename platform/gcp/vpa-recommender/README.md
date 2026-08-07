@@ -6,7 +6,7 @@ Kubernetes VPA의 CPU·Memory request 추천만 수집한다. 이 디렉터리�
 ## 설치 범위
 
 - VPA v1 CRD와 Recommender `1.7.0`
-- `audio-api`의 `updateMode: Off` VPA
+- Audio 전체 Deployment의 `updateMode: Off` VPA
 - `RequestsOnly`와 컨테이너별 min/max 경계
 
 다음 구성은 의도적으로 설치하지 않는다.
@@ -31,6 +31,53 @@ kubectl get vpa audio-api-recommendation -n apps \
 VPA `target`을 그대로 적용하지 않는다. 기존 Grafana Right-sizing 후보와 OOM,
 throttling, HPA, 대표 부하 구간을 함께 검토하고 Deployment request는 Git PR로만
 변경한다.
+
+## 클러스터 전체 적용 범위
+
+모든 컨테이너는 FinOps 대시보드의 비용·사용량 모집단이다. VPA 객체는 워크로드
+수명주기와 변경 위험에 따라 아래처럼 분리한다.
+
+| Class | VPA | 비용 판정 | 범위와 근거 |
+|---|---|---|---|
+| A `actionable` | Off 관찰 | 실행 후보 | 장기 실행, controller 소유, GitOps로 request 변경 가능 |
+| B `stateful_manual` | Off 관찰 | 잠재 기회만 | StatefulSet 및 데이터 계층. 용량·보존기간·복구 검토 필수 |
+| C `type_specific` | 미등록 | 별도 분석 | DaemonSet은 노드별, Job은 실행별 분석 |
+| C `critical_system` | 미등록 | 표시만 | Admission·보안·네트워크·스토리지 핵심 경로 |
+
+A에는 업무 Deployment 전체와 Grafana, OpenCost, exporter, dashboard 등 일반
+플랫폼 Deployment를 포함한다. B에는 Prometheus, Alertmanager, OpenSearch,
+Harbor DB/Redis 등 현재 StatefulSet을 포함하되 실행 가능한 절감액에는 합산하지
+않는다. C 제외는 비용을 숨기는 것이 아니라 VPA 단일 추천값이 해당 워크로드의
+운영 단위를 대표하지 못하거나 장애 영향이 절감 효과보다 크기 때문이다.
+
+현재 인벤토리는 총 27개다.
+
+- A 21개: Audio 5개, Grafana, OpenCost, kube-state-metrics, FinOps
+  Pushgateway, CloudWatch Exporter, OpenSearch Dashboards, Argo CD 일반
+  Deployment 6개, Harbor 일반 Deployment 4개
+- B 6개: Argo CD Application Controller, Prometheus, Alertmanager, OpenSearch,
+  Harbor Database, Harbor Redis
+- C: node-exporter/Fluent Bit/CNI/CSI/ztunnel 같은 DaemonSet, 모든
+  Job/CronJob, Kyverno/cert-manager/external-secrets/Istio 같은 보안·Admission
+  경로, Metrics Server와 VPA 자체
+
+대상 이름과 Class는 `resources/vpa-platform-workloads.yaml`에 선언해 대상
+변경과 리뷰 근거가 Git 이력에 남는다.
+
+## 짧은 프로젝트 관찰 기간
+
+Recommender는 `prometheus-operated`의 기존 7일 cAdvisor 이력으로 모델을
+초기화하고 이후 최신 Metrics API 샘플을 계속 반영한다. 대시보드는 Prometheus의
+P95/P99/Max, OOM, throttling, HPA와 OpenCost 기회 비용을 계속 계산한다.
+
+- `<24h`: 초기 데이터
+- `24-72h`: 단기 검토
+- `>=72h`: 프로젝트 검토 가능
+- 기존 이력 `>=120h`: 높은 신뢰도
+
+CPU 25m은 VPA 1.7.0 공식 기본 하한이다. Memory 64Mi는 공식 기본값이 아니라
+현재 업무 Deployment의 최소 request와 맞춘 프로젝트 정책이다. 추천 전용이며
+실제 변경에는 별도 PR과 workload owner 승인이 필요하다.
 
 ## 배치와 의존성
 

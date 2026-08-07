@@ -5,6 +5,9 @@ kind: VerticalPodAutoscaler
 metadata:
   name: audio-api-recommendation
   namespace: apps
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: standard
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -22,8 +25,106 @@ spec:
           - memory
         controlledValues: RequestsOnly
         minAllowed:
-          cpu: 20m
-          memory: 32Mi
+          cpu: 25m
+          memory: 64Mi
         maxAllowed:
           cpu: "2"
           memory: 2Gi
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: audio-events-recommendation
+  namespace: apps
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: audio-events
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: events
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "2", memory: 2Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: audio-web-recommendation
+  namespace: apps
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: audio-web
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: web
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "2", memory: 2Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: audio-transcode-recommendation
+  namespace: apps
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/workload-pattern: batch-like
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: audio-transcode
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: transcode
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "4", memory: 4Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: audio-ingress-recommendation
+  namespace: audio-ingress
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: audio-ingress
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "4", memory: 4Gi}

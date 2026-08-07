@@ -1,0 +1,29 @@
+# Prometheus history bootstrap for the recommendation-only VPA. The monitoring
+# namespace is default-deny ingress, so permit only the recommender identity on
+# the Prometheus HTTP port; no broad namespace-to-namespace access is opened.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-vpa-recommender-history
+  namespace: monitoring
+  labels:
+    area: monitoring
+    category: finops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+      prometheus: monitoring-prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: autoscaling
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: recommender
+      ports:
+        - protocol: TCP
+          port: 9090

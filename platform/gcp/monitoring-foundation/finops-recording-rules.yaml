@@ -779,3 +779,83 @@ spec:
                 )
               )
             )
+
+    # Cross-check the transparent P95/Max candidates with the upstream VPA
+    # model. A recommendation is evidence, not an actuator.
+    - name: cantaloupe.finops.vpa-cross-validation
+      interval: 5m
+      rules:
+        - record: cantaloupe:workload_container_vpa_target_cpu_cores
+          expr: |
+            max by (
+              namespace, workload, workload_type, container,
+              rightsizing_class, review_policy
+            ) (
+              cantaloupe_vpa_container_recommendation_cpu_cores{bound="target"}
+            )
+
+        - record: cantaloupe:workload_container_vpa_target_memory_bytes
+          expr: |
+            max by (
+              namespace, workload, workload_type, container,
+              rightsizing_class, review_policy
+            ) (
+              cantaloupe_vpa_container_recommendation_memory_bytes{bound="target"}
+            )
+
+        - record: cantaloupe:workload_container_vpa_upper_memory_bytes
+          expr: |
+            max by (
+              namespace, workload, workload_type, container,
+              rightsizing_class, review_policy
+            ) (
+              cantaloupe_vpa_container_recommendation_memory_bytes{bound="upper"}
+            )
+
+        # 1 means both independent methods recommend the same change direction.
+        # It does not mean that the recommendation is approved.
+        - record: cantaloupe:workload_container_vpa_finops_direction_agreement
+          expr: |
+            (
+              (
+                cantaloupe:workload_container_cpu_request_candidate_cores
+                  <= bool on (namespace, workload, workload_type, container)
+                cantaloupe:workload_container_cpu_request_cores
+              )
+                == bool on (namespace, workload, workload_type, container)
+              (
+                cantaloupe:workload_container_vpa_target_cpu_cores
+                  <= bool on (namespace, workload, workload_type, container)
+                cantaloupe:workload_container_cpu_request_cores
+              )
+            )
+              * on (namespace, workload, workload_type, container)
+            (
+              (
+                cantaloupe:workload_container_memory_request_candidate_bytes
+                  <= bool on (namespace, workload, workload_type, container)
+                cantaloupe:workload_container_memory_request_bytes
+              )
+                == bool on (namespace, workload, workload_type, container)
+              (
+                cantaloupe:workload_container_vpa_target_memory_bytes
+                  <= bool on (namespace, workload, workload_type, container)
+                cantaloupe:workload_container_memory_request_bytes
+              )
+            )
+              * on (namespace, workload, workload_type, container)
+                group_left(rightsizing_class, review_policy)
+            (
+              0 * cantaloupe:workload_container_vpa_target_memory_bytes + 1
+            )
+
+        # Only A/actionable workloads can enter execution review. B remains
+        # visible in the VPA series but is excluded here by construction.
+        - record: cantaloupe:workload_container_vpa_safe_to_review
+          expr: |
+            cantaloupe:workload_container_candidate_safe_to_review
+              * on (namespace, workload, workload_type, container)
+                group_left(rightsizing_class, review_policy)
+            cantaloupe:workload_container_vpa_finops_direction_agreement{
+              rightsizing_class="actionable"
+            }
