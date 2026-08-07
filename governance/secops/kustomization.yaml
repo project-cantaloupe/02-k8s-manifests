@@ -4,6 +4,10 @@ resources:
   - disallow-default-namespace.yaml
   - disallow-latest-tag.yaml
   - generate-default-network-policies.yaml
+  # ClusterPolicy 가 아니라 NetworkPolicy 다. generate 정책이 만든 기본 차단에
+  # apiserver → 웹훅 구멍 하나를 내는 짝이라 같은 디렉터리에 둔다
+  # → governance/secops/external-secrets-webhook-ingress.yaml
+  - external-secrets-webhook-ingress.yaml
   - require-image-registry.yaml
 
 # require-run-as-nonroot.yaml 은 지웠다. Pod Security Admission 의

@@ -115,8 +115,17 @@ spec:
                 # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
-                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
-                - external-secrets
+                # ⚠️ **이 목록에 이름을 추가할 수 없다.** Kyverno 가 generate
+                # 규칙의 match/exclude 변경을 거부한다 (immutable fields). 정책을
+                # 지우고 다시 만들어야 하는데, `orphanDownstreamOnPolicyDelete`
+                # 가 꺼져 있어 삭제하면 **생성된 NetworkPolicy 가 전 네임스페이스
+                # 에서 같이 사라진다.** 재생성해도 네임스페이스가 이미 있어
+                # 트리거가 안 돌아 자동 복구되지 않는다.
+                #
+                # 새로 웹훅을 가진 네임스페이스가 생기면 **제외 대신 명시적
+                # allow 정책**을 쓴다 — 그쪽이 차단을 통째로 없애지 않고
+                # 필요한 구멍만 낸다
+                # → governance/secops/external-secrets-webhook-ingress.yaml
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -169,8 +178,17 @@ spec:
                 # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
-                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
-                - external-secrets
+                # ⚠️ **이 목록에 이름을 추가할 수 없다.** Kyverno 가 generate
+                # 규칙의 match/exclude 변경을 거부한다 (immutable fields). 정책을
+                # 지우고 다시 만들어야 하는데, `orphanDownstreamOnPolicyDelete`
+                # 가 꺼져 있어 삭제하면 **생성된 NetworkPolicy 가 전 네임스페이스
+                # 에서 같이 사라진다.** 재생성해도 네임스페이스가 이미 있어
+                # 트리거가 안 돌아 자동 복구되지 않는다.
+                #
+                # 새로 웹훅을 가진 네임스페이스가 생기면 **제외 대신 명시적
+                # allow 정책**을 쓴다 — 그쪽이 차단을 통째로 없애지 않고
+                # 필요한 구멍만 낸다
+                # → governance/secops/external-secrets-webhook-ingress.yaml
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -222,8 +240,17 @@ spec:
                 # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
-                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
-                - external-secrets
+                # ⚠️ **이 목록에 이름을 추가할 수 없다.** Kyverno 가 generate
+                # 규칙의 match/exclude 변경을 거부한다 (immutable fields). 정책을
+                # 지우고 다시 만들어야 하는데, `orphanDownstreamOnPolicyDelete`
+                # 가 꺼져 있어 삭제하면 **생성된 NetworkPolicy 가 전 네임스페이스
+                # 에서 같이 사라진다.** 재생성해도 네임스페이스가 이미 있어
+                # 트리거가 안 돌아 자동 복구되지 않는다.
+                #
+                # 새로 웹훅을 가진 네임스페이스가 생기면 **제외 대신 명시적
+                # allow 정책**을 쓴다 — 그쪽이 차단을 통째로 없애지 않고
+                # 필요한 구멍만 낸다
+                # → governance/secops/external-secrets-webhook-ingress.yaml
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -289,8 +316,17 @@ spec:
                 # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
-                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
-                - external-secrets
+                # ⚠️ **이 목록에 이름을 추가할 수 없다.** Kyverno 가 generate
+                # 규칙의 match/exclude 변경을 거부한다 (immutable fields). 정책을
+                # 지우고 다시 만들어야 하는데, `orphanDownstreamOnPolicyDelete`
+                # 가 꺼져 있어 삭제하면 **생성된 NetworkPolicy 가 전 네임스페이스
+                # 에서 같이 사라진다.** 재생성해도 네임스페이스가 이미 있어
+                # 트리거가 안 돌아 자동 복구되지 않는다.
+                #
+                # 새로 웹훅을 가진 네임스페이스가 생기면 **제외 대신 명시적
+                # allow 정책**을 쓴다 — 그쪽이 차단을 통째로 없애지 않고
+                # 필요한 구멍만 낸다
+                # → governance/secops/external-secrets-webhook-ingress.yaml
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -338,8 +374,17 @@ spec:
                 - audio-ingress
                 - istio-cni
                 - ztunnel
-                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
-                - external-secrets
+                # ⚠️ **이 목록에 이름을 추가할 수 없다.** Kyverno 가 generate
+                # 규칙의 match/exclude 변경을 거부한다 (immutable fields). 정책을
+                # 지우고 다시 만들어야 하는데, `orphanDownstreamOnPolicyDelete`
+                # 가 꺼져 있어 삭제하면 **생성된 NetworkPolicy 가 전 네임스페이스
+                # 에서 같이 사라진다.** 재생성해도 네임스페이스가 이미 있어
+                # 트리거가 안 돌아 자동 복구되지 않는다.
+                #
+                # 새로 웹훅을 가진 네임스페이스가 생기면 **제외 대신 명시적
+                # allow 정책**을 쓴다 — 그쪽이 차단을 통째로 없애지 않고
+                # 필요한 구멍만 낸다
+                # → governance/secops/external-secrets-webhook-ingress.yaml
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
