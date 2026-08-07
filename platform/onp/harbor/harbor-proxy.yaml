@@ -18,11 +18,15 @@ data:
         server {
             listen 80;
 
-            # Reverse Proxy 필수 헤더 (CSRF 및 Auth 방지)
+            # Reverse Proxy 필수 기본 헤더
             proxy_set_header Host $http_host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # ✨ 핵심: Docker CLI 로그인용 Authorization 헤더 패스스루 명시
+            proxy_set_header Authorization $http_authorization;
+            proxy_pass_header Authorization;
 
             # UI 요청
             location / {
@@ -33,58 +37,20 @@ data:
             location /api/ {
                 proxy_pass http://harbor-core:8080/api/;
             }
+
+            # ✨ 핵심: Docker CLI 로그인 시 토큰 발급을 담당하는 핵심 엔드포인트
             location /service/ {
                 proxy_pass http://harbor-core:8080/service/;
             }
+
+            # Registry v2 요청 (Core로 전달하여 Token Challenge 처리)
             location /v2/ {
                 proxy_pass http://harbor-core:8080/v2/;
             }
+
+            # 기타 컨트롤러
             location /c/ {
                 proxy_pass http://harbor-core:8080/c/;
             }
         }
     }
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: harbor-proxy
-  namespace: devops
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: harbor-proxy
-  template:
-    metadata:
-      labels:
-        app: harbor-proxy
-    spec:
-      containers:
-        - name: nginx
-          image: nginx:alpine
-          ports:
-            - containerPort: 80
-          volumeMounts:
-            - name: config
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
-      volumes:
-        - name: config
-          configMap:
-            name: harbor-proxy-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: harbor-proxy-nodeport
-  namespace: devops
-spec:
-  type: NodePort
-  selector:
-    app: harbor-proxy
-  ports:
-    - name: http
-      port: 80
-      targetPort: 80
-      nodePort: 31432
