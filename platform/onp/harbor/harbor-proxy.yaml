@@ -36,14 +36,14 @@ data:
                 proxy_pass http://harbor-core:8080/api/;
             }
 
-            # 3. Docker CLI 인증 토큰 발급 (가장 중요)
+            # 3. Docker CLI 인증 토큰 발급 (harbor-core 포워딩)
             location /service/ {
                 proxy_pass http://harbor-core:8080/service/;
             }
 
-            # 4. Registry v2 요청 (Core 인증을 거치도록 포워딩)
+            # 4. Registry v2 요청 (✨ 핵심 수정: harbor-core -> harbor-registry:5000 으로 변경)
             location /v2/ {
-                proxy_pass http://harbor-core:8080/v2/;
+                proxy_pass http://harbor-registry:5000/v2/;
             }
 
             # 5. 기타 컨트롤러
