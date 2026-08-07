@@ -29,7 +29,6 @@ data:
             server harbor-core:8080;
         }
 
-        # ✨ 추가: harbor-registry 백엔드 upstream 정의
         upstream registry {
             server harbor-registry:5000;
         }
@@ -50,7 +49,7 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # 2. 로그인 및 인증 요청 (/c/login 등)
+            # 2. 로그인 및 인증 요청
             location /c/ {
                 proxy_pass http://core;
                 proxy_set_header Host $host;
@@ -59,18 +58,19 @@ data:
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # 3. 인증 서비스 토큰 요청
+            # 3. 인증 서비스 토큰 요청 (docker login 토큰 발급 핵심)
             location /service/ {
                 proxy_pass http://core;
                 proxy_set_header Host $host;
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header Authorization $http_authorization;
             }
 
-            # 4. Registry v2 요청 (✨ harbor-registry로 포워딩 및 Authorization 헤더 인계)
+            # 4. Registry v2 요청 (✨ 중요: registry 대신 core로 보내 토큰 검증 처리)
             location /v2/ {
-                proxy_pass http://registry;
+                proxy_pass http://core;
                 proxy_set_header Host $http_host;
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -82,7 +82,7 @@ data:
                 proxy_buffering off;
             }
 
-            # 5. SPA 정적 라우팅
+            # 5. SPA 정적 라우팅 (웹 UI)
             location / {
                 try_files $uri $uri/ /index.html;
             }
@@ -93,55 +93,3 @@ data:
             }
         }
     }
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: harbor-portal
-  namespace: devops
-spec:
-  ports:
-    - port: 80
-      targetPort: 80
-  selector:
-    app: harbor-portal
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: harbor-portal
-  namespace: devops
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: harbor-portal
-  template:
-    metadata:
-      labels:
-        app: harbor-portal
-    spec:
-      nodeSelector:
-        platform: onp
-        role: devops
-      containers:
-        - name: harbor-portal
-          image: goharbor/harbor-portal:v2.10.0
-          ports:
-            - containerPort: 80
-          volumeMounts:
-            - name: var-run
-              mountPath: /var/run
-            - name: var-cache
-              mountPath: /var/cache/nginx
-            - name: config
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
-      volumes:
-        - name: var-run
-          emptyDir: {}
-        - name: var-cache
-          emptyDir: {}
-        - name: config
-          configMap:
-            name: harbor-portal-config
