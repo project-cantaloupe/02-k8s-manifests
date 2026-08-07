@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aws-compute-optimizer-collector
+  namespace: monitoring
+  labels:
+    app: aws-compute-optimizer-collector
+    area: monitoring
+    category: finops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aws-compute-optimizer-node-reader
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aws-compute-optimizer-node-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aws-compute-optimizer-node-reader
+subjects:
+  - kind: ServiceAccount
+    name: aws-compute-optimizer-collector
+    namespace: monitoring
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: aws-compute-optimizer-collector
+  namespace: monitoring
+  labels:
+    app: aws-compute-optimizer-collector
+    area: monitoring
+    category: finops
+spec:
+  # Compute Optimizer is a daily decision signal, not real-time telemetry.
+  schedule: "30 9 * * *"
+  timeZone: Asia/Seoul
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: aws-compute-optimizer-collector
+            area: monitoring
+            category: finops
+            platform: aws
+            cost-allocation: shared
+        spec:
+          serviceAccountName: aws-compute-optimizer-collector
+          restartPolicy: Never
+          nodeSelector:
+            platform: aws
+            role: service
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: aws-api
+              image: public.ecr.aws/aws-cli/aws-cli:2.31.22
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  aws compute-optimizer get-enrollment-status \
+                    --region "$AWS_REGION" --output json > /work/enrollment.json
+                  aws compute-optimizer get-ec2-instance-recommendations \
+                    --region "$AWS_REGION" --output json > /work/recommendations.json
+                  current_types="$(aws compute-optimizer get-ec2-instance-recommendations \
+                    --region "$AWS_REGION" \
+                    --query 'instanceRecommendations[].currentInstanceType' \
+                    --output text)"
+                  recommended_types="$(aws compute-optimizer get-ec2-instance-recommendations \
+                    --region "$AWS_REGION" \
+                    --query 'instanceRecommendations[].recommendationOptions[?rank==`1`].instanceType' \
+                    --output text)"
+                  instance_types="$(printf '%s %s' "$current_types" "$recommended_types" | tr '\t\r\n' ' ')"
+                  if [ -n "$(printf '%s' "$instance_types" | tr -d ' ')" ] && [ "$instance_types" != "None " ]; then
+                    # shellcheck disable=SC2086
+                    aws ec2 describe-instance-types --region "$AWS_REGION" \
+                      --instance-types $instance_types > /work/instance-types.json
+                  else
+                    printf '{"InstanceTypes":[]}\n' > /work/instance-types.json
+                  fi
+              env:
+                - name: AWS_REGION
+                  value: ap-northeast-2
+                - name: AWS_EC2_METADATA_DISABLED
+                  value: "false"
+                - name: HOME
+                  value: /tmp
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 64Mi
+                limits:
+                  memory: 192Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                readOnlyRootFilesystem: true
+          containers:
+            - name: collector
+              image: python:3.12.11-alpine3.22
+              command: ["python", "/opt/cantaloupe/aws_compute_optimizer_collector.py"]
+              env:
+                - name: PUSHGATEWAY_URL
+                  value: http://cantaloupe-finops-pushgateway.monitoring.svc:9091
+                - name: AWS_COLLECTOR_INPUT_DIR
+                  value: /work
+              volumeMounts:
+                - name: collector
+                  mountPath: /opt/cantaloupe
+                  readOnly: true
+                - name: work
+                  mountPath: /work
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 32Mi
+                limits:
+                  memory: 96Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                readOnlyRootFilesystem: true
+          volumes:
+            - name: collector
+              configMap:
+                name: aws-compute-optimizer-collector
+            - name: work
+              emptyDir: {}
+            - name: tmp
+              emptyDir: {}

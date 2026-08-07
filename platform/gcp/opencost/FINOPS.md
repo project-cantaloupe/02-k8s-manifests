@@ -113,6 +113,20 @@ Custom Role을 사용하며 VM을 변경하거나 추천을 자동 적용하지 
 않는다. 정상 조회 때는 Pushgateway Group을 교체해 GCP에서 사라진 추천이 계속
 남지 않게 한다.
 
+AWS VM 추천도 같은 Pushgateway와 Prometheus 메트릭 계약을 사용한다.
+`aws-compute-optimizer-collector` CronJob은 매일 09:30 KST에 AWS `role=service`
+Node에서 실행하며 IMDSv2로 `cntlp-aws-worker-node` Instance Profile의 단기
+Credential을 사용한다. IAM은 다음 읽기 작업만 허용한다.
+
+- `compute-optimizer:GetEnrollmentStatus`
+- `compute-optimizer:GetEC2InstanceRecommendations`
+- `ec2:DescribeInstanceTypes`
+
+Compute Optimizer의 `OPTIMIZED` 결과는 변경 후보가 아니며, `UNDER_PROVISIONED`는
+비용 절감이 아니라 성능 보호를 위한 증설 후보일 수 있다. 따라서 Provider가 반환한
+월 예상 절감액이 0이면 임의 가격표로 절감액을 만들어내지 않는다. 추천이 아직 없는
+Node도 수집 장애로 취급하지 않는다.
+
 Provider 추천 후보는 OpenCost 가격표와 분리한다. 실제 적용이 승인된 후보만
 공식 가격 Resolver를 거쳐 `pricing-catalog.yaml`로 승격하고, Merge 전에 기존
 Schema·CSV·Checksum·Coverage 검증을 통과해야 한다.

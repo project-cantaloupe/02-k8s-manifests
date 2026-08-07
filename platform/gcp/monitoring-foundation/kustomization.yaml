@@ -7,6 +7,7 @@ resources:
   - finops-recording-rules.yaml
   - onprem-rightsizing-rules.yaml
   - gcp-recommender-collector.yaml
+  - aws-compute-optimizer-collector.yaml
 
 configMapGenerator:
   - name: gcp-recommender-collector
@@ -16,6 +17,16 @@ configMapGenerator:
     options:
       labels:
         app: gcp-recommender-collector
+        area: monitoring
+        category: finops
+
+  - name: aws-compute-optimizer-collector
+    namespace: monitoring
+    files:
+      - aws_compute_optimizer_collector.py
+    options:
+      labels:
+        app: aws-compute-optimizer-collector
         area: monitoring
         category: finops
 
