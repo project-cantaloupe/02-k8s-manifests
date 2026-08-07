@@ -92,53 +92,26 @@ Prometheus에 자연스럽게 축적된 데이터로 최대 7일 P95를 계산�
 Karpenter Node 종료가 발생했을 때만 실현된 것으로 구분한다. 통제된 전후 부하
 실험은 전체 플랫폼이 아니라 Audio Worker 대시보드에서 별도로 수행한다.
 
-## Provider VM Recommendation Cache
+## Provider VM Recommendation 수집
 
-`provider-recommendations.yaml`은 Credential이나 Provider 원본 응답을 저장하지
-않고 대시보드에 필요한 비민감 필드만 정규화한다. GCP/AWS CLI 원본 JSON은 로컬
-임시파일 또는 Keyless CI Workspace에서만 다루고 Git에 커밋하지 않는다.
+GCP VM 추천은 Git Snapshot이나 수동 입력값으로 관리하지 않는다. monitoring
+네임스페이스의 `gcp-recommender-collector` CronJob이 매일 09:15 KST에 Kubernetes Node의
+`spec.providerID`에서 GCP Project·Zone·Instance를 발견하고, Compute Engine
+Machine Type Recommender API를 조회한다.
 
-추천이 없는 VM은 정상 상태일 수 있으므로 VM별 `추천 없음` 또는 개별 추천의
-나이에 대한 Alert는 만들지 않는다. 자동 수집 파이프라인을 운영하게 되면 개별
-VM이 아니라 마지막 수집 작업의 성공 여부만 별도로 감시한다.
+수집 결과는 Pushgateway를 통해 Prometheus 시계열로 저장하며 현재·권장 Machine
+Type, vCPU, Memory, GCP가 계산한 월 예상 절감액, 추천 상태·우선순위·마지막 갱신
+시각을 제공한다. Git에는 추천 결과나 Provider Credential을 저장하지 않는다.
 
-```bash
-# GCP: Workload Identity Federation 또는 사용자 gcloud 인증으로 Snapshot 조회
-gcloud recommender recommendations list \
-  --recommender=google.compute.instance.MachineTypeRecommender \
-  --project="$GCP_PROJECT_ID" \
-  --location="$GCP_ZONE" \
-  --format=json > /tmp/gcp-recommendations.json
+장기 Service Account Key는 사용하지 않는다. CronJob은 `platform=gcp`,
+`role=monitoring` Node에 배치되고 해당 Compute Engine VM의 Metadata Service에서
+단기 Access Token을 발급받는다. GCP IAM은 Machine Type 추천 목록 조회만 허용한
+Custom Role을 사용하며 VM을 변경하거나 추천을 자동 적용하지 않는다.
 
-# AWS: Compute Optimizer가 Active여도 분석 중이면 빈 목록이 정상이다.
-aws compute-optimizer get-ec2-instance-recommendations \
-  --region "$AWS_REGION" > /tmp/aws-recommendations.json
-
-# 비민감 공통 Cache로 정규화
-python platform/gcp/opencost/sync_provider_recommendations.py \
-  --gcp-json /tmp/gcp-recommendations.json \
-  --aws-json /tmp/aws-recommendations.json \
-  --aws-status analyzing
-
-# Grafana가 조회할 Recording Rule 생성
-python platform/gcp/opencost/generate_provider_recommendations.py
-python platform/gcp/opencost/generate_provider_recommendations.py --check
-```
-
-운영 자동화는 `.github/workflows/sync-provider-recommendations.yaml`이 매일
-GCP WIF와 AWS GitHub OIDC 단기 Token으로 Provider API를 조회하고, 비민감 Cache와
-PrometheusRule이 달라진 경우에만 커밋한다. 다음 GitHub Actions Repository Variable이
-필요하다.
-
-- `GCP_PROJECT_ID`, `GCP_ZONE`
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`
-- `AWS_ROLE_ARN`, `AWS_REGION`
-
-워크플로는 `workflow_dispatch`도 지원하므로 최초 권한 검증 때 수동으로 한 번 실행한
-뒤, 성공하면 일 단위 Schedule에 맡긴다. 장기 GCP Service Account Key나 AWS Access
-Key는 Kubernetes/GitHub Secret에 넣지 않는다. AWS 분석 결과가 없으면
-`analyzing`, 추천이 없으면
-`no-active-recommendation` 상태를 유지하며 예상 절감 총액에 포함하지 않는다.
+추천이 없는 VM은 정상일 수 있다. `no_active_recommendation`과 API 수집 실패인
+`collection_error`를 구분하며, 일시적 API 실패 때는 마지막 정상 추천을 삭제하지
+않는다. 정상 조회 때는 Pushgateway Group을 교체해 GCP에서 사라진 추천이 계속
+남지 않게 한다.
 
 Provider 추천 후보는 OpenCost 가격표와 분리한다. 실제 적용이 승인된 후보만
 공식 가격 Resolver를 거쳐 `pricing-catalog.yaml`로 승격하고, Merge 전에 기존

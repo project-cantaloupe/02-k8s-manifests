@@ -138,9 +138,9 @@ metadata:
     area: monitoring
     category: finops
 spec:
-  # GCP refreshes recommendations periodically; four checks per day also
-  # repopulate the ephemeral Pushgateway soon after a restart.
-  schedule: "15 */6 * * *"
+  # VM right-sizing is a daily decision signal, not real-time telemetry.
+  # Run once at 09:15 KST; operators can create a one-off Job when needed.
+  schedule: "15 9 * * *"
   timeZone: Asia/Seoul
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 1800
