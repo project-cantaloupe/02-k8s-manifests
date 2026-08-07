@@ -46,14 +46,14 @@ data:
         Match   kube.*
         Record  collector_node ${NODE_NAME}
 
-    # Collect every workload namespace in the platform index. kube-system is
-    # the only deliberately excluded namespace; Calico is retained below for
+    # Collect every workload namespace in the platform index. kube-system and
+    # default are deliberately excluded; Calico is retained below for
     # warning/error network events. Audio app
     # JSON logs will later move to their own, longer-retained index.
     [FILTER]
         Name   grep
         Match  kube.*
-        Exclude $kubernetes['namespace_name'] ^kube-system$
+        Exclude $kubernetes['namespace_name'] ^(kube-system|default)$
 
     # Harbor Portal emits NGINX access logs to stdout. Parse only matching
     # lines; all other records retain their original `log` field unchanged.
