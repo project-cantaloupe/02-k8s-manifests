@@ -33,21 +33,17 @@ spec:
               value: "8080"
             - name: CONFIG_PATH
               value: "/etc/harbor/core/app.conf"
-            # ✨ [핵심 해결 1] Registry - Core 연동 통신 주소
             - name: REGISTRY_URL
               value: "http://harbor-registry:5000"
-            # ✨ [핵심 해결 2] Registry 알림 인증용 Secret (registry-config.yaml의 secret과 일치)
             - name: CORE_SECRET
               value: "HARBOR_REGISTRY_SECRET_123456"
             - name: JOBSERVICE_SECRET
               value: "HARBOR_REGISTRY_SECRET_123456"
             - name: CSRF_KEY
               value: "12345678901234567890123456789012"
-              # ✨ [핵심 추가] 내부 알림 수신 URL 고정
+            # ✨ [핵심 추가] 내부 알림 URL 경로 매핑 허용
             - name: CORE_URL
               value: "http://harbor-core:8080"
-            - name: EXT_ENDPOINT
-              value: "http://cntlp-onp-wk-01.tail270b85.ts.net:31432"
           ports:
             - containerPort: 8080
               name: http
