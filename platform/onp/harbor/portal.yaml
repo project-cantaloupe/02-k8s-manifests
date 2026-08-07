@@ -40,38 +40,43 @@ data:
             root /usr/share/nginx/html;
             index index.html;
 
-            # Reverse Proxy 필수 기본 헤더
+            # Reverse Proxy 필수 헤더 및 Authorization 패스스루
             proxy_set_header Host $http_host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Port 31432;
             proxy_set_header Authorization $http_authorization;
             proxy_pass_header Authorization;
 
-            # 1. API 요청
+            # 1. Harbor API 요청
             location /api/ {
-                proxy_pass http://core;
+                proxy_pass http://core/api/;
             }
 
             # 2. 로그인 및 인증 요청
             location /c/ {
-                proxy_pass http://core;
+                proxy_pass http://core/c/;
             }
 
-            # 3. 인증 서비스 토큰 요청
+            # 3. Docker CLI 토큰 발급 (가장 중요)
             location /service/ {
-                proxy_pass http://core;
+                proxy_pass http://core/service/;
             }
 
-            # 4. Registry v2 요청 (✨ 핵심: registry -> core 로 연결하여 DB 이벤트 처리)
+            # 4. Registry v2 요청 (harbor-registry 로 전송하여 401 토큰 챌린지 정상 처리)
             location /v2/ {
-                proxy_pass http://core;
+                proxy_pass http://registry/v2/;
                 client_max_body_size 0;
                 proxy_request_buffering off;
                 proxy_buffering off;
+                
+                # Docker Registry API v2 표준 헤더 추가
+                proxy_hide_header Header-Name;
+                add_header Docker-Distribution-Api-Version "registry/2.0" always;
             }
 
-            # 5. SPA 정적 라우팅 (웹 UI)
+            # 5. Harbor UI 웹 페이지
             location / {
                 try_files $uri $uri/ /index.html;
             }
@@ -89,14 +94,14 @@ metadata:
   name: harbor-portal
   namespace: devops
 spec:
-  type: NodePort             # ✨ ClusterIP -> NodePort 변경
+  type: NodePort
   selector:
     app: harbor-portal
   ports:
     - name: http
       port: 80
       targetPort: 80
-      nodePort: 31432        # ✨ 31432 포트 외부 개방
+      nodePort: 31432
 ---
 apiVersion: apps/v1
 kind: Deployment
