@@ -49,6 +49,29 @@ kind: Application
 metadata:
   name: kyverno
   namespace: devops
+  annotations:
+    # ⚠️ **맨 아래 ServerSideApply=true 와 한 쌍이다.**
+    # 기준선이 사라지는 원리는 applications/governance-policies.yaml 에 적었다.
+    # 여기서 상쇄하려는 것은 CRD 스키마 기본값이 아니라 **차트가 렌더링하는
+    # 빈 맵**이다.
+    #
+    # `kyverno-api` 서브차트가 CRD 11 개를 이렇게 낸다 (chart 3.8.2 확인).
+    #
+    #     metadata:
+    #       labels:
+    #         {}        ← values 에 customLabels 가 없으면 빈 맵이 남는다
+    #       annotations:
+    #         {}
+    #
+    # **이건 sync 로 못 고친다.** SSA 로 `{}` 를 보내면 API 서버는 설정할 키가
+    # 없다고 보고 아무것도 안 남긴다 → 다음 비교에서 또 `{}` vs 없음 → 영구
+    # OutOfSync. 실제로 2026-08-07 기준 `policies.kyverno.io` 그룹 11 개가
+    # 전부 여기에 걸려 있었고, 다른 필드 차이는 하나도 없었다.
+    #
+    # 같은 차트라도 `crds` 서브차트에서 오는 CRD(clusterpolicies 등)는 Helm
+    # 라벨이 붙어서 멀쩡하다. 라벨 유무가 정확히 서브차트 경계로 갈린다
+    # → decisions/20260807_argocd-server-side-diff.md
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: default
   source:

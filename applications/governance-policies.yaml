@@ -20,6 +20,28 @@ metadata:
   namespace: devops
   annotations:
     argocd.argoproj.io/sync-wave: "10"
+    # ⚠️ **아래 ServerSideApply=true 와 한 쌍이다. 하나만 켜면 영구 OutOfSync 다.**
+    #
+    # SSA 는 `kubectl.kubernetes.io/last-applied-configuration` 을 남기지 않는다.
+    # 그 어노테이션이 ArgoCD 3-way merge 의 기준선이라, 없으면 "git 원본 vs
+    # 살아있는 객체 전체"를 맞대는 2-way 비교로 떨어진다. 그러면 **CRD 스키마의
+    # `default:` 로 API 서버가 채운 필드가 전부 드리프트로 보인다.**
+    #
+    # 2026-08-07 실측으로 ClusterPolicy 5개가 이 여섯을 기본값으로 받는다.
+    #
+    #     spec.admission = true
+    #     spec.emitWarning = false
+    #     spec.validationFailureAction = "Audit"     ← generate 정책만
+    #     spec.rules[*].skipBackgroundRequests = true
+    #     spec.rules[*].validate.allowExistingViolations = true
+    #
+    # ServerSideDiff 는 API 서버에 SSA dry-run 을 던져 "적용하면 어떻게 될지"를
+    # 받고 그 예측값과 비교한다. 기본값이 양쪽에 똑같이 나타나 상쇄된다.
+    #
+    # `ignoreDifferences` 로 위 목록을 나열하는 길도 있으나 쓰지 않는다.
+    # Kyverno 가 기본값을 하나 늘릴 때마다 깨지는 블랙리스트다
+    # → decisions/20260807_argocd-server-side-diff.md
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: default
   source:
