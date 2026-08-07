@@ -6,9 +6,9 @@ resources:
   - deployment-events.yaml
   - service.yaml
 
-# Jenkinsfile이 `kustomize edit set image audio-api=<registry>/audio-api:<tag>`로
+# 03-app-audio의 GitHub Actions가 Harbor에 이미지를 푸시한 뒤 커밋 SHA 태그로
 # 갱신한다. audio-api와 audio-events가 같은 Image를 쓰므로 항목은 하나다.
 images:
   - name: audio-api
-    newName: ghcr.io/project-cantaloupe/audio-api
-    newTag: dev
+    newName: cntlp-onp-wk-01.tail270b85.ts.net/library/app-audio-api
+    newTag: b7ffcfc3399b742dc7e7f534f064061762d6bf6a
