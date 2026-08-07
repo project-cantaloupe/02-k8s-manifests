@@ -102,3 +102,4 @@ Admission** 이 `governance/namespaces/` 의 네임스페이스 라벨로 걸고
 
 클라우드 태그·IAM·보안그룹은 이 저장소가 아니라
 [`01-infra-provisioning`](../01-infra-provisioning/)에서 관리한다.
+1
