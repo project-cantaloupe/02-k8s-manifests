@@ -1,57 +1,113 @@
-# Workload Right-sizing Methodology
+# Cantaloupe Observed Right-sizing Advisor
 
-## 책임 분리
+## 목적과 책임 분리
 
-- **Prometheus Recording Rules**: 관측값과 검토 후보를 한 곳에서 계산한다.
-- **OpenCost**: 노드 단가를 Kubernetes Request에 배분하고 후보 적용 시의 비용 기회를 환산한다.
-- **Grafana**: 이미 계산된 값을 조회·비교한다. 패널 내부에 정책 계산식을 복제하지 않는다.
-- **운영자**: 후보를 검토하고 YAML을 변경한 뒤 성능, 오류율, OOM, Pending 상태를 재검증한다.
+- **Prometheus**: 사용량을 관측하고 모든 후보·안전 신호를 Recording Rule로 계산한다.
+- **OpenCost**: Node 단가를 CPU/Memory Request에 배분하고 후보 변경의 비용 영향을 환산한다.
+- **Grafana**: 계산 결과와 근거를 표시한다. 정책 계산식을 패널마다 복제하지 않는다.
+- **운영자**: 후보를 검토하고 Git의 Request를 변경한 뒤 안정성과 비용을 재검증한다.
 
-OpenCost는 비용 배분 도구이며 CPU/Memory Request 권장 엔진이 아니다. 따라서 OpenCost의 비용 결과를 사용하되 후보 Request 자체는 별도 정책으로 산출한다.
+VPA, Metrics Server, Mutating Webhook은 설치하지 않는다. 이 Advisor는 Pod를 변경하거나 재시작하지 않으며 결과를 `권장값`이 아닌 **관측 기반 검토 후보**로 표기한다.
 
-## Request 검토 후보
+## 데이터 범위와 신뢰도
 
-현재 구현은 Kubernetes VPA 1.7.1 Recommender 기본값에 맞춘 **근사 검토 후보**다.
+현재 Prometheus 보존기간은 7일이므로 최대 7일의 5분 샘플을 사용한다.
 
-| 항목 | 기준 |
-| --- | --- |
-| 관측 창 | 최근 7일, 5분 샘플 |
-| CPU 후보 | P90 × 1.15, 최소 25m, 1m 단위 올림 |
-| Memory 후보 | P90 × 1.15, 최소 250MiB, 1MiB 단위 올림 |
-| 화면 비교값 | Actual P95 |
-| 검토 시작 조건 | 24시간 이상 관측, 최근 7일 OOM 신호 없음 |
-| 자동 적용 | 사용하지 않음 |
+| 코드 | 관측시간 | 표시 | 사용 범위 |
+| ---: | ---: | --- | --- |
+| 0 | 1시간 미만 | 수집 중 | 후보 판단 금지 |
+| 1 | 1~24시간 | 초기 후보 | 시연·기능 검증 |
+| 2 | 24~120시간 | 검토 후보 | 담당자 검토 |
+| 3 | 120시간 이상 | 현재 운영 기준 | 변경 실험 검토 |
 
-P90은 후보 산정 기준이고 P95는 운영자가 여유를 확인하기 위한 비교값이다. 이 구현은 VPA의 decaying histogram, confidence bounds 및 memory OOM estimator 전체를 재현하지 않으므로 `권장값`이 아니라 `검토 후보`로 표기한다. 운영 자동화가 필요해지면 VPA Recommender를 `updateMode: Off`로 도입하고 `target/lowerBound/upperBound`를 원본 권고로 사용한다.
+GKE의 장기 분석 사례처럼 14일 기준을 사용하려면 Prometheus 보존기간과 PVC 용량을 먼저 확대해야 한다. 현재의 7일 결과를 14일 운영 기준과 동일하다고 주장하지 않는다.
 
-## Memory Limit
+## CPU Request 후보
 
-Memory Limit은 스케줄러의 예약량이나 OpenCost Request 비용이 아니라 OOMKill 경계다. 따라서 높은 Limit을 비용 낭비로 분류하거나 임의의 권장 Limit으로 낮추지 않는다.
+일반 Workload의 컨테이너 템플릿별 후보는 다음과 같다.
+
+```text
+CPU 후보 = ceil_10m(CPU Actual P95 / 0.70)
+```
+
+- P95는 일상 Peak를 대부분 포함한다.
+- 목표 사용률 70%는 약 30%의 Burst 여유를 둔다.
+- 최소 10m, 10m 단위로 올림한다.
+- CPU Limit은 비용 계산에 포함하지 않으며 자동 추천하지 않는다.
+- CPU throttling ratio가 10% 이상이면 축소 비용 기회를 출력하지 않는다.
+
+## Memory Request 후보
+
+Memory는 비압축 자원이므로 P95가 아니라 관측 최대 Working Set을 사용한다.
+
+```text
+Memory 후보 = ceil_16Mi(Max Working Set / 0.80)
+```
+
+- 목표 사용률 80%로 관측 최대값 위에 25% 용량 여유를 둔다.
+- 최소 16Mi, 16Mi 단위로 올림한다.
+- 최근 7일 OOMKilled가 있으면 축소 비용 기회를 출력하지 않는다.
+- JVM Heap, Cache, 배치 Peak 등 제품 고유 정책은 이 후보보다 우선한다.
+
+P95와 P99도 함께 노출해 Max가 일회성 Spike인지 운영자가 판단할 수 있게 한다.
+
+## Memory Limit 안전성
+
+Memory Limit은 스케줄러 예약량이나 OpenCost 비용이 아니라 OOMKill 경계다. 따라서 높은 Limit을 비용 낭비로 분류하지 않는다.
 
 상태 우선순위는 다음과 같다.
 
-1. 최근 7일 OOM 신호
+1. 최근 7일 OOMKilled
 2. Memory Limit 미설정
-3. 현재 Limit이 관측 Actual P99 이하
-4. 관측 위반 없음
+3. Actual P99가 현재 Limit의 80% 이상
+4. 관측상 압력 없음
 
-`관측 위반 없음`은 미래 안전 보장이 아니다. 트래픽 피크, 메모리 누수, JVM/런타임 특성 및 팀 정책을 함께 검토해야 한다.
+중요·Stateful Workload는 제품 정책에 따라 `Request=Limit`을 검토할 수 있지만 Advisor가 자동으로 결정하지 않는다.
+
+## 자동 축소 비용 기회 차단 조건
+
+후보값 자체는 비교를 위해 표시하되 다음 조건에서는 월 배분 개선액을 출력하지 않는다.
+
+- 관측시간 24시간 미만
+- 최근 7일 OOMKilled
+- CPU throttling ratio 10% 이상
+- HPA가 해당 Workload를 대상으로 사용 중
+- 원본 Request 또는 사용량 메트릭 누락
+- DaemonSet 및 static Pod
+
+StatefulSet과 플랫폼 구성요소는 값이 보여도 제품별 운영 지침과 담당자 승인을 우선한다. 후보는 자동 적용되지 않는다.
 
 ## 비용 기회의 의미
 
-후보 비용은 현재 OpenCost Request 배분비용에 `후보 Request / 현재 Request` 비율을 적용한다. 월 비용은 시간당 값을 730시간으로 환산한다.
+```text
+후보 Request 비용 = 현재 Request 비용 × 후보 Request / 현재 Request
+월 배분 개선액 = 730 × max(현재 Request 비용 - 후보 Request 비용, 0)
+```
 
-이 값은 **Kubernetes 내부 배분비용 회수 가능성**이다. 고정 크기 VM에서는 Request를 줄여도 클라우드 청구액이 즉시 줄지 않는다. 실제 청구 절감은 이후 노드 축소, VM 사양 변경 또는 Karpenter consolidation으로 유휴 용량이 제거될 때 실현된다.
+CPU와 Memory는 독립적으로 계산한다. 한쪽의 과다 Request가 다른 쪽의 부족을 상쇄하지 않는다.
 
-## 변경 승인 절차
+월 배분 개선액은 Kubernetes 내부에서 회수할 수 있는 예약 용량의 비용 가치다. 고정 VM에서는 총 Node 비용이 즉시 감소하지 않는다.
 
-1. 7일 관측을 우선 사용하고, 24시간 후보는 시연·초기 검토로만 취급한다.
-2. 최근 배포, 배치 작업, 계절성 트래픽과 OOM 이력을 확인한다.
-3. Deployment/StatefulSet의 컨테이너 Request를 작은 단계로 변경한다.
-4. 재배포 후 Pending, throttling, P95 latency, 오류율, OOM을 관찰한다.
-5. 안정성이 유지되고 노드 용량이 실제로 축소됐을 때만 청구 절감으로 보고한다.
+```text
+Request 조정
+→ Workload 배분비용 감소
+→ Node Idle 증가
+→ Node 축소·종료 또는 Karpenter consolidation
+→ 실제 청구비 감소
+```
 
-## 기준 출처
+## 변경 검증 절차
 
-- Kubernetes Autoscaler VPA 1.7.1 recommender defaults: `pkg/recommender/config/config.go`
-- OpenCost allocation metrics and node pricing
+1. 후보, 관측시간, OOM, throttling, HPA 여부를 확인한다.
+2. 최근 배포·배치·계절성 트래픽과 제품 고유 지표를 확인한다.
+3. Git에서 한 Workload의 Request만 작은 단계로 변경한다.
+4. 동일 부하 또는 대표 업무 구간을 재현한다.
+5. Pending, latency, 처리시간, 실패율, OOM, throttling을 비교한다.
+6. 안정성이 유지되고 Node가 실제 축소됐을 때만 청구 절감으로 기록한다.
+
+## 근거
+
+- AWS Compute Optimizer: P90, P95, P99.5 기반 CPU utilization threshold 제공
+- GKE Workload Right-sizing at scale: CPU 목표 사용률과 Memory 최대 사용량/80% 방식 제시
+- AWS EKS Best Practices: Request를 실제 사용량에 맞추고 CPU Limit은 throttling 위험을 고려
+- OpenCost: Node 비용, Request/Usage 배분, Idle 및 PV 비용 모델
