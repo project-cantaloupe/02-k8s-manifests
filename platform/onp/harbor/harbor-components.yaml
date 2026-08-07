@@ -17,27 +17,33 @@ spec:
         - name: harbor-core
           image: goharbor/harbor-core:v2.10.0
           env:
-            # 1. K8s 자동 주입 변수 덮어쓰기 (숫자 포트 명시)
             - name: POSTGRESQL_HOST
               value: "postgresql"
             - name: POSTGRESQL_PORT
               value: "5432"
-            
-            # 2. Redis 캐시 설정 (memory -> redis 변경)
             - name: CACHE_TYPE
               value: "redis"
             - name: REDIS_URL
               value: "redis://harbor-redis:6379/0"
-              
             - name: PORT
               value: "8080"
+            - name: CONFIG_PATH             # <-- ConfigMap 파일 경로 명시
+              value: "/etc/harbor/core/app.conf"
           ports:
             - containerPort: 8080
               name: http
           volumeMounts:
             - name: harbor-data
               mountPath: /storage
+            # ✨ [추가] ConfigMap 마운트
+            - name: config
+              mountPath: /etc/harbor/core/app.conf
+              subPath: app.conf
       volumes:
         - name: harbor-data
           persistentVolumeClaim:
             claimName: harbor-data-pvc
+        # ✨ [추가] harbor-core-config 볼륨 정의
+        - name: config
+          configMap:
+            name: harbor-core-config
