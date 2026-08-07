@@ -24,7 +24,10 @@ spec:
                 http:
                   port: 80
                   nodePort: 32432
-          externalURL: http://cntlp-onp-wk-01.tail270b85.ts.net:32432
+          # TLS is terminated by Tailscale Serve on the on-prem node. Harbor
+          # must advertise the public HTTPS URL so Docker follows an HTTPS
+          # token realm instead of the internal HTTP NodePort.
+          externalURL: https://cntlp-onp-wk-01.tail270b85.ts.net
           existingSecretAdminPassword: harbor-v2-admin
           existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
           existingSecretSecretKey: harbor-v2-secret-key
