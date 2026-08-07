@@ -35,3 +35,13 @@ data:
     redis:
       addr: harbor-redis:6379
       db: 1
+
+    # ✨ [핵심 추가] Harbor Registry가 Core에 Push 상태를 알리는 Notification 설정
+    notifications:
+      endpoints:
+        - name: harbor
+          disabled: false
+          url: http://harbor-core:8080/service/notifications
+          timeout: 3000ms
+          threshold: 5
+          backoff: 1s
