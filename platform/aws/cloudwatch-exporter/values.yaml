@@ -2,7 +2,6 @@ replicaCount: 1
 
 pod:
   labels:
-    app: cloudwatch-exporter
     area: monitoring
     platform: aws
     cost-allocation: shared
