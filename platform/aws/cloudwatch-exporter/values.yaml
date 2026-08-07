@@ -43,7 +43,9 @@ containerSecurityContext:
 serviceMonitor:
   enabled: true
   namespace: monitoring
-  interval: 5m
+  # S3 storage metrics are published once per day. Scraping more frequently
+  # only repeats paid CloudWatch API requests without producing new data.
+  interval: 24h
   timeout: 60s
   labels:
     release: monitoring
@@ -55,17 +57,6 @@ config: |-
   region: ap-northeast-2
   list_metrics_cache_ttl: 3600
   metrics:
-    # Immediate end-to-end validation signal. EC2 publishes this before the
-    # first daily S3 storage datapoint exists.
-    - aws_namespace: AWS/EC2
-      aws_metric_name: CPUUtilization
-      aws_dimensions: [InstanceId]
-      aws_statistics: [Average]
-      period_seconds: 300
-      range_seconds: 1800
-      delay_seconds: 600
-      set_timestamp: false
-
     # S3 storage metrics are published by AWS once per day. Explicit dimension
     # selections avoid discovery calls and begin returning samples as soon as
     # AWS publishes the first datapoint.
