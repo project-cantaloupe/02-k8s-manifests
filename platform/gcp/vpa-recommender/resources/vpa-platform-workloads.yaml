@@ -329,6 +329,31 @@ spec:
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
+  name: harbor-nginx-recommendation
+  namespace: harbor-system
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: harbor-v2-nginx
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
   name: harbor-registry-recommendation
   namespace: harbor-system
   labels:
@@ -416,56 +441,6 @@ spec:
     apiVersion: apps/v1
     kind: StatefulSet
     name: argocd-application-controller
-  updatePolicy:
-    updateMode: "Off"
-  resourcePolicy:
-    containerPolicies:
-      - containerName: "*"
-        controlledResources: [cpu, memory]
-        controlledValues: RequestsOnly
-        minAllowed: {cpu: 25m, memory: 64Mi}
-        maxAllowed: {cpu: "8", memory: 16Gi}
----
-apiVersion: autoscaling.k8s.io/v1
-kind: VerticalPodAutoscaler
-metadata:
-  name: prometheus-recommendation
-  namespace: monitoring
-  labels:
-    cantaloupe.io/rightsizing-class: stateful_manual
-    cantaloupe.io/review-policy: manual-only
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  targetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
-    name: prometheus-monitoring-prometheus
-  updatePolicy:
-    updateMode: "Off"
-  resourcePolicy:
-    containerPolicies:
-      - containerName: "*"
-        controlledResources: [cpu, memory]
-        controlledValues: RequestsOnly
-        minAllowed: {cpu: 25m, memory: 64Mi}
-        maxAllowed: {cpu: "8", memory: 16Gi}
----
-apiVersion: autoscaling.k8s.io/v1
-kind: VerticalPodAutoscaler
-metadata:
-  name: alertmanager-recommendation
-  namespace: monitoring
-  labels:
-    cantaloupe.io/rightsizing-class: stateful_manual
-    cantaloupe.io/review-policy: manual-only
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  targetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
-    name: alertmanager-monitoring-alertmanager
   updatePolicy:
     updateMode: "Off"
   resourcePolicy:
