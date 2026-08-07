@@ -161,8 +161,10 @@ spec:
           command: [sh, -ec]
           args:
             - |
-              chown -R 10000:10000 /storage/registry /storage/jobservice
-              chown -R 999:999 /storage/database /storage/redis
+              # Only the volume roots need initialization. Recursing through a
+              # live database/registry can race with files created by Harbor.
+              chown 10000:10000 /storage/registry /storage/jobservice
+              chown 999:999 /storage/database /storage/redis
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
