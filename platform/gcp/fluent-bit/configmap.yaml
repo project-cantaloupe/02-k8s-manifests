@@ -46,12 +46,13 @@ data:
         Match   kube.*
         Record  collector_node ${NODE_NAME}
 
-    # Keep only the operational namespaces in the platform index. Audio app
-    # JSON logs will be added later as a separate, longer-retained index.
-    [FILTER]
-        Name   grep
-        Match  kube.*
-        Regex  $kubernetes['namespace_name'] ^(logging|devops|istio-system|monitoring)$
+   # Collect every workload namespace in the platform index, except the
+   # deliberately excluded Kubernetes core and Calico namespaces. Audio app
+   # JSON logs will later move to their own, longer-retained index.
+   [FILTER]
+       Name   grep
+       Match  kube.*
+       Exclude $kubernetes['namespace_name'] ^(kube-system|calico-system)$
 
     # Harbor Portal emits NGINX access logs to stdout. Parse only matching
     # lines; all other records retain their original `log` field unchanged.
