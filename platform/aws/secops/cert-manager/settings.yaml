@@ -9,7 +9,11 @@ metadata:
   name: cert-manager-settings
   namespace: cert-manager
 data:
-  # ACME 등록 주소. 만료 임박 알림이 여기로 온다. 개인 주소보다 팀 별칭.
-  acmeEmail: REPLACE_WITH_TEAM_EMAIL
-  # echoprism.cloud 의 Route 53 호스팅 존 ID.
-  route53ZoneID: REPLACE_WITH_HOSTED_ZONE_ID
+  # ACME 등록 주소. 만료 임박 알림이 여기로 온다.
+  # 팀 별칭(admin@echoprism.cloud 등)이 생기면 이 값을 바꾼다 — 바꾸는 비용은
+  # ClusterIssuer 재동기화 한 번이라 작다. 발행자 URL 과 달리 박히지 않는다.
+  acmeEmail: aggj153@gmail.com
+  # echoprism.cloud 의 Route 53 호스팅 존 ID (public zone, 2026-08-06 확인).
+  # 인라인 IAM 정책 `cntlp-aws-cert-manager-node` 가 이 존 하나로 좁혀져 있어
+  # 값을 바꾸면 정책도 같이 바꿔야 한다.
+  route53ZoneID: Z06068852958FIGZLVHZO
