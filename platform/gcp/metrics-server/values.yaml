@@ -28,3 +28,15 @@ securityContext:
 
 serviceMonitor:
   enabled: false
+
+# API aggregation 구간도 검증한다. cert-manager가 namespace-local self-signed
+# issuer로 serving certificate를 만들고 cainjector가 APIService caBundle을 채운다.
+apiService:
+  insecureSkipTLSVerify: false
+
+tls:
+  type: cert-manager
+  certManager:
+    addInjectorAnnotations: true
+    existingIssuer:
+      enabled: false
