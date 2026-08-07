@@ -13,7 +13,7 @@ spec:
     metadata:
       annotations:
         fluentbit.io/exclude: "true"
-      checksum/fluent-bit-config: "namespace-scope-v1"
+      checksum/fluent-bit-config: "namespace-scope-v2"
       labels:
         app: fluent-bit
         area: logging

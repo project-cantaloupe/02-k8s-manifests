@@ -46,13 +46,14 @@ data:
         Match   kube.*
         Record  collector_node ${NODE_NAME}
 
-   # Collect every workload namespace in the platform index, except the
-   # deliberately excluded Kubernetes core and Calico namespaces. Audio app
+   # Collect every workload namespace in the platform index. kube-system is
+   # the only deliberately excluded namespace; Calico is retained below for
+   # warning/error network events. Audio app
    # JSON logs will later move to their own, longer-retained index.
    [FILTER]
        Name   grep
        Match  kube.*
-       Exclude $kubernetes['namespace_name'] ^(kube-system|calico-system)$
+       Exclude $kubernetes['namespace_name'] ^kube-system$
 
     # Harbor Portal emits NGINX access logs to stdout. Parse only matching
     # lines; all other records retain their original `log` field unchanged.
@@ -147,6 +148,7 @@ data:
       -- logs do not, so derive a consistent severity from their HTTP status.
       -- Keep 4xx as warning because many client errors (for example 401/404)
       -- are not platform failures; 5xx is a server-side error.
+      normalized["message"] = record["msg"] or record["message"] or record["log"] or ""
       local http_status = tonumber(record["http_status"])
       if http_status ~= nil then
         normalized["http_status_class"] = tostring(math.floor(http_status / 100)) .. "xx"
@@ -158,9 +160,30 @@ data:
           normalized["level"] = "info"
         end
       else
-        normalized["level"] = string.lower(record["level"] or "unknown")
+        local declared_level = string.lower(record["level"] or "")
+        local message_lower = string.lower(normalized["message"])
+        if declared_level ~= "" then
+          normalized["level"] = declared_level
+        elseif string.find(message_lower, "error", 1, true)
+          or string.find(message_lower, "fatal", 1, true)
+          or string.find(message_lower, "exception", 1, true)
+          or string.find(message_lower, "failed", 1, true) then
+          normalized["level"] = "error"
+        elseif string.find(message_lower, "warn", 1, true) then
+          normalized["level"] = "warning"
+        else
+          normalized["level"] = "unknown"
+        end
       end
-      normalized["message"] = record["msg"] or record["message"] or record["log"] or ""
+
+      -- Calico CNI is needed for network incident diagnosis, but its normal
+      -- connection/status traffic is too high-volume to retain. Keep only
+      -- classified warning/error records from calico-system.
+      if normalized["namespace"] == "calico-system"
+        and normalized["level"] ~= "warning"
+        and normalized["level"] ~= "error" then
+        return -1, timestamp, record
+      end
 
       -- Avoid storing high-cardinality image digests as a separate parsed
       -- field. The original request line remains available in `log`.
