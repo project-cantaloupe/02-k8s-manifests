@@ -51,7 +51,7 @@ data:
     [FILTER]
         Name   grep
         Match  kube.*
-        Regex  $kubernetes['namespace_name'] ^(logging|devops|istio-system)$
+        Regex  $kubernetes['namespace_name'] ^(logging|devops|istio-system|monitoring)$
 
     # Harbor Portal emits NGINX access logs to stdout. Parse only matching
     # lines; all other records retain their original `log` field unchanged.
@@ -76,7 +76,7 @@ data:
         Match               kube.*
         Host                opensearch-cluster-master.logging.svc.cluster.local
         Port                9200
-        Index               cantaloupe-platform-logs
+        Index               cantaloupe-platform-logs-v2
         Suppress_Type_Name  On
         Generate_ID         On
         Retry_Limit         False
@@ -134,25 +134,24 @@ data:
       local namespace_metadata = record["kubernetes_namespace"] or {}
       local namespace_labels = namespace_metadata["labels"] or {}
 
-      record["namespace"] = kubernetes["namespace_name"] or "unknown"
-      record["area"] = pod_labels["area"] or namespace_labels["area"] or "unknown"
-      record["app"] = pod_labels["app"] or pod_labels["app.kubernetes.io/name"] or kubernetes["container_name"] or "unknown"
-      record["collector_platform"] = get_collector_platform()
-      record["pod"] = kubernetes["pod_name"] or "unknown"
-      record["container"] = kubernetes["container_name"] or "unknown"
-      record["message"] = record["msg"] or record["message"] or record["log"] or ""
+      local normalized = {}
+      normalized["namespace"] = kubernetes["namespace_name"] or "unknown"
+      normalized["area"] = pod_labels["area"] or namespace_labels["area"] or "unknown"
+      normalized["app"] = pod_labels["app"] or pod_labels["app.kubernetes.io/name"] or kubernetes["container_name"] or "unknown"
+      normalized["collector_platform"] = get_collector_platform()
+      normalized["collector_node"] = record["collector_node"] or "unknown"
+      normalized["pod"] = kubernetes["pod_name"] or "unknown"
+      normalized["container"] = kubernetes["container_name"] or "unknown"
+      normalized["level"] = record["level"] or "unknown"
+      normalized["message"] = record["msg"] or record["message"] or record["log"] or ""
 
       -- Avoid storing high-cardinality image digests as a separate parsed
       -- field. The original request line remains available in `log`.
-      if record["app"] == "harbor-portal" and record["http_status"] ~= nil then
-        record["log_type"] = "harbor_access"
-        record["http_route"] = normalize_harbor_route(record["http_path"])
-        record["http_path"] = nil
+      if normalized["app"] == "harbor-portal" and record["http_status"] ~= nil then
+        normalized["http_status"] = record["http_status"]
+        normalized["http_method"] = record["http_method"]
+        normalized["http_route"] = normalize_harbor_route(record["http_path"])
       end
 
-      if record["level"] == nil then
-        record["level"] = "unknown"
-      end
-
-      return 1, timestamp, record
+      return 1, timestamp, normalized
     end

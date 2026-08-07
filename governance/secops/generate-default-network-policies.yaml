@@ -28,11 +28,26 @@
 #    "호스트를 못 찾음"으로 나와 원인이 안 드러난다. egress 차단은 CoreDNS
 #    허용 규칙을 같이 설계해야 하므로 별도 단계다
 #
-# 2. **교차 네임스페이스로 오는 것은 전부 막힌다.** 세울 때 허용 규칙이
-#    같이 필요한 것들:
-#      - Prometheus 가 다른 네임스페이스의 파드를 스크레이프한다
-#      - ingress-nginx 가 apps 의 파드로 프록시한다
-#      - ArgoCD 가 클러스터 API 를 통해 배포하는 것은 영향 없음(API 서버 경유)
+# 2. **교차 네임스페이스로 오는 것은 전부 막힌다.**
+#
+#    2026-08-06 에 실제 클러스터로 재봤고, **지금 끊기는 경로는 없다.**
+#    아래가 근거이자 다음에 다시 재는 방법이다.
+#
+#      Prometheus  스크레이프 대상이 kube-system(제외)·monitoring(같은
+#                  네임스페이스)·apiserver(파드가 아니라 100.82.100.58:6443)
+#                  뿐이다. 9개 대상 네임스페이스의 파드를 긁는 게 없다
+#                  → curl <prom-podIP>:9090/api/v1/targets 로 잰다
+#      fluent-bit  OpenSearch 와 둘 다 logging 이라 같은 네임스페이스다
+#      Grafana     데이터소스가 monitoring 안만 본다
+#      UI 접속     전부 NodePort 이고 노드 IP 5대가 전부 100.64.0.0/10
+#                  안이라 allow-from-mesh 가 덮는다 (externalTrafficPolicy
+#                  가 Local 이든 Cluster 든 출발지가 tailnet 이다)
+#      ArgoCD      배포는 API 서버 경유라 영향 없음
+#
+#    ⚠️ **이건 지금의 배치에 대한 사실이지 보장이 아니다.** 다른
+#    네임스페이스의 파드를 가리키는 ServiceMonitor 를 하나 추가하는 순간
+#    깨지고, **증상이 "스크레이프 실패"가 아니라 그래프가 조용히 비는
+#    것**이다. 그때 허용 규칙을 옆에 새 파일로 둔다(21행 참고).
 #
 # 3. **제외한 네임스페이스** — kube-system·kube-public·kube-node-lease 는
 #    CNI 와 컨트롤플레인 구성요소가 산다. kyverno 는 **어드미션 웹훅이
@@ -349,6 +364,15 @@ spec:
               # 보존 안 하면 이게 없을 때 **메시가 조용히 죽는다.**
               # NetworkPolicy 는 합집합이라 넣어두는 쪽이 싸다.
               # → findings/20260805_ambient-networkpolicy-crossing.md
-              - namespaceSelector:
-                  matchLabels:
-                    kubernetes.io/metadata.name: ztunnel
+              #
+              # ⚠️ **`from:` 을 빼면 API 서버가 이 객체를 거부한다.**
+              # `ingress[]` 의 원소는 `from`(출처)·`ports`(포트) 두 필드만
+              # 갖는다. `namespaceSelector` 를 한 단 올려 쓰면
+              # `unknown field "spec.ingress[0].namespaceSelector"` 로 죽는데,
+              # **generate 규칙이라 어드미션이 아니라 백그라운드에서 실패한다** —
+              # 다른 네 장은 정상적으로 깔리고 이것만 안 깔린 채 조용하다.
+              # 2026-08-06 서버 dry-run 으로 잡았다.
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: ztunnel

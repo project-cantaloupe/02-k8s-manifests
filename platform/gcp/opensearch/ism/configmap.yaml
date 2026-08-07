@@ -13,7 +13,7 @@ data:
         "default_state": "hot",
         "ism_template": [
           {
-            "index_patterns": ["cantaloupe-platform-logs"],
+            "index_patterns": ["cantaloupe-platform-logs-v2"],
             "priority": 100
           }
         ],
@@ -44,12 +44,30 @@ data:
     }
   platform-index-template.json: |
     {
-      "index_patterns": ["cantaloupe-platform-logs"],
+      "index_patterns": ["cantaloupe-platform-logs-v2"],
       "priority": 100,
       "template": {
         "settings": {
           "number_of_shards": 1,
           "number_of_replicas": 0
+        },
+        "mappings": {
+          "dynamic": false,
+          "properties": {
+            "@timestamp": { "type": "date" },
+            "namespace": { "type": "keyword" },
+            "area": { "type": "keyword" },
+            "app": { "type": "keyword" },
+            "collector_platform": { "type": "keyword" },
+            "collector_node": { "type": "keyword" },
+            "pod": { "type": "keyword" },
+            "container": { "type": "keyword" },
+            "level": { "type": "keyword" },
+            "message": { "type": "text" },
+            "http_status": { "type": "integer" },
+            "http_method": { "type": "keyword" },
+            "http_route": { "type": "keyword" }
+          }
         }
       }
     }

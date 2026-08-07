@@ -4,37 +4,24 @@ kind: Kustomization
 namespace: devops
 
 resources:
-  - harbor-service.yaml
-  - harbor-components.yaml
-  - harbor-core-config.yaml
-  - redis.yaml
-  - postgres.yaml
-  - registry-config.yaml
-  - portal.yaml
-  - registry.yaml
   - pvc.yaml
+  - postgres.yaml
+  - redis.yaml
+  - registry-config.yaml
+  - registry.yaml
+  - harbor-core-config.yaml
+  - harbor-components.yaml
+  - harbor-service.yaml
+  - portal.yaml
+  - harbor-proxy.yaml
 
 patches:
-  # 1. Harbor Service 패치 (NodePort 31432 유지 및 Portal로 라우팅)
-  - target:
-      kind: Service
-      name: harbor
-    patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: harbor
-      spec:
-        type: NodePort
-        selector:
-          app: harbor-portal
-        ports:
-          - name: http
-            port: 80
-            targetPort: 80
-            nodePort: 31432
+  # -----------------------------------------------------------------
+  # 기존 Service/harbor 대상 패치는 삭제했습니다.
+  # (31432 포트는 harbor-proxy-nodeport 서비스가 단독으로 처리 중)
+  # -----------------------------------------------------------------
 
-  # 2. Harbor Core 패치 (외부 접근 Endpoint 및 필수 환경변수 적용)
+  # 1. Harbor Core 패치 (외부 접근 Endpoint 및 필수 환경변수 적용)
   - target:
       kind: Deployment
       name: harbor-core
@@ -50,9 +37,9 @@ patches:
               - name: harbor-core
                 env:
                   - name: EXT_ENDPOINT
-                    value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
+                    value: "http://cntlp-onp-wk-01.tail270b85.ts.net:31432"
                   - name: HARBOR_URL
-                    value: "https://cntlp-onp-wk-01.tail270b85.ts.net"
+                    value: "http://cntlp-onp-wk-01.tail270b85.ts.net:31432"
                   - name: CONFIG_PATH
                     value: "/etc/harbor/core/app.conf"
                   - name: PORT
@@ -80,7 +67,7 @@ patches:
                   - name: CSRF_KEY
                     value: "12345678901234567890123456789012"
 
-  # 3. Harbor Registry 패치 (harbor-data 볼륨 포함)
+  # 2. Harbor Registry 패치 (harbor-data 볼륨 포함)
   - target:
       kind: Deployment
       name: harbor-registry

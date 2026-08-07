@@ -55,7 +55,7 @@ spec:
               fi
 
               curl --fail --silent --show-error -X PUT \
-                "$endpoint/_index_template/cantaloupe-platform-logs" \
+                "$endpoint/_index_template/cantaloupe-platform-logs-v2" \
                 -H 'Content-Type: application/json' \
                 --data-binary @/policy/platform-index-template.json
           volumeMounts:
