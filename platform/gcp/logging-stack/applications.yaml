@@ -1,5 +1,6 @@
 # 이 파일은 root Application(main)에 등록하지 않는다. Argo CD에서 이 branch와
 # smoke/logging-stack 경로를 가리키는 임시 Application으로 동기화해 검증한다.
+# Child Applications for the GCP logging stack.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
