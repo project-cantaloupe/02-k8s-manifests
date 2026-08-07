@@ -1,0 +1,21 @@
+# Aggregated API 요청은 kube-apiserver host network에서 온다. 현재 Control Plane의
+# EC2 사설 IP 한 개와 Metrics Server secure port만 연다. tailnet 전체나 namespace
+# 전체를 허용하지 않는다.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: metrics-server-allow-from-kube-apiserver
+  namespace: autoscaling
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: metrics-server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.20.10.68/32
+      ports:
+        - protocol: TCP
+          port: 10250
