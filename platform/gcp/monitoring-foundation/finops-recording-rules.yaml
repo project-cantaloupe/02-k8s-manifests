@@ -436,3 +436,313 @@ spec:
             (cantaloupe:workload_observation_hours >= 24)
               unless on (namespace, workload, workload_type)
             cantaloupe:workload_recent_oom_signal
+
+    # Container-template decision metrics. These are deliberately recorded in
+    # Prometheus instead of being calculated in Grafana so every dashboard and
+    # alert uses the same policy. The candidate target follows the upstream VPA
+    # 1.7.1 defaults (P90, 15% margin, 25m CPU / 250Mi memory minimum), but is
+    # labelled as a review candidate because this lightweight model does not
+    # reproduce VPA's decaying histograms, confidence bounds or OOM estimator.
+    - name: cantaloupe.finops.container-rightsizing-candidates
+      interval: 5m
+      rules:
+        - record: cantaloupe:workload_container_cpu_request_cores
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              kube_pod_container_resource_requests{
+                job="kube-state-metrics",
+                resource="cpu",
+                unit="core"
+              }
+                * on (namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel
+            )
+
+        - record: cantaloupe:workload_container_memory_request_bytes
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              kube_pod_container_resource_requests{
+                job="kube-state-metrics",
+                resource="memory",
+                unit="byte"
+              }
+                * on (namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel
+            )
+
+        - record: cantaloupe:workload_container_memory_limit_bytes
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              kube_pod_container_resource_limits{
+                job="kube-state-metrics",
+                resource="memory",
+                unit="byte"
+              }
+                * on (namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel
+            )
+
+        - record: cantaloupe:workload_container_cpu_p95_7d_cores
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              quantile_over_time(
+                0.95,
+                (
+                  rate(container_cpu_usage_seconds_total{
+                    job="kubelet",
+                    container!="",
+                    container!="POD"
+                  }[5m])
+                    * on (namespace, pod) group_left(workload, workload_type)
+                  namespace_workload_pod:kube_pod_owner:relabel
+                )[7d:5m]
+              )
+            )
+
+        - record: cantaloupe:workload_container_cpu_p90_7d_cores
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              quantile_over_time(
+                0.90,
+                (
+                  rate(container_cpu_usage_seconds_total{
+                    job="kubelet",
+                    container!="",
+                    container!="POD"
+                  }[5m])
+                    * on (namespace, pod) group_left(workload, workload_type)
+                  namespace_workload_pod:kube_pod_owner:relabel
+                )[7d:5m]
+              )
+            )
+
+        - record: cantaloupe:workload_container_memory_p95_7d_bytes
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              quantile_over_time(
+                0.95,
+                (
+                  container_memory_working_set_bytes{
+                    job="kubelet",
+                    container!="",
+                    container!="POD"
+                  }
+                    * on (namespace, pod) group_left(workload, workload_type)
+                  namespace_workload_pod:kube_pod_owner:relabel
+                )[7d:5m]
+              )
+            )
+
+        - record: cantaloupe:workload_container_memory_p90_7d_bytes
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              quantile_over_time(
+                0.90,
+                (
+                  container_memory_working_set_bytes{
+                    job="kubelet",
+                    container!="",
+                    container!="POD"
+                  }
+                    * on (namespace, pod) group_left(workload, workload_type)
+                  namespace_workload_pod:kube_pod_owner:relabel
+                )[7d:5m]
+              )
+            )
+
+        - record: cantaloupe:workload_container_memory_p99_7d_bytes
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              quantile_over_time(
+                0.99,
+                (
+                  container_memory_working_set_bytes{
+                    job="kubelet",
+                    container!="",
+                    container!="POD"
+                  }
+                    * on (namespace, pod) group_left(workload, workload_type)
+                  namespace_workload_pod:kube_pod_owner:relabel
+                )[7d:5m]
+              )
+            )
+
+        - record: cantaloupe:workload_container_observation_hours
+          expr: |
+            max by (namespace, workload, workload_type, container) (
+              count_over_time(
+                (
+                  rate(container_cpu_usage_seconds_total{
+                    job="kubelet",
+                    container!="",
+                    container!="POD"
+                  }[5m])
+                    * on (namespace, pod) group_left(workload, workload_type)
+                  namespace_workload_pod:kube_pod_owner:relabel
+                )[7d:5m]
+              ) / 12
+            )
+
+        - record: cantaloupe:workload_container_observation_confidence
+          expr: |
+            (cantaloupe:workload_container_observation_hours >= bool 6)
+              + (cantaloupe:workload_container_observation_hours >= bool 24)
+              + (cantaloupe:workload_container_observation_hours >= bool 168)
+
+        - record: cantaloupe:workload_container_recent_oom_signal
+          expr: |
+            (
+              max by (namespace, workload, workload_type, container) (
+                max_over_time(
+                  kube_pod_container_status_last_terminated_reason{
+                    reason="OOMKilled"
+                  }[7d]
+                )
+                  * on (namespace, pod) group_left(workload, workload_type)
+                namespace_workload_pod:kube_pod_owner:relabel
+              ) > bool 0
+            )
+              or on (namespace, workload, workload_type, container)
+            (0 * cantaloupe:workload_container_memory_p99_7d_bytes)
+
+        - record: cantaloupe:workload_container_cpu_request_candidate_cores
+          expr: |
+            ceil(
+              clamp_min(
+                cantaloupe:workload_container_cpu_p90_7d_cores * 1.15,
+                0.025
+              ) * 1000
+            ) / 1000
+
+        - record: cantaloupe:workload_container_memory_request_candidate_bytes
+          expr: |
+            ceil(
+              clamp_min(
+                cantaloupe:workload_container_memory_p90_7d_bytes * 1.15,
+                262144000
+              ) / 1048576
+            ) * 1048576
+
+        - record: cantaloupe:workload_container_candidate_safe_to_review
+          expr: |
+            (
+              (cantaloupe:workload_container_observation_hours >= bool 24)
+                * on (namespace, workload, workload_type, container)
+              (cantaloupe:workload_container_recent_oom_signal == bool 0)
+            )
+
+        # OpenCost-derived request allocation by workload template. The
+        # candidate cost scales the current pod-level request allocation by
+        # candidate/current request. It is an allocation opportunity, not a
+        # guaranteed cloud-bill saving until node capacity is actually reduced.
+        - record: cantaloupe:workload_container_cpu_request_cost_per_hour
+          expr: |
+            sum by (namespace, workload, workload_type, container) (
+              cantaloupe:container_cpu_request_cost_per_hour
+                * on (namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel
+            )
+
+        - record: cantaloupe:workload_container_memory_request_cost_per_hour
+          expr: |
+            sum by (namespace, workload, workload_type, container) (
+              cantaloupe:container_memory_request_cost_per_hour
+                * on (namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel
+            )
+
+        - record: cantaloupe:workload_container_cpu_request_candidate_cost_per_hour
+          expr: |
+            cantaloupe:workload_container_cpu_request_cost_per_hour
+              * on (namespace, workload, workload_type, container)
+            (
+              cantaloupe:workload_container_cpu_request_candidate_cores
+                / on (namespace, workload, workload_type, container)
+              cantaloupe:workload_container_cpu_request_cores
+            )
+
+        - record: cantaloupe:workload_container_memory_request_candidate_cost_per_hour
+          expr: |
+            cantaloupe:workload_container_memory_request_cost_per_hour
+              * on (namespace, workload, workload_type, container)
+            (
+              cantaloupe:workload_container_memory_request_candidate_bytes
+                / on (namespace, workload, workload_type, container)
+              cantaloupe:workload_container_memory_request_bytes
+            )
+
+        - record: cantaloupe:workload_container_request_candidate_savings_per_month
+          expr: |
+            730 * clamp_min(
+              (
+                cantaloupe:workload_container_cpu_request_cost_per_hour
+                  + on (namespace, workload, workload_type, container)
+                cantaloupe:workload_container_memory_request_cost_per_hour
+              )
+                - on (namespace, workload, workload_type, container)
+              (
+                cantaloupe:workload_container_cpu_request_candidate_cost_per_hour
+                  + on (namespace, workload, workload_type, container)
+                cantaloupe:workload_container_memory_request_candidate_cost_per_hour
+              ),
+              0
+            )
+              * on (namespace, workload, workload_type, container)
+            cantaloupe:workload_container_candidate_safe_to_review
+
+        - record: cantaloupe:workload_request_candidate_savings_per_month
+          expr: |
+            sum by (namespace, workload, workload_type) (
+              cantaloupe:workload_container_request_candidate_savings_per_month
+            )
+
+        - record: cantaloupe:workload_container_memory_limit_headroom_ratio
+          expr: |
+            (
+              cantaloupe:workload_container_memory_limit_bytes
+                - on (namespace, workload, workload_type, container)
+              cantaloupe:workload_container_memory_p99_7d_bytes
+            )
+              / on (namespace, workload, workload_type, container)
+            cantaloupe:workload_container_memory_p99_7d_bytes
+
+        # Status: 3=recent OOM, 2=limit missing, 1=limit <= observed P99,
+        # 0=no observed breach. A high limit is not labelled as cost waste
+        # because limits do not reserve schedulable capacity.
+        - record: cantaloupe:workload_container_memory_limit_status
+          expr: |
+            3 * cantaloupe:workload_container_recent_oom_signal
+              + on (namespace, workload, workload_type, container)
+            (
+              1 - cantaloupe:workload_container_recent_oom_signal
+            )
+              * on (namespace, workload, workload_type, container)
+            (
+              2 * (
+                (
+                  cantaloupe:workload_container_memory_limit_bytes
+                    or on (namespace, workload, workload_type, container)
+                  (0 * cantaloupe:workload_container_memory_p99_7d_bytes)
+                ) == bool 0
+              )
+                + on (namespace, workload, workload_type, container)
+              (
+                (
+                  (
+                    cantaloupe:workload_container_memory_limit_bytes
+                      or on (namespace, workload, workload_type, container)
+                    (0 * cantaloupe:workload_container_memory_p99_7d_bytes)
+                  ) > bool 0
+                )
+                  * on (namespace, workload, workload_type, container)
+                (
+                  (
+                    cantaloupe:workload_container_memory_limit_bytes
+                      or on (namespace, workload, workload_type, container)
+                    (0 * cantaloupe:workload_container_memory_p99_7d_bytes)
+                  )
+                    <= bool on (namespace, workload, workload_type, container)
+                  cantaloupe:workload_container_memory_p99_7d_bytes
+                )
+              )
+            )

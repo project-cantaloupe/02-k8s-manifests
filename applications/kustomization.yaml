@@ -17,6 +17,9 @@ resources:
   - ztunnel.yaml
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
+  - metrics-server.yaml
+  - vertical-pod-autoscaler.yaml
+  - vpa-recommendations.yaml
   - opencost.yaml
   - audio-ingress.yaml
   - secops.yaml

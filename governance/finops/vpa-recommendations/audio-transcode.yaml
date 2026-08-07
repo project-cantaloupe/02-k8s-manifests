@@ -1,0 +1,27 @@
+# VPA is deliberately recommendation-only. It cannot mutate or restart Pods
+# because updateMode is Off and the cluster installs neither Updater nor the
+# Admission Controller.
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: audio-transcode
+  namespace: apps
+  labels:
+    app: audio-transcode
+    area: apps
+    platform: aws
+    finops.cantaloupe.io/recommendation: vpa
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: audio-transcode
+  updatePolicy:
+    updateMode: Off
+  resourcePolicy:
+    containerPolicies:
+      - containerName: transcode
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsOnly

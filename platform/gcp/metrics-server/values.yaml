@@ -1,0 +1,23 @@
+# Kubernetes Metrics API source for VPA. Prometheus remains the monitoring
+# source; Metrics Server is used only by Kubernetes autoscaling components.
+replicas: 1
+
+nodeSelector:
+  platform: gcp
+  role: monitoring
+
+podLabels:
+  app: metrics-server
+  area: monitoring
+  platform: gcp
+  cost-allocation: shared
+
+resources:
+  requests:
+    cpu: 30m
+    memory: 64Mi
+  limits:
+    memory: 192Mi
+
+# Do not use --kubelet-insecure-tls. A certificate or routing problem must be
+# fixed at the kubelet/network layer instead of disabling TLS verification.
