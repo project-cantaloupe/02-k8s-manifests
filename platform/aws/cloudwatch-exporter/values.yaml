@@ -50,6 +50,22 @@ serviceMonitor:
   labels:
     release: monitoring
 
+# CloudWatch S3 samples arrive once per day. Prometheus instant queries only
+# look back a few minutes by default, so carry the latest daily sample forward
+# through recording rules evaluated by Prometheus.
+prometheusRule:
+  enabled: true
+  namespace: monitoring
+  labels:
+    release: monitoring
+  rules:
+    - record: cantaloupe:aws_s3_bucket_size_bytes
+      expr: last_over_time(aws_s3_bucket_size_bytes_average[48h])
+    - record: cantaloupe:aws_s3_number_of_objects
+      expr: last_over_time(aws_s3_number_of_objects_average[48h])
+    - record: cantaloupe:cloudwatch_exporter_scrape_error
+      expr: last_over_time(cloudwatch_exporter_scrape_error[48h])
+
 # The pod runs only on an AWS service Worker and obtains temporary credentials
 # from the existing cntlp-aws-worker-node EC2 Instance Profile. No access key is
 # stored in Git or Kubernetes.
