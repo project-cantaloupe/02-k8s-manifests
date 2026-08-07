@@ -1,0 +1,103 @@
+replicaCount: 1
+
+pod:
+  labels:
+    app: cloudwatch-exporter
+    area: monitoring
+    platform: aws
+    cost-allocation: shared
+
+nodeSelector:
+  platform: aws
+  role: service
+
+serviceAccount:
+  create: true
+  automountServiceAccountToken: false
+
+rbac:
+  create: false
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 96Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  interval: 5m
+  timeout: 60s
+  labels:
+    release: monitoring
+
+# The pod runs only on an AWS service Worker and obtains temporary credentials
+# from the existing cntlp-aws-worker-node EC2 Instance Profile. No access key is
+# stored in Git or Kubernetes.
+config: |-
+  region: ap-northeast-2
+  list_metrics_cache_ttl: 3600
+  metrics:
+    # Immediate end-to-end validation signal. EC2 publishes this before the
+    # first daily S3 storage datapoint exists.
+    - aws_namespace: AWS/EC2
+      aws_metric_name: CPUUtilization
+      aws_dimensions: [InstanceId]
+      aws_statistics: [Average]
+      period_seconds: 300
+      range_seconds: 1800
+      delay_seconds: 600
+      set_timestamp: false
+
+    # S3 storage metrics are published by AWS once per day. Explicit dimension
+    # selections avoid discovery calls and begin returning samples as soon as
+    # AWS publishes the first datapoint.
+    - aws_namespace: AWS/S3
+      aws_metric_name: BucketSizeBytes
+      aws_dimensions: [BucketName, StorageType]
+      aws_dimension_select:
+        BucketName:
+          - cntlp-aws-quarantine
+          - cntlp-aws-transcode
+        StorageType:
+          - StandardStorage
+          - StandardIAStorage
+          - GlacierInstantRetrievalStorage
+      aws_statistics: [Average]
+      period_seconds: 86400
+      range_seconds: 604800
+      delay_seconds: 0
+      set_timestamp: false
+
+    - aws_namespace: AWS/S3
+      aws_metric_name: NumberOfObjects
+      aws_dimensions: [BucketName, StorageType]
+      aws_dimension_select:
+        BucketName:
+          - cntlp-aws-quarantine
+          - cntlp-aws-transcode
+        StorageType:
+          - AllStorageTypes
+      aws_statistics: [Average]
+      period_seconds: 86400
+      range_seconds: 604800
+      delay_seconds: 0
+      set_timestamp: false

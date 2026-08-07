@@ -29,6 +29,7 @@ resources:
   - ztunnel.yaml
   - monitoring-foundation.yaml
   - monitoring-stack.yaml
+  - cloudwatch-exporter.yaml
   - opencost.yaml
   - audio-ingress.yaml
   - secops.yaml
