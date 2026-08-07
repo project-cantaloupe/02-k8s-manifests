@@ -36,12 +36,12 @@ data:
       addr: harbor-redis:6379
       db: 1
 
-    # ✨ 최종 확정 Notification URL
+    # ✨ [수정] Nginx(80) 대신 harbor-core 서비스 8080 포트로 직접 전송
     notifications:
       endpoints:
         - name: harbor
           disabled: false
-          url: http://harbor-portal:80/service/notifications
+          url: http://harbor-core:8080/service/notifications
           timeout: 3000ms
           threshold: 5
           backoff: 1s
