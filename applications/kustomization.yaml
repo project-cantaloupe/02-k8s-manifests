@@ -18,7 +18,6 @@ resources:
   # 먼저 서야 한다 → applications/external-secrets.yaml
   - external-secrets.yaml
   - argocd.yaml
-  - harbor.yaml
   - harbor-helm-storage.yaml
   - harbor-helm.yaml
   - gcp-storage.yaml
