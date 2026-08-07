@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-v2-registry-pv
+spec:
+  capacity:
+    storage: 30Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/registry
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-registry
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-registry-pv
+  resources:
+    requests:
+      storage: 30Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-v2-jobservice-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/jobservice
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-jobservice
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-jobservice-pv
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-v2-database-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/database
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-database
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-database-pv
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-v2-redis-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/redis
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-redis
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-redis-pv
+  resources:
+    requests:
+      storage: 2Gi
