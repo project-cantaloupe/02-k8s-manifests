@@ -36,12 +36,12 @@ data:
       addr: harbor-redis:6379
       db: 1
 
-    # ✨ [확정] Harbor Core 8080 포트의 /service/notifications 서비스 직접 지정
+    # Registry push 이벤트를 Harbor Core의 내부 notification endpoint로 전달한다.
     notifications:
       endpoints:
         - name: harbor
           disabled: false
-          url: http://harbor-core:8080/c/notifications
+          url: http://harbor-core:8080/service/notifications
           timeout: 3000ms
           threshold: 5
           backoff: 1s
