@@ -89,11 +89,14 @@ metadata:
   name: harbor-portal
   namespace: devops
 spec:
-  ports:
-    - port: 80
-      targetPort: 80
+  type: NodePort             # ✨ ClusterIP -> NodePort 변경
   selector:
     app: harbor-portal
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 31432        # ✨ 31432 포트 외부 개방
 ---
 apiVersion: apps/v1
 kind: Deployment
