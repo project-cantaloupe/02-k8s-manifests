@@ -17,6 +17,10 @@ resources:
   - argocd.yaml
   - harbor.yaml
   - gcp-storage.yaml
+  # wave -5. AWS 워커의 영구 볼륨. 여기 없으면 `gcp-pd-*` 두 개만 남고
+  # AWS 노드의 PVC 는 프로비저너가 GCP 라 조용히 Pending 에 머문다
+  # → applications/aws-storage.yaml
+  - aws-storage.yaml
   - logging-stack.yaml
   - istio-base.yaml
   - istiod.yaml
