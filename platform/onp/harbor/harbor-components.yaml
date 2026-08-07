@@ -43,6 +43,9 @@ spec:
               value: "HARBOR_REGISTRY_SECRET_123456"
             - name: CSRF_KEY
               value: "12345678901234567890123456789012"
+              # ✨ [핵심 추가] 내부 알림 수신 URL 고정
+            - name: CORE_URL
+              value: "http://harbor-core:8080"
             - name: EXT_ENDPOINT
               value: "http://cntlp-onp-wk-01.tail270b85.ts.net:31432"
           ports:
