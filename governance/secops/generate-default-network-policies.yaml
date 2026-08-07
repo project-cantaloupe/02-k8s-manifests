@@ -115,6 +115,8 @@ spec:
                 # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
+                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
+                - external-secrets
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -167,6 +169,8 @@ spec:
                 # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
+                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
+                - external-secrets
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -218,6 +222,8 @@ spec:
                 # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
+                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
+                - external-secrets
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -283,6 +289,8 @@ spec:
                 # allow-from-ztunnel 규칙과 짝이다.
                 - istio-cni
                 - ztunnel
+                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
+                - external-secrets
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
@@ -330,6 +338,8 @@ spec:
                 - audio-ingress
                 - istio-cni
                 - ztunnel
+                # ESO 도 ValidatingWebhook 이 둘이다 — cert-manager 와 같은 이유.
+                - external-secrets
       generate:
         apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
