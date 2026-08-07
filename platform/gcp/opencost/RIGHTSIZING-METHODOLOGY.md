@@ -7,7 +7,11 @@
 - **Grafana**: 계산 결과와 근거를 표시한다. 정책 계산식을 패널마다 복제하지 않는다.
 - **운영자**: 후보를 검토하고 Git의 Request를 변경한 뒤 안정성과 비용을 재검증한다.
 
-VPA, Metrics Server, Mutating Webhook은 설치하지 않는다. 이 Advisor는 Pod를 변경하거나 재시작하지 않으며 결과를 `권장값`이 아닌 **관측 기반 검토 후보**로 표기한다.
+자체 Advisor는 Pod를 변경하거나 재시작하지 않으며 결과를 `권장값`이 아닌
+**관측 기반 검토 후보**로 표기한다. 별도로 VPA Recommender와 Metrics Server를
+설치해 Kubernetes 표준 추천값을 교차 검증하지만, VPA Updater와 Admission
+Controller는 설치하지 않는다. 모든 VPA는 `updateMode: Off`이고 추천 결과는
+운영자가 검토한 뒤 Git의 request를 직접 바꿀 때만 반영된다.
 
 ## 데이터 범위와 신뢰도
 

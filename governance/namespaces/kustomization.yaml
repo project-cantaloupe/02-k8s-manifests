@@ -23,6 +23,7 @@ kind: Kustomization
 
 resources:
   - apps.yaml
+  - autoscaling.yaml
   - audio-ingress.yaml
   - cert-manager.yaml
   - devops.yaml

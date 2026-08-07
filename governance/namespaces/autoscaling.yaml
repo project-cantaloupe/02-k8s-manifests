@@ -1,0 +1,19 @@
+# VPA Recommender와 Metrics Server 전용 네임스페이스.
+#
+# 이 구성은 request 추천을 관측하는 용도로만 쓴다. Pod를 변경하는 VPA
+# Updater와 Admission Controller는 설치하지 않는다. monitoring 네임스페이스는
+# node-exporter 때문에 privileged이므로, 특권이 필요 없는 autoscaling 구성요소를
+# 분리해 restricted 경계를 유지한다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: autoscaling
+  labels:
+    area: monitoring
+    platform: gcp
+    cost-allocation: shared
+    app.kubernetes.io/part-of: cantaloupe-platform
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

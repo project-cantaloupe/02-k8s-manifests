@@ -1,0 +1,32 @@
+# VPA Recommender가 현재 CPU/Memory 사용량을 읽는 metrics.k8s.io API.
+# HPA나 자동 스케일링을 활성화하지 않으며 kubelet TLS 검증도 우회하지 않는다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics-server
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+spec:
+  project: default
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/metrics-server/
+      chart: metrics-server
+      targetRevision: 3.13.1
+      helm:
+        releaseName: metrics-server
+        valueFiles:
+          - $values/platform/gcp/metrics-server/values.yaml
+    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: autoscaling
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

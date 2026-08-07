@@ -1,0 +1,23 @@
+# VPA는 모니터링용 Recommender로만 사용한다. Off가 없거나 다른 모드인 객체는
+# Admission Controller/Updater가 나중에 실수로 설치되더라도 생성되지 못하게 한다.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-vpa-recommendation-only
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-update-mode-off
+      match:
+        any:
+          - resources:
+              kinds:
+                - autoscaling.k8s.io/v1/VerticalPodAutoscaler
+      validate:
+        message: >-
+          VPA는 request recommendation 모니터링 전용이며 spec.updatePolicy.updateMode는 Off여야 한다.
+        pattern:
+          spec:
+            updatePolicy:
+              updateMode: "Off"

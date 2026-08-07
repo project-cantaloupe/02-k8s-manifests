@@ -32,6 +32,9 @@ resources:
   - istio-cni.yaml
   - ztunnel.yaml
   - monitoring-foundation.yaml
+  # Metrics API가 먼저 준비된 뒤 VPA Recommender가 사용량을 읽는다.
+  - metrics-server.yaml
+  - vpa-recommender.yaml
   - monitoring-stack.yaml
   - cloudwatch-exporter.yaml
   - opencost.yaml

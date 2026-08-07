@@ -1,0 +1,45 @@
+# VPA request recommendation 전용 설치.
+#
+# 공식 차트의 기본값은 Admission Controller와 Updater도 켜므로 values에서 둘을
+# 명시적으로 끈다. 이 Application에는 Pod eviction/resize 권한이나
+# MutatingWebhookConfiguration이 생기면 안 된다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vpa-recommender
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/kubernetes/autoscaler.git
+      targetRevision: vertical-pod-autoscaler-1.7.0
+      path: vertical-pod-autoscaler/charts/vertical-pod-autoscaler
+      helm:
+        releaseName: vpa
+        valueFiles:
+          - $values/platform/gcp/vpa-recommender/values.yaml
+    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+      targetRevision: main
+      path: platform/gcp/vpa-recommender/resources
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: autoscaling
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
