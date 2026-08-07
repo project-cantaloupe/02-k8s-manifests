@@ -41,7 +41,8 @@ data:
       endpoints:
         - name: harbor
           disabled: false
-          url: http://harbor-core:8080/service/notifications
+          # ✨ [수정] harbor-core:8080 대신 프록시인 harbor-portal:80 으로 변경
+          url: http://harbor-portal:80/service/notifications
           timeout: 3000ms
           threshold: 5
           backoff: 1s
