@@ -4,10 +4,12 @@ kind: Kustomization
 resources:
   - opencost-ui-nodeport.yaml
   - prometheus-ui-nodeport.yaml
+  - allow-vpa-recommender-history.yaml
   - finops-recording-rules.yaml
   - onprem-rightsizing-rules.yaml
   - gcp-recommender-collector.yaml
   - aws-compute-optimizer-collector.yaml
+  - vpa-recommendation-collector.yaml
 
 configMapGenerator:
   - name: gcp-recommender-collector
@@ -27,6 +29,16 @@ configMapGenerator:
     options:
       labels:
         app: aws-compute-optimizer-collector
+        area: monitoring
+        category: finops
+
+  - name: vpa-recommendation-collector
+    namespace: monitoring
+    files:
+      - vpa_recommendation_collector.py
+    options:
+      labels:
+        app: vpa-recommendation-collector
         area: monitoring
         category: finops
 

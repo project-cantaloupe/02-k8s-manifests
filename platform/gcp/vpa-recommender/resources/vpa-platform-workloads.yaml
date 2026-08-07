@@ -1,0 +1,552 @@
+# Cluster-wide recommendation inventory.
+# A workloads are actionable review candidates. B workloads expose recommendations
+# for capacity planning only and are excluded from realizable savings.
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: grafana-recommendation
+  namespace: monitoring
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: standard
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: grafana
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: opencost-recommendation
+  namespace: monitoring
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: standard
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: opencost
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: kube-state-metrics-recommendation
+  namespace: monitoring
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: standard
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: monitoring-kube-state-metrics
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: finops-pushgateway-recommendation
+  namespace: monitoring
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: standard
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cantaloupe-finops-pushgateway
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: cloudwatch-exporter-recommendation
+  namespace: monitoring
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: standard
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cloudwatch-exporter-prometheus-cloudwatch-exporter
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: opensearch-dashboards-recommendation
+  namespace: logging
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: standard
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: opensearch-dashboards
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: argocd-server-recommendation
+  namespace: devops
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-server
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: argocd-repo-server-recommendation
+  namespace: devops
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-repo-server
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: argocd-applicationset-recommendation
+  namespace: devops
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-applicationset-controller
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: argocd-notifications-recommendation
+  namespace: devops
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-notifications-controller
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: harbor-core-recommendation
+  namespace: harbor-system
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: harbor-v2-core
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: harbor-jobservice-recommendation
+  namespace: harbor-system
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: harbor-v2-jobservice
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: harbor-portal-recommendation
+  namespace: harbor-system
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: standard
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: harbor-v2-portal
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: harbor-registry-recommendation
+  namespace: harbor-system
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: harbor-v2-registry
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: argocd-dex-recommendation
+  namespace: devops
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-dex-server
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: argocd-redis-recommendation
+  namespace: devops
+  labels:
+    cantaloupe.io/rightsizing-class: actionable
+    cantaloupe.io/review-policy: manual
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-redis
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: argocd-controller-recommendation
+  namespace: devops
+  labels:
+    cantaloupe.io/rightsizing-class: stateful_manual
+    cantaloupe.io/review-policy: manual-only
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: argocd-application-controller
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: prometheus-recommendation
+  namespace: monitoring
+  labels:
+    cantaloupe.io/rightsizing-class: stateful_manual
+    cantaloupe.io/review-policy: manual-only
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: prometheus-monitoring-prometheus
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: alertmanager-recommendation
+  namespace: monitoring
+  labels:
+    cantaloupe.io/rightsizing-class: stateful_manual
+    cantaloupe.io/review-policy: manual-only
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: alertmanager-monitoring-alertmanager
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: opensearch-recommendation
+  namespace: logging
+  labels:
+    cantaloupe.io/rightsizing-class: stateful_manual
+    cantaloupe.io/review-policy: manual-only
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: opensearch-cluster-master
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: harbor-database-recommendation
+  namespace: harbor-system
+  labels:
+    cantaloupe.io/rightsizing-class: stateful_manual
+    cantaloupe.io/review-policy: manual-only
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: harbor-v2-database
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: harbor-redis-recommendation
+  namespace: harbor-system
+  labels:
+    cantaloupe.io/rightsizing-class: stateful_manual
+    cantaloupe.io/review-policy: manual-only
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: harbor-v2-redis
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        controlledResources: [cpu, memory]
+        controlledValues: RequestsOnly
+        minAllowed: {cpu: 25m, memory: 64Mi}
+        maxAllowed: {cpu: "8", memory: 16Gi}

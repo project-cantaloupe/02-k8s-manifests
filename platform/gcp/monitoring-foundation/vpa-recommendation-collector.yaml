@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vpa-recommendation-collector
+  namespace: monitoring
+  labels:
+    app: vpa-recommendation-collector
+    area: monitoring
+    category: finops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vpa-recommendation-collector
+  labels:
+    app: vpa-recommendation-collector
+    category: finops
+rules:
+  - apiGroups: ["autoscaling.k8s.io"]
+    resources: ["verticalpodautoscalers"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vpa-recommendation-collector
+  labels:
+    app: vpa-recommendation-collector
+    category: finops
+subjects:
+  - kind: ServiceAccount
+    name: vpa-recommendation-collector
+    namespace: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vpa-recommendation-collector
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vpa-recommendation-collector
+  namespace: monitoring
+  labels:
+    app: vpa-recommendation-collector
+    area: monitoring
+    category: finops
+spec:
+  schedule: "*/5 * * * *"
+  timeZone: Asia/Seoul
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 120
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: vpa-recommendation-collector
+            area: monitoring
+            category: finops
+            cost-allocation: shared
+        spec:
+          serviceAccountName: vpa-recommendation-collector
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          nodeSelector:
+            platform: gcp
+            role: monitoring
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: collector
+              image: python:3.12.11-alpine3.22
+              command: ["python", "/opt/cantaloupe/vpa_recommendation_collector.py"]
+              env:
+                - name: PUSHGATEWAY_URL
+                  value: http://cantaloupe-finops-pushgateway.monitoring.svc:9091
+              volumeMounts:
+                - name: collector
+                  mountPath: /opt/cantaloupe
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 24Mi
+                limits:
+                  memory: 64Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: collector
+              configMap:
+                name: vpa-recommendation-collector
+            - name: tmp
+              emptyDir: {}
