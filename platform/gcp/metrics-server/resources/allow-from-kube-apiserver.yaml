@@ -1,6 +1,7 @@
 # Aggregated API 요청은 kube-apiserver host network에서 온다. 현재 Control Plane의
-# EC2 사설 IP 한 개와 Metrics Server secure port만 연다. tailnet 전체나 namespace
-# 전체를 허용하지 않는다.
+# EC2 사설 IP와 Pod CIDR로 나갈 때 선택되는 Calico tunnel IP, 두 개의 /32와
+# Metrics Server secure port만 연다. tailnet 전체나 namespace 전체를 허용하지
+# 않는다. `ip route get <metrics-server-pod-ip>`로 source를 재검증할 수 있다.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -16,6 +17,8 @@ spec:
     - from:
         - ipBlock:
             cidr: 10.20.10.68/32
+        - ipBlock:
+            cidr: 10.244.119.71/32
       ports:
         - protocol: TCP
           port: 10250
