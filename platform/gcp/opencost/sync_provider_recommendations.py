@@ -106,7 +106,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gcp-json", type=Path)
     parser.add_argument("--aws-json", type=Path)
-    parser.add_argument("--aws-status", choices=["active", "inactive", "analyzing"], default="analyzing")
+    parser.add_argument(
+        "--aws-status",
+        choices=["no-active-recommendation", "inactive", "analyzing"],
+        default="analyzing",
+    )
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 

@@ -125,9 +125,19 @@ python platform/gcp/opencost/generate_provider_recommendations.py
 python platform/gcp/opencost/generate_provider_recommendations.py --check
 ```
 
-운영 자동화는 Scheduled CI가 OIDC/WIF 단기 Token으로 조회하고 변경 PR만 만든다.
-장기 GCP Service Account Key나 AWS Access Key를 Kubernetes/GitHub Secret에 넣지
-않는다. AWS 분석 결과가 없으면 `analyzing`, 추천이 없으면
+운영 자동화는 `.github/workflows/sync-provider-recommendations.yaml`이 매일
+GCP WIF와 AWS GitHub OIDC 단기 Token으로 Provider API를 조회하고, 비민감 Cache와
+PrometheusRule이 달라진 경우에만 커밋한다. 다음 GitHub Actions Repository Variable이
+필요하다.
+
+- `GCP_PROJECT_ID`, `GCP_ZONE`
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`
+- `AWS_ROLE_ARN`, `AWS_REGION`
+
+워크플로는 `workflow_dispatch`도 지원하므로 최초 권한 검증 때 수동으로 한 번 실행한
+뒤, 성공하면 일 단위 Schedule에 맡긴다. 장기 GCP Service Account Key나 AWS Access
+Key는 Kubernetes/GitHub Secret에 넣지 않는다. AWS 분석 결과가 없으면
+`analyzing`, 추천이 없으면
 `no-active-recommendation` 상태를 유지하며 예상 절감 총액에 포함하지 않는다.
 
 Provider 추천 후보는 OpenCost 가격표와 분리한다. 실제 적용이 승인된 후보만
