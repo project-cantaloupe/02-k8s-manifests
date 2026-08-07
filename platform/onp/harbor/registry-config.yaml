@@ -36,12 +36,11 @@ data:
       addr: harbor-redis:6379
       db: 1
 
-    # ✨ [핵심 추가] Harbor Registry가 Core에 Push 상태를 알리는 Notification 설정
+    # ✨ 최종 확정 Notification URL
     notifications:
       endpoints:
         - name: harbor
           disabled: false
-          # ✨ [수정] harbor-core:8080 대신 프록시인 harbor-portal:80 으로 변경
           url: http://harbor-portal:80/service/notifications
           timeout: 3000ms
           threshold: 5
