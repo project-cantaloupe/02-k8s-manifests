@@ -8,6 +8,7 @@ resources:
   - rbac.yaml
   - configmap.yaml
   - daemonset.yaml
+  - allow-prometheus-scrape.yaml
   - metrics-service.yaml
   - servicemonitor.yaml
   - prometheus-rule.yaml
