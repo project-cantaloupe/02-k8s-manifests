@@ -43,7 +43,8 @@ spec:
 
     /usr/local/sbin/cntlp-worker-bootstrap \
       --aws-region ap-northeast-2 \
-      --secret-id cntlp-aws-cicd-worker-bootstrap \
+      --tailscale-oauth-secret-id cntlp-aws-cicd-tailscale-bootstrap \
+      --kubeadm-join-secret-id cntlp-aws-cicd-kubeadm-bootstrap \
       --node-name cntlp-aws-wk-99 \
       --karpenter-node
 
