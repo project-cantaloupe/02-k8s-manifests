@@ -1,10 +1,13 @@
 schemaVersion: v1
-version: cantaloupe-onprem-rightsizing-v1
+version: cantaloupe-onprem-rightsizing-v2
 currency: USD
 lookback: 7d
 resolution: 5m
 
 # Recommendation capacity = observed P95 * headroom + host reserve.
+# P95 with 30% CPU/Memory headroom follows the AWS Compute Optimizer
+# "Balanced" preference as a public, reproducible benchmark. Kubernetes
+# Node Allocatable principles justify reserving capacity for OS/kube daemons.
 # Current Kubernetes Requests are checked separately to decide whether the
 # recommendation can be applied now or requires Workload right-sizing first.
 safety:
@@ -49,4 +52,9 @@ recommendation:
   requireCheaperProfile: true
   approvalRequired: true
   automaticApply: false
+  classification:
+    underProvisioned: required capacity exceeds the current profile
+    overProvisioned: a cheaper feasible profile exists and no resource is under-provisioned
+    optimized: the current profile is the cheapest feasible profile
+    catalogExceeded: required capacity exceeds every approved profile
 

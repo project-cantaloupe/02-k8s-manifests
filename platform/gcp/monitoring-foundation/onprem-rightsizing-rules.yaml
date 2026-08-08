@@ -10,7 +10,7 @@ metadata:
     area: monitoring
     category: finops
   annotations:
-    cantaloupe.io/policy-version: cantaloupe-onprem-rightsizing-v1
+    cantaloupe.io/policy-version: cantaloupe-onprem-rightsizing-v2
 spec:
   groups:
   - name: cantaloupe.finops.onprem-rightsizing
@@ -56,6 +56,18 @@ spec:
         })\n  or\n0.045000000 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-4vcpu-12gib\"\
         })\n  or\n0.060000000 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-8vcpu-16gib\"\
         })"
+    - record: cantaloupe:onprem_node_current_profile_vcpu
+      expr: "2.000000000 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-2vcpu-4gib\"\
+        })\n  or\n4.000000000 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-4vcpu-8gib\"\
+        })\n  or\n4.000000000 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-4vcpu-12gib\"\
+        })\n  or\n8.000000000 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-8vcpu-16gib\"\
+        })"
+    - record: cantaloupe:onprem_node_current_profile_memory_bytes
+      expr: "4294967296 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-2vcpu-4gib\"\
+        })\n  or\n8589934592 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-4vcpu-8gib\"\
+        })\n  or\n12884901888 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-4vcpu-12gib\"\
+        })\n  or\n17179869184 * max by (node) (kube_node_labels{label_platform=\"onp\",label_node_kubernetes_io_instance_type=\"custom-8vcpu-16gib\"\
+        })"
     - record: cantaloupe:onprem_node_recommendation_info
       expr: "label_replace((0 * ((cantaloupe:onprem_node_required_cpu_cores <= 2.000000000) and on (node) (cantaloupe:onprem_node_required_memory_bytes\
         \ <= 4294967296)) + 1), \"recommended_profile\", \"onp-small\", \"\", \"\")\n  or\nlabel_replace((0 * (((cantaloupe:onprem_node_required_cpu_cores\
@@ -80,6 +92,24 @@ spec:
       expr: clamp_min(cantaloupe:onprem_node_current_profile_hourly_cost - on (node) cantaloupe:onprem_node_recommended_hourly_cost, 0)
     - record: cantaloupe:onprem_node_potential_savings_per_month
       expr: 730 * cantaloupe:onprem_node_potential_savings_per_hour
+    - record: cantaloupe:onprem_node_estimated_cost_change_per_month
+      expr: 730 * (cantaloupe:onprem_node_recommended_hourly_cost - on (node) cantaloupe:onprem_node_current_profile_hourly_cost)
+    - record: cantaloupe:onprem_node_under_provisioned_signal
+      expr: ((cantaloupe:onprem_node_required_cpu_cores > bool on (node) cantaloupe:onprem_node_current_profile_vcpu) + on (node) (cantaloupe:onprem_node_required_memory_bytes
+        > bool on (node) cantaloupe:onprem_node_current_profile_memory_bytes)) > bool 0
+    - record: cantaloupe:onprem_node_catalog_exceeded_signal
+      expr: (cantaloupe:onprem_node_under_provisioned_signal == 1) unless on (node) cantaloupe:onprem_node_recommendation_info
+    - record: cantaloupe:onprem_node_over_provisioned_signal
+      expr: (cantaloupe:onprem_node_recommended_hourly_cost < bool on (node) cantaloupe:onprem_node_current_profile_hourly_cost) * on (node) (cantaloupe:onprem_node_under_provisioned_signal
+        == bool 0)
+    - record: cantaloupe:onprem_node_optimized_signal
+      expr: (cantaloupe:onprem_node_recommended_hourly_cost == bool on (node) cantaloupe:onprem_node_current_profile_hourly_cost) * on (node)
+        (cantaloupe:onprem_node_under_provisioned_signal == bool 0)
+    - record: cantaloupe:onprem_node_decision_info
+      expr: label_replace((cantaloupe:onprem_node_catalog_exceeded_signal == 1), "decision", "CATALOG_EXCEEDED", "", "") or label_replace(((cantaloupe:onprem_node_under_provisioned_signal
+        == 1) and on (node) cantaloupe:onprem_node_recommendation_info), "decision", "UNDER_PROVISIONED", "", "") or label_replace((cantaloupe:onprem_node_over_provisioned_signal
+        == 1), "decision", "OVER_PROVISIONED", "", "") or label_replace((cantaloupe:onprem_node_optimized_signal == 1), "decision", "OPTIMIZED",
+        "", "")
     - record: cantaloupe:onprem_node_requests_fit_recommendation
       expr: (cantaloupe:onprem_node_cpu_requests_cores <= on (node) cantaloupe:onprem_node_recommended_vcpu * 0.900000000) and on (node) (cantaloupe:onprem_node_memory_requests_bytes
         <= on (node) cantaloupe:onprem_node_recommended_memory_bytes * 0.900000000)

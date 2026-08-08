@@ -126,12 +126,24 @@ def rules(policy: dict) -> dict:
     profile_memory_metric = static_metric("cantaloupe:onprem_profile_memory_bytes", "recommended_profile", memory_profiles, "memoryBytes")
 
     current_profile_cost_parts = []
+    current_profile_cpu_parts = []
+    current_profile_memory_parts = []
     for profile in profiles:
         current_profile_cost_parts.append(
             f'{profile["hourlyCostUSD"]:.9f} * max by (node) '
             f'(kube_node_labels{{label_platform="onp",label_node_kubernetes_io_instance_type="{profile["instanceType"]}"}})'
         )
+        current_profile_cpu_parts.append(
+            f'{float(profile["vcpu"]):.9f} * max by (node) '
+            f'(kube_node_labels{{label_platform="onp",label_node_kubernetes_io_instance_type="{profile["instanceType"]}"}})'
+        )
+        current_profile_memory_parts.append(
+            f'{int(float(profile["memoryGiB"]) * 1024**3)} * max by (node) '
+            f'(kube_node_labels{{label_platform="onp",label_node_kubernetes_io_instance_type="{profile["instanceType"]}"}})'
+        )
     current_profile_cost = "\n  or\n".join(current_profile_cost_parts)
+    current_profile_cpu = "\n  or\n".join(current_profile_cpu_parts)
+    current_profile_memory = "\n  or\n".join(current_profile_memory_parts)
 
     rec_info = recommendation_expr(profiles)
     max_sched = float(safety["maxSchedulableRatio"])
@@ -170,6 +182,8 @@ def rules(policy: dict) -> dict:
         {"record": "cantaloupe:onprem_profile_vcpu", "expr": profile_cpu_metric},
         {"record": "cantaloupe:onprem_profile_memory_bytes", "expr": profile_memory_metric},
         {"record": "cantaloupe:onprem_node_current_profile_hourly_cost", "expr": current_profile_cost},
+        {"record": "cantaloupe:onprem_node_current_profile_vcpu", "expr": current_profile_cpu},
+        {"record": "cantaloupe:onprem_node_current_profile_memory_bytes", "expr": current_profile_memory},
         {"record": "cantaloupe:onprem_node_recommendation_info", "expr": rec_info},
         {
             "record": "cantaloupe:onprem_node_recommended_vcpu",
@@ -190,6 +204,60 @@ def rules(policy: dict) -> dict:
         {
             "record": "cantaloupe:onprem_node_potential_savings_per_month",
             "expr": '730 * cantaloupe:onprem_node_potential_savings_per_hour',
+        },
+        {
+            "record": "cantaloupe:onprem_node_estimated_cost_change_per_month",
+            "expr": (
+                '730 * (cantaloupe:onprem_node_recommended_hourly_cost '
+                '- on (node) cantaloupe:onprem_node_current_profile_hourly_cost)'
+            ),
+        },
+        {
+            "record": "cantaloupe:onprem_node_under_provisioned_signal",
+            "expr": (
+                '((cantaloupe:onprem_node_required_cpu_cores '
+                '> bool on (node) cantaloupe:onprem_node_current_profile_vcpu) '
+                '+ on (node) '
+                '(cantaloupe:onprem_node_required_memory_bytes '
+                '> bool on (node) cantaloupe:onprem_node_current_profile_memory_bytes)) > bool 0'
+            ),
+        },
+        {
+            "record": "cantaloupe:onprem_node_catalog_exceeded_signal",
+            "expr": (
+                '(cantaloupe:onprem_node_under_provisioned_signal == 1) '
+                'unless on (node) cantaloupe:onprem_node_recommendation_info'
+            ),
+        },
+        {
+            "record": "cantaloupe:onprem_node_over_provisioned_signal",
+            "expr": (
+                '(cantaloupe:onprem_node_recommended_hourly_cost '
+                '< bool on (node) cantaloupe:onprem_node_current_profile_hourly_cost) '
+                '* on (node) (cantaloupe:onprem_node_under_provisioned_signal == bool 0)'
+            ),
+        },
+        {
+            "record": "cantaloupe:onprem_node_optimized_signal",
+            "expr": (
+                '(cantaloupe:onprem_node_recommended_hourly_cost '
+                '== bool on (node) cantaloupe:onprem_node_current_profile_hourly_cost) '
+                '* on (node) (cantaloupe:onprem_node_under_provisioned_signal == bool 0)'
+            ),
+        },
+        {
+            "record": "cantaloupe:onprem_node_decision_info",
+            "expr": (
+                'label_replace((cantaloupe:onprem_node_catalog_exceeded_signal == 1), '
+                '"decision", "CATALOG_EXCEEDED", "", "") '
+                'or label_replace(((cantaloupe:onprem_node_under_provisioned_signal == 1) '
+                'and on (node) cantaloupe:onprem_node_recommendation_info), '
+                '"decision", "UNDER_PROVISIONED", "", "") '
+                'or label_replace((cantaloupe:onprem_node_over_provisioned_signal == 1), '
+                '"decision", "OVER_PROVISIONED", "", "") '
+                'or label_replace((cantaloupe:onprem_node_optimized_signal == 1), '
+                '"decision", "OPTIMIZED", "", "")'
+            ),
         },
         {
             "record": "cantaloupe:onprem_node_requests_fit_recommendation",
