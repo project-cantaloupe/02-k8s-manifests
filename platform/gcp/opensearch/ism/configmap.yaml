@@ -72,3 +72,61 @@ data:
         }
       }
     }
+  app-retention-policy.json: |
+    {
+      "policy": {
+        "description": "Delete structured Audio application logs after seven days.",
+        "default_state": "hot",
+        "ism_template": [{"index_patterns": ["cantaloupe-app-logs-v1"], "priority": 110}],
+        "states": [
+          {
+            "name": "hot",
+            "actions": [],
+            "transitions": [{"state_name": "delete", "conditions": {"min_index_age": "7d"}}]
+          },
+          {"name": "delete", "actions": [{"delete": {}}], "transitions": []}
+        ]
+      }
+    }
+  app-index-template.json: |
+    {
+      "index_patterns": ["cantaloupe-app-logs-v1"],
+      "priority": 110,
+      "template": {
+        "settings": {"number_of_shards": 1, "number_of_replicas": 0},
+        "mappings": {
+          "dynamic": false,
+          "properties": {
+            "@timestamp": {"type": "date"},
+            "namespace": {"type": "keyword"},
+            "area": {"type": "keyword"},
+            "app": {"type": "keyword"},
+            "collector_platform": {"type": "keyword"},
+            "collector_node": {"type": "keyword"},
+            "pod": {"type": "keyword"},
+            "container": {"type": "keyword"},
+            "log_category": {"type": "keyword"},
+            "level": {"type": "keyword"},
+            "message": {"type": "text"},
+            "event_type": {"type": "keyword"},
+            "status": {"type": "keyword"},
+            "job_id": {"type": "keyword"},
+            "audio_id": {"type": "keyword"},
+            "attempt": {"type": "integer"},
+            "retry_count": {"type": "integer"},
+            "audio_duration_ms": {"type": "long"},
+            "processing_duration_ms": {"type": "long"},
+            "input_bytes": {"type": "long"},
+            "output_bytes": {"type": "long"},
+            "error_code": {"type": "keyword"},
+            "retryable": {"type": "boolean"},
+            "visibility": {"type": "keyword"},
+            "content_type": {"type": "keyword"},
+            "http_status": {"type": "integer"},
+            "http_status_class": {"type": "keyword"},
+            "http_method": {"type": "keyword"},
+            "http_route": {"type": "keyword"}
+          }
+        }
+      }
+    }

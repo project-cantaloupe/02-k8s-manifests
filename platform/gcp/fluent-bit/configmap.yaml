@@ -46,14 +46,21 @@ data:
         Match   kube.*
         Record  collector_node ${NODE_NAME}
 
-    # Collect every workload namespace in the platform index. kube-system and
-    # default are deliberately excluded; Calico is retained below for
-    # warning/error network events. Audio app
-    # JSON logs will later move to their own, longer-retained index.
+    # Collect every workload namespace. kube-system and default are deliberately
+    # excluded; Calico is retained below for warning/error network events.
     [FILTER]
         Name   grep
         Match  kube.*
         Exclude $kubernetes['namespace_name'] ^(kube-system|default)$
+
+    # Re-tag only the Audio processing path. audio-web remains outside the
+    # FinOps application index because it does not create upload/transcode
+    # workload facts. false prevents duplicate storage in the platform index.
+    [FILTER]
+        Name   rewrite_tag
+        Match  kube.*
+        Rule   $kubernetes['labels']['app'] ^(audio-api|audio-events|audio-transcode)$ app.$TAG false
+        Rule   $kubernetes['namespace_name'] ^audio-ingress$ app.$TAG false
 
     # Harbor Portal emits NGINX access logs to stdout. Parse only matching
     # lines; all other records retain their original `log` field unchanged.
@@ -69,7 +76,7 @@ data:
     # Kubernetes metadata are retained for incident investigation.
     [FILTER]
         Name    lua
-        Match   kube.*
+        Match   *
         Script  /fluent-bit/etc/platform-normalize.lua
         Call    normalize
 
@@ -79,6 +86,17 @@ data:
         Host                opensearch-cluster-master.logging.svc.cluster.local
         Port                9200
         Index               cantaloupe-platform-logs-v2
+        Suppress_Type_Name  On
+        Generate_ID         On
+        Retry_Limit         False
+        tls                 Off
+
+    [OUTPUT]
+        Name                opensearch
+        Match               app.*
+        Host                opensearch-cluster-master.logging.svc.cluster.local
+        Port                9200
+        Index               cantaloupe-app-logs-v1
         Suppress_Type_Name  On
         Generate_ID         On
         Retry_Limit         False
@@ -144,6 +162,7 @@ data:
       normalized["collector_node"] = record["collector_node"] or "unknown"
       normalized["pod"] = kubernetes["pod_name"] or "unknown"
       normalized["container"] = kubernetes["container_name"] or "unknown"
+      normalized["log_category"] = string.match(tag, "^app%.") and "application" or "platform"
       -- Structured application logs provide their own severity. NGINX access
       -- logs do not, so derive a consistent severity from their HTTP status.
       -- Keep 4xx as warning because many client errors (for example 401/404)
@@ -191,6 +210,25 @@ data:
         normalized["http_status"] = record["http_status"]
         normalized["http_method"] = record["http_method"]
         normalized["http_route"] = normalize_harbor_route(record["http_path"])
+      end
+
+      -- Preserve only explicitly approved application fields. Arbitrary JSON
+      -- keys are never indexed, avoiding mapping churn and sensitive payloads.
+      local application_fields = {
+        "event_type", "status", "job_id", "audio_id", "attempt", "retry_count",
+        "audio_duration_ms", "processing_duration_ms", "input_bytes", "output_bytes",
+        "error_code", "retryable", "visibility", "content_type"
+      }
+      for _, field in ipairs(application_fields) do
+        if record[field] ~= nil then
+          normalized[field] = record[field]
+        end
+      end
+
+      if normalized["log_category"] == "application" and record["http_status"] ~= nil then
+        normalized["http_status"] = record["http_status"]
+        normalized["http_method"] = record["http_method"]
+        normalized["http_route"] = record["http_route"]
       end
 
       return 1, timestamp, normalized

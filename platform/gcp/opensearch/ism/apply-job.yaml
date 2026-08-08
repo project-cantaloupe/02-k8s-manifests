@@ -58,6 +58,33 @@ spec:
                 "$endpoint/_index_template/cantaloupe-platform-logs-v2" \
                 -H 'Content-Type: application/json' \
                 --data-binary @/policy/platform-index-template.json
+
+              policy=cantaloupe-app-retention
+              existing=$(mktemp)
+              status=$(curl --silent --output "$existing" --write-out '%{http_code}' \
+                "$endpoint/_plugins/_ism/policies/$policy")
+
+              if [ "$status" = "200" ]; then
+                sequence=$(sed -n 's/.*"_seq_no"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$existing" | head -n1)
+                primary=$(sed -n 's/.*"_primary_term"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$existing" | head -n1)
+                curl --fail --silent --show-error -X PUT \
+                  "$endpoint/_plugins/_ism/policies/$policy?if_seq_no=$sequence&if_primary_term=$primary" \
+                  -H 'Content-Type: application/json' \
+                  --data-binary @/policy/app-retention-policy.json
+              elif [ "$status" = "404" ]; then
+                curl --fail --silent --show-error -X PUT \
+                  "$endpoint/_plugins/_ism/policies/$policy" \
+                  -H 'Content-Type: application/json' \
+                  --data-binary @/policy/app-retention-policy.json
+              else
+                cat "$existing"
+                exit 1
+              fi
+
+              curl --fail --silent --show-error -X PUT \
+                "$endpoint/_index_template/cantaloupe-app-logs-v1" \
+                -H 'Content-Type: application/json' \
+                --data-binary @/policy/app-index-template.json
           volumeMounts:
             - name: policy
               mountPath: /policy
