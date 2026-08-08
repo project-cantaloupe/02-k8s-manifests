@@ -144,8 +144,11 @@ def parse_recommendation(recommendation, nodes):
         decision = "OVER_PROVISIONED"
     else:
         decision = "CHANGE_TYPE"
-    # A saving is represented by a negative projected cost delta.
-    savings = max(0.0, -money_value(cost.get("cost", {})))
+    # GCP CostProjection is signed: negative means savings and positive means
+    # additional cost. Preserve that official value instead of discarding
+    # scale-up cost, while retaining the legacy positive-only savings metric.
+    monthly_cost_change = money_value(cost.get("cost", {}))
+    savings = max(0.0, -monthly_cost_change)
     return {
         **node,
         "current_profile": current.get("name", node["current_profile"]),
@@ -155,6 +158,7 @@ def parse_recommendation(recommendation, nodes):
         "current_memory_bytes": current_memory,
         "recommended_memory_bytes": recommended_memory,
         "monthly_savings_usd": savings,
+        "monthly_cost_change_usd": monthly_cost_change,
         "state": recommendation.get("stateInfo", {}).get("state", "UNKNOWN"),
         "decision": decision,
         "priority": recommendation.get("priority", "UNSPECIFIED"),
@@ -186,6 +190,7 @@ def recommendation_metrics(recommendations):
         lines.append(sample("cantaloupe:provider_vm_recommendation_info", 1, info))
         values = {
             "cantaloupe:provider_vm_estimated_monthly_savings": item["monthly_savings_usd"],
+            "cantaloupe:provider_vm_estimated_monthly_cost_change": item["monthly_cost_change_usd"],
             "cantaloupe:provider_vm_current_vcpu": item["current_vcpu"],
             "cantaloupe:provider_vm_recommended_vcpu": item["recommended_vcpu"],
             "cantaloupe:provider_vm_current_memory_bytes": item["current_memory_bytes"],
