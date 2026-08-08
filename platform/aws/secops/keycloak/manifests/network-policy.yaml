@@ -1,0 +1,116 @@
+# 팀원 → Keycloak 로그인 경로를 연다.
+#
+# ── 왜 이게 필요한가 ────────────────────────────────────────────
+#
+# `secops` 네임스페이스에 Kyverno 가 만든 `default-deny-ingress` 가 있다.
+# `podSelector: {}` 라 이 네임스페이스의 **모든 파드로 들어오는 트래픽을
+# 막는다.** NetworkPolicy 는 합집합이라, 열려면 허용 규칙을 하나 더 둔다.
+#
+#     kubectl get netpol -n secops
+#     allow-from-audio-ingress  allow-from-mesh  allow-from-ztunnel
+#     allow-same-namespace      default-deny-ingress
+#
+# ── 이미 있는 `allow-from-mesh` 로 안 되나 ─────────────────────
+#
+#     {"ingress":[{"from":[{"ipBlock":{"cidr":"100.64.0.0/10"}}]}]}
+#
+# tailnet CGNAT 대역이다. **팀원의 tailnet 주소가 파드까지 그대로 도착하면**
+# 이걸로 충분하다. 문제는 그게 보장되지 않는다는 것이다 — service.yaml 의
+# `externalTrafficPolicy` 절과 아래 「출발지 주소」를 본다.
+#
+# ── kubelet 프로브는 왜 규칙이 없나 ────────────────────────────
+#
+# 관리 포트(9000)를 여기서 안 연다. **Calico 는 노드에서 그 노드 위의 파드로
+# 가는 트래픽에 정책을 걸지 않는다.** 근거는 추측이 아니라 관측이다 —
+# `external-secrets` 네임스페이스는 `default-deny-ingress` 아래에서 웹훅
+# 10250 하나만 열려 있는데, 컨트롤러 파드의 readiness 프로브(8081)가
+# 정상으로 통과한다. 프로브는 항상 **같은 노드의 kubelet** 이 던진다.
+#
+# Prometheus 의 메트릭 수집(9000)은 다르다 — 그건 다른 노드에서 온다.
+# ServiceMonitor 를 붙일 때 규칙을 하나 더 만든다.
+#
+# ── ⚠️ 출발지 주소가 이 파일의 전부다 ─────────────────────────
+#
+# 2026-08-07 에 같은 계열로 한 번 막혔다. 노드의 `InternalIP` 가 tailnet
+# 주소(100.x)여도, **다른 노드의 파드로 가는 트래픽은 Calico VXLAN 을 타면서
+# 터널 인터페이스 주소로 SNAT 된다.**
+# → findings/20260807_default-deny-blocks-admission-webhooks.md
+#
+# 여기서는 층이 하나 더 있다. NodePort 는 `externalTrafficPolicy: Cluster`
+# (기본)에서 **kube-proxy 가 먼저 MASQUERADE 한다.** 그래야 응답이 들어온
+# 노드로 되돌아가기 때문이다. 즉 파드가 보는 출발지는 팀원의 주소가 아니라
+# 중계한 노드의 주소다.
+#
+#     팀원(100.x) → 노드 A:30843 → [kube-proxy MASQUERADE]
+#                                → [Calico VXLAN, 파드가 노드 B 면]
+#                                → 파드가 보는 출발지 = ???
+#
+# **추측하지 말고 잰다.** 파드가 뜬 뒤 노드에서:
+#
+#     ip route get <파드 IP>        # 나가는 인터페이스의 src 가 답이다
+#
+# 또는 실제 요청을 한 번 보내고 Keycloak 접근 로그를 본다. 그게 유일하게
+# 믿을 만한 확인이다 → references/20260805_k8s-manifest-validation-via-control-plane.md
+#
+# ── 그래서 노드 대역을 통째로 연다 ─────────────────────────────
+#
+# 중계하는 노드가 어느 주소로 보이든 통과하도록 `10.244.0.0/16` 을 쓴다.
+# 세 갈래를 놓고 고른 결과다.
+#
+# | | 고르지 않은 이유 |
+# |---|---|
+# | 노드 터널 주소 6개를 `/32` | Calico 가 노드에 임의 할당하는 값이라 **노드를 다시 만들면 깨진다.** ESO 웹훅에서 이미 같은 빚을 하나 졌다 |
+# | `externalTrafficPolicy: Local` + `100.64.0.0/10` | 아래 |
+#
+# ⚠️ **`Local` 은 파드 격리를 주지 않는다.** 그게 이 결정의 핵심이다.
+# 발행자 URL 이 공개 이름(`https://auth.echoprism.cloud`)이라 클러스터 안
+# 파드도 밖으로 나갔다 들어온다. 그때 `natOutgoing: true` 가 파드 IP 를
+# **노드의 tailscale0 주소로 SNAT** 하는데 그건 `100.64.0.0/10` 안이다.
+# 즉 `Local` 을 써도 아무 파드나 통과한다.
+#
+#     파드 → auth.echoprism.cloud (100.x)
+#          → natOutgoing SNAT → 노드 tailnet 주소 (100.x)
+#          → NodePort → Keycloak 이 보는 출발지 = 100.x   ← 통과한다
+#
+# 그러면 `Local` 이 사는 것은 출발지 IP 가치뿐인데, Keycloak 이벤트 로그에
+# 사용자명·클라이언트·성공/실패가 이미 남고 무차별 대입 탐지도 **사용자
+# 단위**라 영향이 없다.
+#
+# 반면 `Local` 이 치르는 값은 크다 — **파드가 있는 노드만 응답한다.**
+# replicas 가 1이라 노드 드레인으로 파드가 옮겨가면 A 레코드가 가리키는
+# 노드가 연결을 거부하고, **로그인이 조용히 죽는다.** 로그인이 죽으면
+# kubectl·ArgoCD·Vault 가 연쇄로 막혀 break-glass 말고 길이 없다.
+# 막으려면 파드를 노드에 못박아야 하는데, 그건 발행자 이름을 노드
+# 호스트명으로 안 쓴 이유였던 **DNS-스케줄러 결합**을 뒷문으로 들이는 것이다.
+#
+# 잃는 것 — Keycloak 이 보는 출발지가 팀원 주소가 아니라 중계 노드 주소다.
+# 되찾으려면 replicas 를 늘리고 앞에 제대로 된 문(게이트웨이)을 세운 뒤
+# 다시 본다.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-team-login
+  namespace: secops
+spec:
+  podSelector:
+    matchLabels:
+      app: keycloak
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Calico 기본 IPPool 의 전 대역. **중계한 노드의 주소를 허용하는 것이
+        # 목적이고**, 파드 IP 가 같이 들어오는 것은 부수효과다.
+        #
+        # ⚠️ `from:` 을 **비우거나 지우면 전부 허용**이 된다. 빈 목록은
+        # "제한 없음"으로 읽힌다 → findings/20260806_networkpolicy-ingress-from-omitted.md
+        - ipBlock:
+            cidr: 10.244.0.0/16
+      ports:
+        # 서비스 포트 443 이 아니라 containerPort 다.
+        # NetworkPolicy 는 Service 를 모르고 파드만 본다.
+        #
+        # **이 블록이 1번 안에서 유일하게 남는 좁히기다.** 빼면 관리 포트
+        # 9000 까지 열린다 — 거긴 인증이 없다.
+        - protocol: TCP
+          port: 8443
