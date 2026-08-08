@@ -1,0 +1,50 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: fluent-bit-delivery-alerts
+  labels:
+    app: fluent-bit
+    area: logging
+    platform: gcp
+spec:
+  groups:
+    - name: fluent-bit.delivery
+      rules:
+        - alert: FluentBitDroppedRecords
+          expr: sum(increase(fluentbit_output_dropped_records_total[5m])) > 0
+          labels:
+            severity: critical
+            category: monitoring
+            component: fluent-bit
+          annotations:
+            summary: Fluent Bit dropped log records.
+            description: >-
+              Fluent Bit discarded one or more records during the last 5 minutes.
+              This means platform logs were lost before OpenSearch indexing.
+            action: Check Fluent Bit buffer, OpenSearch availability, and network connectivity.
+        - alert: FluentBitDeliveryRetriesSustained
+          expr: sum(increase(fluentbit_output_retries_total[5m])) > 0
+          for: 15m
+          labels:
+            severity: critical
+            category: monitoring
+            component: fluent-bit
+          annotations:
+            summary: Fluent Bit delivery retries are sustained.
+            description: >-
+              Fluent Bit has continued retrying output delivery for at least 15 minutes.
+              OpenSearch ingestion or the network path may be degraded.
+            action: Check Fluent Bit output errors, OpenSearch health, and the network path to logging.
+        - alert: FluentBitOpenSearchIngestErrors
+          expr: sum(increase(fluentbit_output_errors_total[5m])) > 0
+          for: 5m
+          labels:
+            severity: critical
+            category: monitoring
+            component: fluent-bit
+          annotations:
+            summary: Fluent Bit cannot deliver records to OpenSearch.
+            description: >-
+              Fluent Bit output errors have persisted for at least 5 minutes.
+              The only configured output is OpenSearch.
+            action: Check the OpenSearch service, cluster health, and Fluent Bit network connectivity.
