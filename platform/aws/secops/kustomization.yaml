@@ -11,6 +11,7 @@
 #
 #   cert-manager → secops 네임스페이스
 #   kyverno      → kyverno 네임스페이스 (차트 기본값, 규약 7절이 강제 대상에서 제외)
+#   keycloak     → secops 네임스페이스
 #
 # 파드 라벨의 `area` 는 둘 다 `secops` 다 — 네임스페이스와 area 가 항상
 # 1:1 은 아니다 (00-cantaloupe-resources/k8s-labeling-convention.md 1절).
@@ -19,4 +20,8 @@ kind: Kustomization
 
 resources:
   - cert-manager
+  # `keycloak/kustomization.yaml` 은 Application 하나만 든다. 실체는
+  # `keycloak/manifests/` 에 있고 그 Application 이 따로 가리킨다 —
+  # 여기서 두 번 적용되지 않는다.
+  - keycloak
   - kyverno

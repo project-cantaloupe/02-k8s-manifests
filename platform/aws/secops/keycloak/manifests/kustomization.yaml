@@ -1,0 +1,23 @@
+# Keycloak 실체.
+#
+# ⚠️ **적용 순서가 파일 순서가 아니다.** ArgoCD 는 kind 별 기본 순서로
+# 적용하고, 그 안에서 실패한 것은 재시도한다(`retry` 설정). 그래서 여기
+# 나열 순서에 의미를 두지 않는다.
+#
+# 다만 **사실상의 의존은 있다.**
+#
+#     SecretStore ─→ ExternalSecret ─→ Secret(keycloak-db) ─┐
+#     Certificate ─────────────────→ Secret(keycloak-tls) ─┴→ Deployment
+#
+# 둘 중 하나라도 늦으면 파드가 `ContainerCreating` 에 머문다. 에러가 아니라
+# **대기**라서 조용하다 — `kubectl describe pod` 의 이벤트에만 찍힌다.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - secret-store.yaml
+  - external-secret.yaml
+  - certificate.yaml
+  - deployment.yaml
+  - service.yaml
+  - network-policy.yaml

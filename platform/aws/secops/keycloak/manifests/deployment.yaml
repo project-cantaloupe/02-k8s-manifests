@@ -1,0 +1,238 @@
+# Keycloak 서버.
+#
+# ── 왜 Deployment 이고 PVC 가 없나 ─────────────────────────────
+#
+# **DB 가 밖에 있으면 Keycloak 은 무상태다.** realm·사용자·클라이언트·세션이
+# 전부 RDS 에 있다. 파드가 죽어도 잃는 것이 없다.
+# → decisions/20260807_keycloak-database-placement.md
+#
+# 그래서 `aws-ebs-retain` StorageClass 는 지금 소비자가 없다. 클러스터 안
+# PostgreSQL 을 골랐을 때 쓰려던 것이었다 → decisions/20260807_aws-ebs-csi-driver.md
+#
+# ── 왜 replicas 가 1 인가 ───────────────────────────────────────
+#
+# 워커가 t3.small(할당 가능 1.8 GiB)이고 2026-08-08 실측으로 실여유가
+# **920 MiB 뿐**이다. 두 대를 띄우면 한쪽이 Pending 에 머문다.
+# 컨트롤플레인을 1대로 둔 것과 같은 판단이다
+# → decisions/20260803_control-plane-single-node.md
+#
+# ⚠️ **replicas 를 올릴 때 `KC_DB_POOL_MAX_SIZE` 를 같이 본다.** 아래 참조.
+#
+# ── 왜 Recreate 인가 ────────────────────────────────────────────
+#
+# RollingUpdate 면 잠깐 구버전과 신버전이 **같은 DB 에 동시에 붙는다.**
+# Keycloak 은 기동 시 스키마 마이그레이션을 도는데, 버전이 다른 둘이 겹치면
+# 한쪽이 모르는 스키마를 보게 된다. replicas 가 1이라 어차피 재시작 동안
+# 로그인이 멈추므로, 겹침을 없애는 쪽이 얻는 게 많다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: secops
+  labels:
+    app: keycloak
+    area: secops
+    platform: aws
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+        area: secops
+        platform: aws
+    spec:
+      # ⚠️ **컨트롤플레인이 아니라 워커다.** Kyverno·istiod 는 어드미션이
+      # 쓰기의 동기 경로라 cp 로 올렸지만, Keycloak 은 사람 로그인 경로라
+      # 그 논거가 안 걸린다. 그리고 cp-01 은 CPU 예약이 84% 라 여유가 없다
+      # → decisions/20260806_aws-node-placement.md
+      #
+      # `platform: aws` 인 이유는 **DB 가 같은 VPC 에 있어서**다. GCP·온프렘
+      # 워커에 뜨면 인증 질의마다 WAN 을 왕복한다.
+      nodeSelector:
+        platform: aws
+        role: service
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: keycloak
+          # 26.7.1 (2026-07). 태그를 완전한 세 자리로 고정한다 — `26.7` 은
+          # 움직이는 태그라 ArgoCD 가 같은 매니페스트로 다른 것을 배포한다.
+          image: quay.io/keycloak/keycloak:26.7.1
+          # `--optimized` 를 안 쓴다. 그건 `kc.sh build` 를 미리 구운
+          # 커스텀 이미지가 있을 때만 유효하고, 우리는 공식 이미지를 그대로
+          # 쓰므로 기동 때 augmentation 이 돈다. **첫 기동이 1분 넘게 걸리는
+          # 이유가 이것**이고 startupProbe 가 그만큼 기다린다.
+          args: ["start"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            # 이미지의 USER 와 같다. 명시하는 이유는 `runAsNonRoot: true` 가
+            # 이미지의 USER 를 못 읽는 레지스트리에서 실패하기 때문이다.
+            runAsUser: 1000
+            # ⚠️ **readOnlyRootFilesystem 을 켜지 않았다.** augmentation 이
+            # `/opt/keycloak/lib/quarkus` 에 쓴다. PSA `restricted` 가 요구하는
+            # 항목이 아니다 — 켜려면 그 경로까지 emptyDir 로 덮어야 하고,
+            # 그러면 이미지가 굽는 내용이 사라진다
+          env:
+            # ── DB ────────────────────────────────────────────
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL_HOST
+              value: cntlp-aws-identity-db.cxk2suw6qqeh.ap-northeast-2.rds.amazonaws.com
+            - name: KC_DB_URL_PORT
+              value: "5432"
+            - name: KC_DB_URL_DATABASE
+              value: keycloak
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db
+                  key: username
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db
+                  key: password
+            # ⚠️ **이 값을 지우면 DB 가 커넥션을 거절한다.**
+            #
+            # Keycloak 기본값이 100 이고, db.t4g.micro(1 GiB)의
+            # `max_connections` 는 `LEAST({DBInstanceClassMemory/9531392}, 5000)`
+            # 로 계산돼 **약 100**이다. 파드 하나가 상한을 통째로 잡는다.
+            # replicas 를 2로 올리는 순간 두 번째가 접속을 못 한다.
+            # → decisions/20260807_keycloak-database-placement.md
+            - name: KC_DB_POOL_MAX_SIZE
+              value: "20"
+
+            # ── 발행자 이름 ────────────────────────────────────
+            #
+            # 전체 URL 을 준다. Keycloak 26 의 hostname v2 는 이 값으로
+            # 토큰의 `iss`, 디스커버리 문서, 리다이렉트를 전부 만든다.
+            # **여기가 틀리면 로그인은 되는데 클라이언트가 토큰을 거절한다.**
+            - name: KC_HOSTNAME
+              value: https://auth.echoprism.cloud
+            - name: KC_HOSTNAME_STRICT
+              value: "true"
+
+            # ── TLS ───────────────────────────────────────────
+            #
+            # Keycloak 이 직접 종단한다. 앞에 프록시를 두지 않으므로
+            # `KC_PROXY_HEADERS` 를 설정하지 않는다 — 설정하면 클라이언트가
+            # 보낸 `X-Forwarded-*` 를 그대로 믿게 되어 **호스트 위조가 열린다.**
+            - name: KC_HTTP_ENABLED
+              value: "false"
+            - name: KC_HTTPS_CERTIFICATE_FILE
+              value: /etc/keycloak/tls/tls.crt
+            - name: KC_HTTPS_CERTIFICATE_KEY_FILE
+              value: /etc/keycloak/tls/tls.key
+
+            # ── 헬스·메트릭 ───────────────────────────────────
+            #
+            # 25 부터 헬스 엔드포인트가 **관리 포트(9000)로 옮겨졌다.**
+            # 8443 에서 `/health` 를 찾으면 404 다.
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_METRICS_ENABLED
+              value: "true"
+            # ⚠️ **기본값 `inherited` 를 쓰면 관리 포트도 HTTPS 가 된다.**
+            # 메인이 https 라서 그렇다. 그러면 프로브를 `scheme: HTTPS` 로
+            # 바꿔야 하는데, 그 인증서는 `auth.echoprism.cloud` 용이라
+            # kubelet 이 파드 IP 로 붙을 때 이름이 안 맞는다. 평문으로
+            # 고정하는 편이 단순하다 — 9000 은 서비스로 내보내지 않는다.
+            - name: KC_HTTP_MANAGEMENT_SCHEME
+              value: http
+
+            # ── 캐시 ──────────────────────────────────────────
+            #
+            # replicas 가 1이라 분산 캐시가 필요 없다. 기본값 `ispn` 을 두면
+            # JGroups 가 피어를 찾다가 기동이 늦어진다.
+            - name: KC_CACHE
+              value: local
+
+            # ── 부트스트랩 관리자 ─────────────────────────────
+            #
+            # 첫 기동에만 쓰인다. master realm 에 관리자가 이미 있으면
+            # 무시된다 → external-secret.yaml
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-bootstrap-admin
+                  key: username
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-bootstrap-admin
+                  key: password
+
+            # ⚠️ **JVM 은 컨테이너 limit 을 안 본다.** cgroup 을 읽긴 하지만
+            # 기본 비율이 커서 metaspace·direct buffer 와 합치면 limit 을
+            # 넘긴다. 넘기면 커널이 OOMKill 하고 **로그에 아무것도 안 남는다.**
+            # 60% = 614 MiB heap, 나머지 410 MiB 가 JVM 자체와 native 몫이다.
+            - name: JAVA_OPTS_APPEND
+              value: "-XX:MaxRAMPercentage=60"
+          ports:
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+            - name: management
+              containerPort: 9000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              # CPU limit 을 안 건다. augmentation 이 CPU 를 몰아 쓰는데
+              # 여기서 조이면 기동이 startupProbe 상한을 넘긴다.
+              memory: 1Gi
+          # ⚠️ **셋의 역할이 다르다.**
+          #   startup  — 기동을 기다린다. 이 동안 liveness 가 안 돈다
+          #   readiness— 서비스 엔드포인트에서 뺄지 정한다
+          #   liveness — 죽었다고 판단해 재시작한다
+          # startupProbe 가 없으면 느린 기동을 liveness 가 실패로 보고
+          # **무한 재시작 루프**에 빠진다.
+          startupProbe:
+            httpGet:
+              path: /health/started
+              port: management
+            # 10s * 30 = 최대 5분. augmentation + 스키마 마이그레이션이
+            # 첫 기동에 다 들어간다.
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: management
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: management
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/keycloak/tls
+              readOnly: true
+            - name: data
+              mountPath: /opt/keycloak/data
+      volumes:
+        - name: tls
+          secret:
+            # cert-manager 가 Certificate 로부터 만든다 → certificate.yaml
+            # ⚠️ 인증서가 아직 발급 전이면 이 Secret 이 없어 **파드가
+            # ContainerCreating 에 머문다.** 파드 이벤트에 이유가 찍힌다
+            secretName: keycloak-tls
+            defaultMode: 0440
+        - name: data
+          # 무상태지만 Keycloak 이 기동 중 임시 파일을 여기 쓴다.
+          emptyDir: {}
