@@ -22,6 +22,24 @@ spec:
               Fluent Bit discarded one or more records during the last 5 minutes.
               This means platform logs were lost before OpenSearch indexing.
             action: Check Fluent Bit buffer, OpenSearch availability, and network connectivity.
+        - alert: FluentBitDeliveryStalled
+          expr: >-
+            (sum by (pod) (increase(fluentbit_input_records_total[5m])) > 0)
+            and on (pod)
+            (sum by (pod) (increase(fluentbit_output_proc_records_total[5m])) == 0)
+            and on (pod)
+            (sum by (pod) (increase(fluentbit_output_retries_total[5m])) > 0)
+          for: 15m
+          labels:
+            severity: critical
+            category: monitoring
+            component: fluent-bit
+          annotations:
+            summary: Fluent Bit retries are not reaching OpenSearch.
+            description: >-
+              This Fluent Bit Pod has received logs and is retrying delivery, but has not
+              processed any output records for 15 minutes. Logs may be stuck before OpenSearch indexing.
+            action: Check the affected Fluent Bit Pod buffer, OpenSearch health, and the network path to logging.
         - alert: FluentBitOpenSearchIngestErrors
           expr: sum(increase(fluentbit_output_errors_total[5m])) > 0
           for: 5m
