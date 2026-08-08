@@ -1,4 +1,4 @@
-# Cantaloupe On-prem TCO v1
+# Cantaloupe On-prem TCO v2
 
 ## 적용 범위
 
@@ -68,6 +68,28 @@ profile hourly TCO
 추천 필요 용량은 최근 7일 Node 전체 Container 사용량 P95에 CPU/Memory 30%
 여유를 적용하고 OS·kubelet을 위해 0.5 CPU와 1 GiB를 추가한다. 이 필요 용량을
 만족하는 가장 저렴한 Profile을 권장한다.
+
+P95와 CPU·Memory 30% headroom은 AWS Compute Optimizer의 공개 `Balanced`
+rightsizing preference와 같은 기준이다. AWS 알고리즘을 사용했다는 뜻은 아니며,
+공개된 percentile/headroom 조합을 On-prem에서도 재현 가능한 내부 정책으로
+채택한 것이다. OS·kubelet reserve는 Kubernetes Node Allocatable 원칙에 따라
+워크로드 외 자원을 명시적으로 제외한다.
+
+- AWS 기준: https://docs.aws.amazon.com/compute-optimizer/latest/ug/rightsizing-preferences.html
+- Kubernetes 기준: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/
+
+판정은 절감과 증설을 모두 포함한다.
+
+| 판정 | 객관적 조건 |
+| --- | --- |
+| `OVER_PROVISIONED` | 필요 용량을 만족하는 더 저렴한 승인 Profile이 있고 현재 사양 부족이 없음 |
+| `OPTIMIZED` | 현재 Profile이 필요 용량을 만족하는 가장 저렴한 승인 Profile |
+| `UNDER_PROVISIONED` | CPU 또는 Memory 필요 용량이 현재 Profile을 초과하지만 더 큰 승인 Profile이 존재 |
+| `CATALOG_EXCEEDED` | 필요 용량이 승인된 모든 Profile을 초과하여 신규 사양 설계가 필요 |
+
+비용 영향은 `권장 Profile 월 TCO - 현재 Profile 월 TCO`로 양방향 계산한다.
+음수는 절감, 양수는 증설 비용이다. 승인 Profile을 초과하면 근거 없는 가상
+사양이나 가격을 만들지 않고 `CATALOG_EXCEEDED`로 표시한다.
 
 추천과 적용 가능 여부는 별도다. 현재 Pod Request 합계가 권장 Profile의 90%를
 넘으면 `Workload Right-sizing 선행`으로 판단한다. 최근 OOMKilled 또는 Node
