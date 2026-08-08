@@ -9,6 +9,7 @@ resources:
   - gcp-recommender-collector.yaml
   - aws-compute-optimizer-collector.yaml
   - vpa-recommendation-collector.yaml
+  - audio-ingress-observability.yaml
 
 configMapGenerator:
   - name: gcp-recommender-collector

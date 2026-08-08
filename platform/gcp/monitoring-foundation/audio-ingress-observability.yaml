@@ -1,0 +1,57 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: audio-ingress
+  namespace: monitoring
+  labels:
+    app: audio-ingress
+    area: monitoring
+    component: ingress-metrics
+    platform: aws
+spec:
+  namespaceSelector:
+    matchNames:
+      - audio-ingress
+  selector:
+    matchLabels:
+      app: audio-ingress
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: audio-ingress-alerts
+  namespace: monitoring
+  labels:
+    app: audio-ingress
+    area: monitoring
+    component: ingress-metrics
+    platform: aws
+spec:
+  groups:
+    - name: audio-ingress.availability
+      rules:
+        - alert: AudioIngressHTTP5xxRateHigh
+          expr: >-
+            (
+              sum(increase(istio_requests_total{reporter="source",source_workload="audio-ingress",response_code=~"5.."}[5m]))
+              /
+              sum(increase(istio_requests_total{reporter="source",source_workload="audio-ingress"}[5m]))
+            ) > 0.05
+            and
+            sum(increase(istio_requests_total{reporter="source",source_workload="audio-ingress"}[5m])) >= 10
+          for: 5m
+          labels:
+            severity: critical
+            category: monitoring
+            component: audio-ingress
+          annotations:
+            summary: Audio Ingress HTTP 5xx rate is high.
+            description: >-
+              More than 5 percent of Audio Ingress requests returned HTTP 5xx during the last
+              5 minutes, with at least 10 requests observed.
+            action: Check Audio Ingress, audio-api/audio-web Pods, and the recent 5xx request routes.
