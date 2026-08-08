@@ -538,40 +538,6 @@ spec:
               cantaloupe:workload_container_oom_observation[7d]
             )
 
-        - record: cantaloupe:workload_container_cpu_request_candidate_cores
-          expr: |
-            ceil(
-              clamp_min(
-                cantaloupe:workload_container_cpu_p95_7d_cores / 0.70,
-                0.01
-              ) * 100
-            ) / 100
-
-        - record: cantaloupe:workload_container_memory_request_candidate_bytes
-          expr: |
-            ceil(
-              clamp_min(
-                cantaloupe:workload_container_memory_max_7d_bytes / 0.80,
-                16777216
-              ) / 16777216
-            ) * 16777216
-
-        - record: cantaloupe:workload_container_cpu_candidate_change_ratio
-          expr: |
-            (
-              cantaloupe:workload_container_cpu_request_candidate_cores
-                / on (namespace, workload, workload_type, container)
-              cantaloupe:workload_container_cpu_request_cores
-            ) - 1
-
-        - record: cantaloupe:workload_container_memory_candidate_change_ratio
-          expr: |
-            (
-              cantaloupe:workload_container_memory_request_candidate_bytes
-                / on (namespace, workload, workload_type, container)
-              cantaloupe:workload_container_memory_request_bytes
-            ) - 1
-
         # CPU throttling is a reliability guardrail, not a cost input. Missing
         # throttling counters resolve to zero so they do not erase candidates.
         - record: cantaloupe:workload_container_cpu_throttling_ratio
@@ -623,18 +589,6 @@ spec:
               )
             )
 
-        - record: cantaloupe:workload_container_candidate_safe_to_review
-          expr: |
-            (
-              (cantaloupe:workload_container_observation_hours >= bool 24)
-                * on (namespace, workload, workload_type, container)
-              (cantaloupe:workload_container_recent_oom_signal == bool 0)
-            )
-              * on (namespace, workload, workload_type, container)
-            (cantaloupe:workload_container_cpu_throttling_p95_7d < bool 0.10)
-              unless on (namespace, workload)
-            cantaloupe:workload_hpa_signal
-
         # OpenCost-derived request allocation by workload template. The
         # candidate cost scales the current pod-level request allocation by
         # candidate/current request. It is an allocation opportunity, not a
@@ -653,73 +607,6 @@ spec:
               cantaloupe:container_memory_request_cost_per_hour
                 * on (namespace, pod) group_left(workload, workload_type)
               namespace_workload_pod:kube_pod_owner:relabel
-            )
-
-        - record: cantaloupe:workload_container_cpu_request_candidate_cost_per_hour
-          expr: |
-            cantaloupe:workload_container_cpu_request_cost_per_hour
-              * on (namespace, workload, workload_type, container)
-            (
-              cantaloupe:workload_container_cpu_request_candidate_cores
-                / on (namespace, workload, workload_type, container)
-              cantaloupe:workload_container_cpu_request_cores
-            )
-
-        - record: cantaloupe:workload_container_memory_request_candidate_cost_per_hour
-          expr: |
-            cantaloupe:workload_container_memory_request_cost_per_hour
-              * on (namespace, workload, workload_type, container)
-            (
-              cantaloupe:workload_container_memory_request_candidate_bytes
-                / on (namespace, workload, workload_type, container)
-              cantaloupe:workload_container_memory_request_bytes
-            )
-
-        - record: cantaloupe:workload_container_request_candidate_savings_per_month
-          expr: |
-            730 * clamp_min(
-              (
-                cantaloupe:workload_container_cpu_request_cost_per_hour
-                  + on (namespace, workload, workload_type, container)
-                cantaloupe:workload_container_memory_request_cost_per_hour
-              )
-                - on (namespace, workload, workload_type, container)
-              (
-                cantaloupe:workload_container_cpu_request_candidate_cost_per_hour
-                  + on (namespace, workload, workload_type, container)
-                cantaloupe:workload_container_memory_request_candidate_cost_per_hour
-              ),
-              0
-            )
-              * on (namespace, workload, workload_type, container)
-            cantaloupe:workload_container_candidate_safe_to_review
-
-        - record: cantaloupe:workload_container_cpu_candidate_savings_per_month
-          expr: |
-            730 * clamp_min(
-              cantaloupe:workload_container_cpu_request_cost_per_hour
-                - on (namespace, workload, workload_type, container)
-              cantaloupe:workload_container_cpu_request_candidate_cost_per_hour,
-              0
-            )
-              * on (namespace, workload, workload_type, container)
-            cantaloupe:workload_container_candidate_safe_to_review
-
-        - record: cantaloupe:workload_container_memory_candidate_savings_per_month
-          expr: |
-            730 * clamp_min(
-              cantaloupe:workload_container_memory_request_cost_per_hour
-                - on (namespace, workload, workload_type, container)
-              cantaloupe:workload_container_memory_request_candidate_cost_per_hour,
-              0
-            )
-              * on (namespace, workload, workload_type, container)
-            cantaloupe:workload_container_candidate_safe_to_review
-
-        - record: cantaloupe:workload_request_candidate_savings_per_month
-          expr: |
-            sum by (namespace, workload, workload_type) (
-              cantaloupe:workload_container_request_candidate_savings_per_month
             )
 
         - record: cantaloupe:workload_container_memory_limit_headroom_ratio
@@ -780,8 +667,8 @@ spec:
               )
             )
 
-    # Cross-check the transparent P95/Max candidates with the upstream VPA
-    # model. A recommendation is evidence, not an actuator.
+    # Official VPA recommendations are the sole request-sizing source.
+    # Prometheus usage signals are retained only as operational guardrails.
     - name: cantaloupe.finops.vpa-cross-validation
       interval: 5m
       rules:
@@ -803,6 +690,33 @@ spec:
               cantaloupe_vpa_container_recommendation_memory_bytes{bound="target"}
             )
 
+        - record: cantaloupe:workload_container_vpa_lower_cpu_cores
+          expr: |
+            max by (
+              namespace, workload, workload_type, container,
+              rightsizing_class, review_policy
+            ) (
+              cantaloupe_vpa_container_recommendation_cpu_cores{bound="lower"}
+            )
+
+        - record: cantaloupe:workload_container_vpa_upper_cpu_cores
+          expr: |
+            max by (
+              namespace, workload, workload_type, container,
+              rightsizing_class, review_policy
+            ) (
+              cantaloupe_vpa_container_recommendation_cpu_cores{bound="upper"}
+            )
+
+        - record: cantaloupe:workload_container_vpa_lower_memory_bytes
+          expr: |
+            max by (
+              namespace, workload, workload_type, container,
+              rightsizing_class, review_policy
+            ) (
+              cantaloupe_vpa_container_recommendation_memory_bytes{bound="lower"}
+            )
+
         - record: cantaloupe:workload_container_vpa_upper_memory_bytes
           expr: |
             max by (
@@ -812,50 +726,89 @@ spec:
               cantaloupe_vpa_container_recommendation_memory_bytes{bound="upper"}
             )
 
-        # 1 means both independent methods recommend the same change direction.
-        # It does not mean that the recommendation is approved.
-        - record: cantaloupe:workload_container_vpa_finops_direction_agreement
+        # Age of the continuously exported official VPA Target series. This is
+        # deliberately separate from the older Prometheus workload history.
+        - record: cantaloupe:workload_container_vpa_observation_hours
           expr: |
             (
-              (
-                cantaloupe:workload_container_cpu_request_candidate_cores
-                  <= bool on (namespace, workload, workload_type, container)
-                cantaloupe:workload_container_cpu_request_cores
-              )
-                == bool on (namespace, workload, workload_type, container)
-              (
-                cantaloupe:workload_container_vpa_target_cpu_cores
-                  <= bool on (namespace, workload, workload_type, container)
-                cantaloupe:workload_container_cpu_request_cores
-              )
-            )
-              * on (namespace, workload, workload_type, container)
-            (
-              (
-                cantaloupe:workload_container_memory_request_candidate_bytes
-                  <= bool on (namespace, workload, workload_type, container)
-                cantaloupe:workload_container_memory_request_bytes
-              )
-                == bool on (namespace, workload, workload_type, container)
-              (
-                cantaloupe:workload_container_vpa_target_memory_bytes
-                  <= bool on (namespace, workload, workload_type, container)
-                cantaloupe:workload_container_memory_request_bytes
-              )
-            )
-              * on (namespace, workload, workload_type, container)
-                group_left(rightsizing_class, review_policy)
-            (
-              0 * cantaloupe:workload_container_vpa_target_memory_bytes + 1
-            )
+              time()
+                - min_over_time(
+                    timestamp(
+                      cantaloupe:workload_container_vpa_target_cpu_cores
+                    )[7d:5m]
+                  )
+            ) / 3600
 
-        # Only A/actionable workloads can enter execution review. B remains
-        # visible in the VPA series but is excluded here by construction.
-        - record: cantaloupe:workload_container_vpa_safe_to_review
+        - record: cantaloupe:workload_container_vpa_cpu_change_ratio
           expr: |
-            cantaloupe:workload_container_candidate_safe_to_review
+            (
+              cantaloupe:workload_container_vpa_target_cpu_cores
+                / on (namespace, workload, workload_type, container)
+              cantaloupe:workload_container_cpu_request_cores
+            ) - 1
+
+        - record: cantaloupe:workload_container_vpa_memory_change_ratio
+          expr: |
+            (
+              cantaloupe:workload_container_vpa_target_memory_bytes
+                / on (namespace, workload, workload_type, container)
+              cantaloupe:workload_container_memory_request_bytes
+            ) - 1
+
+        # Allocation opportunity if current requests were changed to VPA
+        # Target. This is not guaranteed bill saving until nodes scale down.
+        - record: cantaloupe:workload_container_vpa_cpu_allocation_opportunity_per_month
+          expr: |
+            730 * clamp_min(
+              1 - (
+                cantaloupe:workload_container_vpa_target_cpu_cores
+                  / on (namespace, workload, workload_type, container)
+                cantaloupe:workload_container_cpu_request_cores
+              ),
+              0
+            )
               * on (namespace, workload, workload_type, container)
-                group_left(rightsizing_class, review_policy)
-            cantaloupe:workload_container_vpa_finops_direction_agreement{
-              rightsizing_class="actionable"
-            }
+            cantaloupe:workload_container_cpu_request_cost_per_hour
+
+        - record: cantaloupe:workload_container_vpa_memory_allocation_opportunity_per_month
+          expr: |
+            730 * clamp_min(
+              1 - (
+                cantaloupe:workload_container_vpa_target_memory_bytes
+                  / on (namespace, workload, workload_type, container)
+                cantaloupe:workload_container_memory_request_bytes
+              ),
+              0
+            )
+              * on (namespace, workload, workload_type, container)
+            cantaloupe:workload_container_memory_request_cost_per_hour
+
+        - record: cantaloupe:workload_container_vpa_allocation_opportunity_per_month
+          expr: |
+            cantaloupe:workload_container_vpa_cpu_allocation_opportunity_per_month
+              + on (
+                  namespace, workload, workload_type, container,
+                  rightsizing_class, review_policy
+                )
+            cantaloupe:workload_container_vpa_memory_allocation_opportunity_per_month
+
+        # Manual-review eligibility only: six hours of VPA observations and
+        # no OOM, throttling, or HPA guardrail. It never mutates requests.
+        - record: cantaloupe:workload_container_vpa_review_candidate
+          expr: |
+            (
+              (
+                (cantaloupe:workload_container_recent_oom_signal == bool 0)
+                  * on (namespace, workload, workload_type, container)
+                (cantaloupe:workload_container_cpu_throttling_p95_7d < bool 0.10)
+              )
+                unless on (namespace, workload)
+              cantaloupe:workload_hpa_signal
+            )
+              * on (namespace, workload, workload_type, container)
+                group_right(rightsizing_class, review_policy)
+            (
+              cantaloupe:workload_container_vpa_observation_hours{
+                rightsizing_class="actionable"
+              } >= bool 6
+            )
