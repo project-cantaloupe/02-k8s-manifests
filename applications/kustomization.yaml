@@ -31,6 +31,8 @@ resources:
   # ambient 데이터플레인. 셋이 한 벌이다 → applications/istiod.yaml
   - istio-cni.yaml
   - ztunnel.yaml
+  - karpenter-controller.yaml
+  - karpenter-nodepool.yaml
   - monitoring-foundation.yaml
   # Metrics API가 먼저 준비된 뒤 VPA Recommender가 사용량을 읽는다.
   - metrics-server.yaml

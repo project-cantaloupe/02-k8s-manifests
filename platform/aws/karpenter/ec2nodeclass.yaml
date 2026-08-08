@@ -1,0 +1,58 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: aws-service
+spec:
+  # kubeadm·Calico·Tailscale이 준비된 Cantaloupe Golden AMI 사용
+  amiFamily: Custom
+  amiSelectorTerms:
+    - name: cntlp-aws-cicd-k8s-worker-a00599e
+
+  # 기존 Service Worker와 같은 Private Subnet·Security Group·IAM 경계 사용
+  subnetSelectorTerms:
+    - tags:
+        Name: cntlp-aws-subnet-private-01
+  securityGroupSelectorTerms:
+    - tags:
+        Name: cntlp-aws-sg-cluster
+    - tags:
+        Name: cntlp-aws-wk-sg
+  instanceProfile: cntlp-aws-worker-node
+
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+
+  blockDeviceMappings:
+    - deviceName: /dev/sda1
+      ebs:
+        volumeSize: 30Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+
+  associatePublicIPAddress: false
+  detailedMonitoring: false
+
+  # Secret 값은 UserData에 미포함. Node Instance Profile로 런타임 조회
+  userData: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    /usr/local/sbin/cntlp-worker-bootstrap \
+      --aws-region ap-northeast-2 \
+      --secret-id cntlp-aws-cicd-worker-bootstrap \
+      --node-name cntlp-aws-wk-99 \
+      --karpenter-node
+
+  tags:
+    Name: cntlp-aws-wk-99
+    org: cntlp
+    owner: team-platform
+    managed-by: karpenter
+    lifecycle: permanent
+    platform: aws
+    component: cicd
+    role: service

@@ -13,8 +13,9 @@ cantaloupe-root
 ```
 
 Root Application은 `kustomization.yaml`의 `resources`에 명시된 파일만
-생성한다. 현재 Jenkins, Harbor, GCP Storage, Istio Base, Istiod, Monitoring
-Foundation, Monitoring Stack, OpenCost와 Istio Ingress Gateway가 등록되어 있다.
+생성한다. 현재 Jenkins, Harbor, GCP Storage, Istio Base, Istiod, Karpenter,
+Monitoring Foundation, Monitoring Stack, OpenCost와 Istio Ingress Gateway가
+등록되어 있다.
 AWS Audio Edge Smoke는 단계별 검증 전까지 Root 목록에 등록하지 않는다.
 
 ## 새 파트 배포 방법

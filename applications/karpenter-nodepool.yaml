@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter-nodepool
+  namespace: devops
+  annotations:
+    # Controller chart가 CRD를 설치한 다음 검증용 NodePool 생성
+    argocd.argoproj.io/sync-wave: "-14"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: platform/aws/karpenter
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+      # App-of-Apps에서 CRD 등록과 NodePool dry-run 사이의 짧은 경합 허용
+      - SkipDryRunOnMissingResource=true
