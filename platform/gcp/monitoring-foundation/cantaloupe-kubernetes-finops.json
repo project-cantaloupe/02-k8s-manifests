@@ -882,7 +882,7 @@
     {
       "id": 400,
       "type": "row",
-      "title": "4. Workload Optimization — 관측값에서 검증 후보까지",
+      "title": "4. Official VPA Recommendation — 수동 검토 전용",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -895,8 +895,8 @@
     {
       "id": 14,
       "type": "table",
-      "title": "CPU Request Advisor — 관측 기반 후보",
-      "description": "CPU 후보는 Recording Rule이 최근 최대 7일 Actual P95를 목표 사용률 70%로 나누고 10m 단위로 올림한다. 24시간 미만, OOM, throttling 10% 이상 또는 HPA 대상이면 월 배분 개선액을 출력하지 않는다.",
+      "title": "CPU Request Advisor — Official VPA Target",
+      "description": "권장 Request는 Kubernetes VPA Recommender의 Target이다. Actual P95와 throttling은 운영 맥락이며 권장값 계산에는 사용하지 않는다. 자동 반영하지 않는다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -938,7 +938,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_join((cantaloupe:workload_container_cpu_request_candidate_cores{namespace=~\"$namespace\",workload=~\"$workload\",workload_type!=\"daemonset\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join((cantaloupe:workload_container_vpa_target_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "format": "table",
           "instant": true,
           "range": false,
@@ -950,7 +950,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_join((100*cantaloupe:workload_container_cpu_candidate_change_ratio{namespace=~\"$namespace\",workload=~\"$workload\",workload_type!=\"daemonset\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join((100*cantaloupe:workload_container_vpa_cpu_change_ratio{namespace=~\"$namespace\",workload=~\"$workload\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "format": "table",
           "instant": true,
           "range": false,
@@ -962,7 +962,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_join((cantaloupe:workload_container_cpu_candidate_savings_per_month{namespace=~\"$namespace\",workload=~\"$workload\",workload_type!=\"daemonset\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join((cantaloupe:workload_container_vpa_cpu_allocation_opportunity_per_month{namespace=~\"$namespace\",workload=~\"$workload\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1010,7 +1010,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_join((cantaloupe:workload_container_candidate_safe_to_review{namespace=~\"$namespace\",workload=~\"$workload\",workload_type!=\"daemonset\"} or on(namespace,workload,workload_type,container) (0*cantaloupe:workload_container_observation_hours{namespace=~\"$namespace\",workload=~\"$workload\",workload_type!=\"daemonset\"})),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join((cantaloupe:workload_container_vpa_review_candidate{namespace=~\"$namespace\",workload=~\"$workload\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1052,13 +1052,13 @@
               "target": "Workload / Container",
               "Value #A": "현재 Request",
               "Value #B": "Actual P95",
-              "Value #C": "후보 Request",
-              "Value #D": "변화율",
-              "Value #E": "월 배분 개선",
+              "Value #C": "VPA Target",
+              "Value #D": "VPA 변화율",
+              "Value #E": "월 Allocation 기회",
               "Value #F": "관측시간",
               "Value #G": "신뢰도",
               "Value #H": "CPU Throttling",
-              "Value #I": "비용 검토 가능"
+              "Value #I": "VPA 수동검토 상태"
             }
           }
         }
@@ -1115,7 +1115,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "후보 Request"
+              "options": "VPA Target"
             },
             "properties": [
               {
@@ -1134,7 +1134,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "변화율"
+              "options": "VPA 변화율"
             },
             "properties": [
               {
@@ -1146,7 +1146,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "월 배분 개선"
+              "options": "월 Allocation 기회"
             },
             "properties": [
               {
@@ -1240,7 +1240,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "비용 검토 가능"
+              "options": "VPA 수동검토 상태"
             },
             "properties": [
               {
@@ -1269,8 +1269,8 @@
     {
       "id": 15,
       "type": "table",
-      "title": "Memory Request Advisor — Max 기반 안전 여유",
-      "description": "Memory 후보는 Recording Rule이 최근 최대 7일 Working Set Max를 목표 사용률 80%로 나누고 16Mi 단위로 올림한다. P95와 Max를 함께 보고 일회성 Spike 여부를 판단하며 최근 OOM이 있으면 축소 비용 기회를 출력하지 않는다.",
+      "title": "Memory Request Advisor — Official VPA Target",
+      "description": "권장 Request는 Kubernetes VPA Recommender의 Target이다. P95/Max와 OOM은 운영 맥락이며 권장값 계산에는 사용하지 않는다. 자동 반영하지 않는다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1324,7 +1324,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_join((cantaloupe:workload_container_memory_request_candidate_bytes{namespace=~\"$namespace\",workload=~\"$workload\",workload_type!=\"daemonset\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join((cantaloupe:workload_container_vpa_target_memory_bytes{namespace=~\"$namespace\",workload=~\"$workload\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1336,7 +1336,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_join((100*cantaloupe:workload_container_memory_candidate_change_ratio{namespace=~\"$namespace\",workload=~\"$workload\",workload_type!=\"daemonset\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join((100*cantaloupe:workload_container_vpa_memory_change_ratio{namespace=~\"$namespace\",workload=~\"$workload\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1348,7 +1348,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "label_join((cantaloupe:workload_container_memory_candidate_savings_per_month{namespace=~\"$namespace\",workload=~\"$workload\",workload_type!=\"daemonset\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join((cantaloupe:workload_container_vpa_memory_allocation_opportunity_per_month{namespace=~\"$namespace\",workload=~\"$workload\"}),\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1414,9 +1414,9 @@
               "Value #A": "현재 Request",
               "Value #B": "Actual P95",
               "Value #C": "Actual Max",
-              "Value #D": "후보 Request",
-              "Value #E": "변화율",
-              "Value #F": "월 배분 개선",
+              "Value #D": "VPA Target",
+              "Value #E": "VPA 변화율",
+              "Value #F": "월 Allocation 기회",
               "Value #G": "최근 OOM",
               "Value #H": "신뢰도"
             }
@@ -1494,7 +1494,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "후보 Request"
+              "options": "VPA Target"
             },
             "properties": [
               {
@@ -1513,7 +1513,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "변화율"
+              "options": "VPA 변화율"
             },
             "properties": [
               {
@@ -1525,7 +1525,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "월 배분 개선"
+              "options": "월 Allocation 기회"
             },
             "properties": [
               {
@@ -2356,8 +2356,8 @@
     {
       "id": 17,
       "type": "table",
-      "title": "Kubernetes Right-sizing Decision — Current / FinOps / VPA",
-      "description": "A(actionable)는 실행 검토 후보, B(stateful_manual)는 관찰·수동 검토 전용이다. 검토 가능=1도 자동 승인이 아니며 workload owner PR이 필요하다.",
+      "title": "Kubernetes Right-sizing Decision — Official VPA Primary",
+      "description": "Kubernetes VPA Recommender의 Target/Lower/Upper만 권장값으로 사용한다. Prometheus 사용량과 OOM·throttling·HPA는 계산 입력이 아닌 운영 위험 신호다. 수동검토=1도 자동 승인이나 변경 지시가 아니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2377,7 +2377,7 @@
         },
         {
           "refId": "B",
-          "expr": "label_join(cantaloupe:workload_container_cpu_request_candidate_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join(cantaloupe:workload_container_vpa_lower_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "instant": true,
           "format": "table"
         },
@@ -2395,7 +2395,7 @@
         },
         {
           "refId": "E",
-          "expr": "label_join(cantaloupe:workload_container_memory_request_candidate_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join(cantaloupe:workload_container_vpa_lower_memory_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "instant": true,
           "format": "table"
         },
@@ -2413,7 +2413,7 @@
         },
         {
           "refId": "H",
-          "expr": "label_join(cantaloupe:workload_container_request_candidate_savings_per_month{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join(cantaloupe:workload_container_vpa_allocation_opportunity_per_month{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "instant": true,
           "format": "table"
         },
@@ -2425,13 +2425,31 @@
         },
         {
           "refId": "J",
-          "expr": "label_join(cantaloupe:workload_container_vpa_finops_direction_agreement{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join(cantaloupe:workload_container_recent_oom_signal{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "instant": true,
           "format": "table"
         },
         {
           "refId": "K",
-          "expr": "label_join(cantaloupe:workload_container_vpa_safe_to_review{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "expr": "label_join(cantaloupe:workload_container_vpa_review_candidate{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "L",
+          "expr": "label_join(cantaloupe:workload_container_vpa_observation_hours{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "M",
+          "expr": "label_join(100*cantaloupe:workload_container_cpu_throttling_p95_7d{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "N",
+          "expr": "label_join(cantaloupe:workload_container_vpa_upper_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")",
           "instant": true,
           "format": "table"
         }
@@ -2472,24 +2490,30 @@
               "Value #G": 9,
               "Value #H": 10,
               "Value #I": 11,
-              "Value #J": 12,
-              "Value #K": 13
+              "Value #L": 12,
+              "Value #M": 13,
+              "Value #N": 14,
+              "Value #J": 15,
+              "Value #K": 16
             },
             "renameByName": {
               "target": "대상",
               "rightsizing_class": "Class",
               "review_policy": "Review",
               "Value #A": "현재 CPU",
-              "Value #B": "FinOps CPU",
+              "Value #B": "VPA Lower CPU",
               "Value #C": "VPA CPU",
               "Value #D": "현재 Memory",
-              "Value #E": "FinOps Memory",
+              "Value #E": "VPA Lower Memory",
               "Value #F": "VPA Memory",
               "Value #G": "VPA Upper Memory",
               "Value #H": "월 Allocation 기회",
-              "Value #I": "관찰 시간",
-              "Value #J": "방향 일치",
-              "Value #K": "검토 가능"
+              "Value #I": "Prometheus 관찰시간",
+              "Value #L": "VPA 관찰시간",
+              "Value #J": "최근 OOM",
+              "Value #K": "VPA 수동검토",
+              "Value #M": "CPU Throttling %",
+              "Value #N": "VPA Upper CPU"
             }
           }
         }
@@ -2544,13 +2568,25 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "관찰 시간"
+              "id": "byRegexp",
+              "options": "^(Prometheus|VPA) 관찰시간$"
             },
             "properties": [
               {
                 "id": "unit",
                 "value": "h"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "CPU Throttling %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
               }
             ]
           }
@@ -2569,7 +2605,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### A — actionable\n\n업무 및 일반 플랫폼 Deployment. VPA/FinOps 방향 일치, OOM·throttling·HPA guardrail 통과 후 PR 검토.\n\n### B — stateful_manual\n\nOpenSearch, Harbor DB/Redis, Argo CD Controller. 관찰하되 실행 가능 절감액에서 제외.\n\n### C — VPA 미등록\n\n- DaemonSet: 노드별 분석\n- Job/CronJob: 실행별 분석\n- Admission·보안·CNI·CSI: 장애 영향이 절감보다 큼\n- Operator-managed Prometheus/Alertmanager: VPA topmost-controller 제약\n- Metrics Server/VPA: 자기참조 방지\n\nRequests 변경은 자동 반영하지 않으며 Git PR과 소유자 승인을 거친다."
+        "content": "### 판단 기준\n\n**공식 VPA Recommender의 Target/Lower/Upper만 권장값으로 사용**한다. Prometheus는 사용량·OOM·throttling·HPA 위험 신호, OpenCost는 allocation 참고값만 제공하며 자체 request 공식을 사용하지 않는다. `VPA 수동검토=1`도 자동 승인이나 변경 지시가 아니다.\n\n### A — actionable\n\n업무 및 일반 플랫폼 Deployment. VPA 자체 관찰 6시간 이상이며 OOM·throttling·HPA guardrail을 통과한 경우에만 PR 검토 후보.\n\n### B — stateful_manual\n\nOpenSearch, Harbor DB/Redis, Argo CD Controller. 공식 권고는 관찰하되 소유자별 수동 검토.\n\n### C — VPA 미등록\n\n- DaemonSet: 노드별 분석\n- Job/CronJob: 실행별 분석\n- Admission·보안·CNI·CSI: 장애 영향이 절감보다 큼\n- Operator-managed Prometheus/Alertmanager: VPA topmost-controller 제약\n- Metrics Server/VPA: 자기참조 방지\n\nRequests 변경은 자동 반영하지 않으며 Git PR과 소유자 승인을 거친다."
       }
     }
   ],

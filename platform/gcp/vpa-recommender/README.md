@@ -70,13 +70,19 @@ A에는 업무 Deployment 전체와 Grafana, OpenCost, exporter, dashboard 등 �
 Recommender는 checkpoint에 자체 샘플을 보존하고 최신 Metrics API 샘플을 계속
 반영한다. VPA 1.7.0의 Prometheus history provider는 metric 이름을 query 설정에
 전달하지 않는 결함이 라이브 검증에서 확인되어 사용하지 않는다. 짧은 프로젝트의
-즉시 근거는 별도 대시보드가 Prometheus 7일 이력의 P95/P99/Max, OOM,
-throttling, HPA와 OpenCost 기회 비용을 계속 계산해 제공한다.
+운영 보조 근거는 별도 대시보드가 Prometheus 7일 이력의 P95/P99/Max, OOM,
+throttling, HPA와 OpenCost allocation을 계속 계산해 제공한다. 이 값들은 request
+권고 계산에 사용하지 않으며 VPA 결과의 운영 위험과 비용 맥락만 설명한다.
 
-- `<24h`: 초기 데이터
-- `24-72h`: 단기 검토
-- `>=72h`: 프로젝트 검토 가능
-- 기존 이력 `>=120h`: 높은 신뢰도
+대시보드의 유일한 권고값은 VPA Recommender의 Target이며 Lower/Upper를 함께
+표시한다. `VPA 수동검토`는 VPA 자체 관찰이 6시간 이상이고 OOM·throttling·HPA
+guardrail을 통과한 A Class에만 표시한다. 이는 자동 승인이나 request 변경 지시가
+아니며, 시간이 누적될수록 다시 검토한다.
+
+- VPA 관찰 `<6h`: 수집 중, 판단 유보
+- VPA 관찰 `>=6h`: 제한적인 수동검토 후보
+- VPA 관찰 `>=24h`: 단기 추세 재검토
+- Prometheus 관찰 시간: VPA 나이를 대체하지 않는 별도 보조 이력
 
 CPU 25m은 VPA 1.7.0 공식 기본 하한이다. Memory 64Mi는 공식 기본값이 아니라
 현재 업무 Deployment의 최소 request와 맞춘 프로젝트 정책이다. 추천 전용이며
