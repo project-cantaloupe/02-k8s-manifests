@@ -88,6 +88,21 @@ def type_specs(payload):
     return specs
 
 
+def finding_reason(recommendation):
+    """Collapse verbose Compute Optimizer reason codes into one useful label."""
+    reason_codes = recommendation.get("findingReasonCodes", [])
+    normalized = " ".join(str(code).upper() for code in reason_codes)
+    if "MEMORY" in normalized:
+        return "MEMORY"
+    if "CPU" in normalized:
+        return "CPU"
+    if "EBS" in normalized or "DISK" in normalized or "STORAGE" in normalized:
+        return "STORAGE"
+    if "NETWORK" in normalized or "PPS" in normalized:
+        return "NETWORK"
+    return "PERFORMANCE" if recommendation.get("finding") == "UNDER_PROVISIONED" else "RIGHTSIZING"
+
+
 def parse_recommendations(payload, nodes, specs):
     parsed = []
     for recommendation in payload.get("instanceRecommendations", []):
@@ -115,6 +130,7 @@ def parse_recommendations(payload, nodes, specs):
             "monthly_savings_usd": savings.get("value", 0) if savings.get("currency", "USD") == "USD" else 0,
             "state": recommendation.get("finding", "UNKNOWN"),
             "decision": recommendation.get("finding", "UNKNOWN"),
+            "reason": finding_reason(recommendation),
             "priority": f'rank-{top.get("rank", 1)}',
             "last_refresh": timestamp_seconds(recommendation.get("lastRefreshTimestamp")),
         })
@@ -134,6 +150,7 @@ def recommendation_metrics(recommendations):
             "recommended_profile": item["recommended_profile"],
             "state": item["state"],
             "decision": item["decision"],
+            "reason": item["reason"],
             "priority": item["priority"],
         }
         lines.append(sample("cantaloupe:provider_vm_recommendation_info", 1, info))

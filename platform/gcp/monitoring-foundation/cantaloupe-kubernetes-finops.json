@@ -1,0 +1,2453 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 100,
+      "title": "1. 현재 비용",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 101,
+      "title": "현재 월 환산 비용",
+      "description": "현재 구성이 한 달 유지된다고 가정한 Run-rate입니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "(730 * sum(cantaloupe:node_total_cost_per_hour)) + (730 * sum(((max by(persistentvolume) (pod_pvc_allocation) / 1024^3) * on(persistentvolume) max by(persistentvolume) (kube_persistentvolume_info{csi_driver=\"pd.csi.storage.gke.io\"}) * 0.000071233)))",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 102,
+      "title": "Workload",
+      "description": "Node 비용 중 Workload에 배분된 월 환산 비용입니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "730 * sum(cantaloupe:container_allocated_cost_per_hour)",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 103,
+      "title": "Idle",
+      "description": "Workload에 배분되지 않은 Node 여유 비용입니다. 전액이 절감액은 아닙니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "730 * clamp_min(sum(cantaloupe:node_total_cost_per_hour) - sum(cantaloupe:container_allocated_cost_per_hour), 0)",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 104,
+      "title": "PVC 월 비용",
+      "description": "현재 월 환산 비용에 포함되는 PVC 비용입니다. GCP CSI는 포함하고, On-prem hostPath는 Node 비용에 포함되어 제외합니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "730 * sum(((max by(persistentvolume) (pod_pvc_allocation) / 1024^3) * on(persistentvolume) max by(persistentvolume) (kube_persistentvolume_info{csi_driver=\"pd.csi.storage.gke.io\"}) * 0.000071233))",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 105,
+      "title": "선택 기간 Node 누적비용",
+      "description": "선택 기간의 Node 시간당 비용을 1분 간격으로 적분한 누적비용 추정치입니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(sum_over_time(cantaloupe:node_total_cost_per_hour[$__range:1m])) / 60",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 6
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 106,
+      "title": "선택 기간 Karpenter 누적비용",
+      "description": "선택 기간 Karpenter Node의 시간당 비용을 1분 간격으로 적분한 누적비용 추정치입니다. 짧은 실행 비용을 보기 위해 소수점 6자리로 표시합니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(sum_over_time((cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{job=\"opencost\",label_karpenter_sh_nodepool!=\"\"}))[$__range:1m])) / 60 or vector(0)",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 6
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 200,
+      "title": "2. 어디서 비용이 생기는가",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 201,
+      "title": "전체 월 환산 Run-rate 추이",
+      "description": "각 시점의 비용률이 한 달간 유지된다고 가정한 추정치입니다. 해당 시간 구간의 실제 청구액이 아닙니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "(730 * sum(cantaloupe:node_total_cost_per_hour)) + (730 * sum(((max by(persistentvolume) (pod_pvc_allocation) / 1024^3) * on(persistentvolume) max by(persistentvolume) (kube_persistentvolume_info{csi_driver=\"pd.csi.storage.gke.io\"}) * 0.000071233)))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "Kubernetes total"
+        },
+        {
+          "expr": "730 * sum(cantaloupe:node_total_cost_per_hour)",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "Node"
+        },
+        {
+          "expr": "730 * sum(((max by(persistentvolume) (pod_pvc_allocation) / 1024^3) * on(persistentvolume) max by(persistentvolume) (kube_persistentvolume_info{csi_driver=\"pd.csi.storage.gke.io\"}) * 0.000071233))",
+          "refId": "C",
+          "format": "time_series",
+          "legendFormat": "PVC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 202,
+      "title": "Workload / Idle 월 환산 Run-rate",
+      "description": "각 시점의 Node 비용률을 월 환산해 Workload 배분분과 Idle로 나눕니다. 실제 누적 청구액이 아닙니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "730 * sum(cantaloupe:container_allocated_cost_per_hour)",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "Workload"
+        },
+        {
+          "expr": "730 * clamp_min(sum(cantaloupe:node_total_cost_per_hour) - sum(cantaloupe:container_allocated_cost_per_hour), 0)",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "Idle"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 203,
+      "title": "Platform별 Node 월 환산 비용",
+      "description": "현재 시점 AWS/GCP/On-prem Node 비용의 월 환산 Snapshot입니다.",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sort_desc(730 * sum by(platform) (cantaloupe:platform_role_node_cost_per_hour))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "{{platform}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      }
+    },
+    {
+      "id": 204,
+      "title": "현재 Namespace 월 환산 비용 Top 8",
+      "description": "현재 시점 월 환산 Workload 배분비용이 큰 Namespace 8개를 내림차순으로 표시합니다. 실제 월 청구액이 아닙니다.",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 15,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sort_desc(topk(8, 730 * sum by(namespace) (cantaloupe:namespace_platform_role_allocated_cost_per_hour)))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "{{namespace}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      }
+    },
+    {
+      "id": 205,
+      "title": "현재 Workload 월 환산 비용 Top 8",
+      "description": "현재 시점 월 환산비용이 큰 Workload 8개를 내림차순으로 표시합니다. 여러 Platform/Role에 걸친 동일 Workload는 합산하며 큰 값 자체가 낭비를 의미하지는 않습니다.",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 15,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sort_desc(topk(8, 730 * sum by(namespace,workload,workload_type) (cantaloupe:workload_platform_role_allocated_cost_per_hour)))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "{{namespace}} / {{workload}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      }
+    },
+    {
+      "id": 300,
+      "title": "3. Karpenter 확장 비용 분석",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 301,
+      "title": "Karpenter Node 수 / 현 상태 유지 시 예상 월 비용",
+      "description": "왼쪽 축은 실제 Node 수, 오른쪽 축은 각 시점의 구성이 월 730시간 유지된다고 가정한 예상 비용입니다. 선택 구간의 실제 발생 비용은 상단 누적비용에서 확인합니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "count(max by(node) (kube_node_labels{job=\"opencost\",label_karpenter_sh_nodepool!=\"\"})) or vector(0)",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "Karpenter Node 수"
+        },
+        {
+          "expr": "730 * sum(cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{job=\"opencost\",label_karpenter_sh_nodepool!=\"\"})) or vector(0)",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "현 상태 유지 시 예상 월 비용"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 4
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "USD/month"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 302,
+      "title": "Karpenter 비용 배분 — 현 상태 유지 시 월 환산",
+      "description": "각 시점의 Karpenter Node 구성이 월 730시간 유지된다고 가정하고 비용을 Workload 배분분과 미배분 Idle로 나눕니다. 실제 월 청구액이나 확정 절감액이 아닙니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "730 * sum(cantaloupe:container_allocated_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{job=\"opencost\",label_karpenter_sh_nodepool!=\"\"})) or vector(0)",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "Workload"
+        },
+        {
+          "expr": "730 * clamp_min(sum(cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{job=\"opencost\",label_karpenter_sh_nodepool!=\"\"})) - sum(cantaloupe:container_allocated_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{job=\"opencost\",label_karpenter_sh_nodepool!=\"\"})), 0) or vector(0)",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "Idle"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 24,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 24
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 24
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 400,
+      "title": "4. 다음 절감 액션",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 401,
+      "title": "VM 월 잠재 절감",
+      "description": "Provider 공식 추천과 On-prem 정책의 월 잠재 절감 합계입니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "(sum(cantaloupe:provider_vm_estimated_monthly_savings > 0) or vector(0)) + (sum(cantaloupe:onprem_node_potential_savings_per_month > 0) or vector(0))",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "VM 절감 후보 상세 보기",
+              "url": "/grafana/d/cantaloupe-v1-kubernetes-finops/cantaloupe-v1-kubernetes-finops?viewPanel=502"
+            }
+          ],
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 402,
+      "title": "VPA 검토 대상",
+      "description": "Request 변경을 수동 검토할 Container 수입니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 33,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "count(cantaloupe:workload_container_vpa_review_candidate == 1) or vector(0)",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "VPA 검토 목록 보기",
+              "url": "/grafana/d/cantaloupe-v1-kubernetes-finops/cantaloupe-v1-kubernetes-finops?viewPanel=501"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 405,
+      "title": "성능 위험·변경 후보",
+      "description": "Provider 성능 위험과 On-prem 증설·카탈로그 초과 판정 수입니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 33,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "(count(cantaloupe:provider_vm_recommendation_info{decision=\"UNDER_PROVISIONED\"}) or vector(0)) + (count(cantaloupe:onprem_node_decision_info{decision=~\"UNDER_PROVISIONED|CATALOG_EXCEEDED\"}) or vector(0))",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "성능 위험·증설 후보 보기",
+              "url": "/grafana/d/cantaloupe-v1-kubernetes-finops/cantaloupe-v1-kubernetes-finops?viewPanel=506"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 403,
+      "title": "VM 절감 후보 Top 8",
+      "description": "현재 시점 Node별 공식 또는 내부 정책 월 절감액 상위 8개를 내림차순으로 표시합니다.",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 33,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sort_desc(topk(8, max by(node) (cantaloupe:provider_vm_estimated_monthly_savings > 0) or max by(node) (cantaloupe:onprem_node_potential_savings_per_month > 0)))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "{{node}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      }
+    },
+    {
+      "id": 500,
+      "title": "5. 절감 상세 — 무엇을 검토할 것인가",
+      "type": "row",
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 501,
+          "type": "table",
+          "title": "Workload Right-sizing 검토 목록",
+          "description": "VPA Target을 현재 Request·실제 P95와 비교하는 수동 검토 목록이다. 월 예상 Request 비용 변화는 OpenCost allocation 기준이며 실제 청구 절감은 Node/VM 조정 후 별도로 검증한다.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 42,
+            "w": 24,
+            "h": 11
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(label_join(cantaloupe:workload_container_cpu_p95_7d_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "B",
+              "expr": "(label_join(cantaloupe:workload_container_cpu_request_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "C",
+              "expr": "(label_join(cantaloupe:workload_container_vpa_target_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "E",
+              "expr": "(label_join(cantaloupe:workload_container_memory_p95_7d_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "F",
+              "expr": "(label_join(cantaloupe:workload_container_memory_request_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "G",
+              "expr": "(label_join(cantaloupe:workload_container_vpa_target_memory_bytes{namespace=~\"$namespace\",workload=~\"$workload\"},\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "K",
+              "expr": "(label_join((((730 * ((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) - 1) * on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cost_per_hour) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) (730 * ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) - 1) * on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_cost_per_hour))) and on(namespace,workload,workload_type,container) (max by(namespace,workload,workload_type,container) (cantaloupe:workload_container_vpa_target_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"})),\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "N",
+              "expr": "(label_join((0 * cantaloupe:workload_container_vpa_target_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\",review_policy=\"manual-only\"} + 3) or (0 * (cantaloupe:workload_container_vpa_observation_hours{namespace=~\"$namespace\",workload=~\"$workload\",rightsizing_class=\"actionable\"} < 6) + 2) or (cantaloupe:workload_container_vpa_review_candidate{namespace=~\"$namespace\",workload=~\"$workload\"} == 1) or (0 * (cantaloupe:workload_container_vpa_target_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\",rightsizing_class=\"actionable\"} unless on(namespace,workload,workload_type,container) (cantaloupe:workload_container_vpa_observation_hours < 6) unless on(namespace,workload,workload_type,container) (cantaloupe:workload_container_vpa_review_candidate == 1))),\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "refId": "O",
+              "instant": true,
+              "format": "table",
+              "expr": "(label_join(((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) and on(namespace,workload,workload_type,container) (max by(namespace,workload,workload_type,container) (cantaloupe:workload_container_vpa_target_cpu_cores{namespace=~\"$namespace\",workload=~\"$workload\"})),\"target\",\"/\",\"namespace\",\"workload\",\"container\")) and on(namespace,workload,workload_type,container) ((((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) == $rightsizing_type) or (((((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) < bool 0.8) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) < bool 0.8)) > bool 0) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) 2 * ((((cantaloupe:workload_container_vpa_target_cpu_cores / on(namespace,workload,workload_type,container) cantaloupe:workload_container_cpu_request_cores) > bool 1.2) + on(namespace,workload,workload_type,container,rightsizing_class,review_policy) ((cantaloupe:workload_container_vpa_target_memory_bytes / on(namespace,workload,workload_type,container) cantaloupe:workload_container_memory_request_bytes) > bool 1.2)) > bool 0))) * on() group_left() (vector($rightsizing_type) == -1)))"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "target",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "namespace": true,
+                  "workload": true,
+                  "workload_type": true,
+                  "container": true,
+                  "rightsizing_class": true,
+                  "review_policy": true
+                },
+                "indexByName": {
+                  "target": 0,
+                  "Value #A": 1,
+                  "Value #B": 2,
+                  "Value #C": 3,
+                  "Value #E": 4,
+                  "Value #F": 5,
+                  "Value #G": 6,
+                  "Value #O": 7,
+                  "Value #K": 8,
+                  "Value #N": 9
+                },
+                "renameByName": {
+                  "target": "Workload / Container",
+                  "Value #A": "CPU 실제 P95",
+                  "Value #B": "CPU 현재 Request",
+                  "Value #C": "CPU VPA Target",
+                  "Value #E": "Memory 실제 P95",
+                  "Value #F": "Memory 현재 Request",
+                  "Value #G": "Memory VPA Target",
+                  "Value #O": "권고 유형",
+                  "Value #K": "월 예상 Request 비용 변화",
+                  "Value #N": "검토 상태"
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "decimals": 2
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^CPU (실제 P95|현재 Request|VPA Target)$"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "cores"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^Memory (실제 P95|현재 Request|VPA Target)$"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "월 예상 Request 비용 변화"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "권고 유형"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "0": {
+                            "text": "유지 · 허용범위",
+                            "color": "green"
+                          },
+                          "1": {
+                            "text": "Request 축소",
+                            "color": "orange"
+                          },
+                          "2": {
+                            "text": "Request 증설",
+                            "color": "red"
+                          },
+                          "3": {
+                            "text": "혼합 조정",
+                            "color": "purple"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "검토 상태"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "0": {
+                            "text": "위험 신호 · 보류",
+                            "color": "red"
+                          },
+                          "1": {
+                            "text": "검토 가능",
+                            "color": "green"
+                          },
+                          "2": {
+                            "text": "관측 부족",
+                            "color": "orange"
+                          },
+                          "3": {
+                            "text": "수동 대상",
+                            "color": "blue"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "footer": {
+              "show": false
+            },
+            "showColumnFilter": true,
+            "enablePagination": true,
+            "frozenColumns": 1,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "월 예상 Request 비용 변화"
+              }
+            ]
+          }
+        },
+        {
+          "id": 502,
+          "title": "VM 비용 절감 후보 상세",
+          "description": "권장 변경에 따른 월 예상 비용 영향입니다. 음수는 절감, 양수는 비용 증가를 의미합니다.",
+          "type": "table",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 53,
+            "w": 12,
+            "h": 10
+          },
+          "targets": [
+            {
+              "expr": "-1 * ((cantaloupe:provider_vm_recommendation_info * on(node) group_left() (cantaloupe:provider_vm_estimated_monthly_savings > 0)) or label_replace(label_replace((((cantaloupe:onprem_node_decision_info * on(node) group_left(recommended_profile) cantaloupe:onprem_node_recommendation_info) * on(node) group_left(current_profile) (label_replace(max by(node,label_node_kubernetes_io_instance_type) (kube_node_labels{label_platform=\"onp\"}),\"current_profile\",\"$1\",\"label_node_kubernetes_io_instance_type\",\"(.*)\"))) * on(node) group_left() (cantaloupe:onprem_node_potential_savings_per_month > 0)), \"platform\", \"onp\", \"\", \"\"), \"source\", \"internal-balanced-policy\", \"\", \"\"))",
+              "refId": "A",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "월 예상 비용 영향 (-절감 / +증가)"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green"
+                        },
+                        {
+                          "color": "orange",
+                          "value": 1e-06
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "판정"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "UNDER_PROVISIONED": {
+                            "text": "성능 위험 · 변경 검토",
+                            "color": "red"
+                          },
+                          "OVER_PROVISIONED": {
+                            "text": "과다 사양 · 축소 검토",
+                            "color": "orange"
+                          },
+                          "OPTIMIZED": {
+                            "text": "적정",
+                            "color": "green"
+                          },
+                          "CATALOG_EXCEEDED": {
+                            "text": "승인 사양 초과 · 용량 설계",
+                            "color": "red"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "noValue",
+                    "value": "추천 없음 / 분석 중"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "container": true,
+                  "endpoint": true,
+                  "group": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true,
+                  "priority": true,
+                  "state": true,
+                  "source": true,
+                  "label_node_kubernetes_io_instance_type": true
+                },
+                "indexByName": {
+                  "platform": 0,
+                  "node": 1,
+                  "current_profile": 2,
+                  "recommended_profile": 3,
+                  "decision": 4,
+                  "Value": 5,
+                  "source": 6
+                },
+                "renameByName": {
+                  "platform": "Platform",
+                  "node": "VM / Node",
+                  "current_profile": "현재 모델",
+                  "recommended_profile": "권장 모델",
+                  "decision": "판정",
+                  "Value": "월 예상 비용 영향 (-절감 / +증가)",
+                  "source": "Source"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": 506,
+          "title": "성능 위험·증설 후보 상세",
+          "description": "권장 증설에 따른 월 예상 비용 영향입니다. 양수는 비용 증가이며, Provider가 금액을 제공하지 않으면 미지원으로 표시합니다.",
+          "type": "table",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 53,
+            "w": 12,
+            "h": 10
+          },
+          "targets": [
+            {
+              "expr": "cantaloupe:provider_vm_recommendation_info{decision=\"UNDER_PROVISIONED\"} or label_replace(label_replace((((cantaloupe:onprem_node_decision_info * on(node) group_left(recommended_profile) cantaloupe:onprem_node_recommendation_info) * on(node) group_left(current_profile) (label_replace(max by(node,label_node_kubernetes_io_instance_type) (kube_node_labels{label_platform=\"onp\"}),\"current_profile\",\"$1\",\"label_node_kubernetes_io_instance_type\",\"(.*)\"))) and on(node) cantaloupe:onprem_node_decision_info{decision=~\"UNDER_PROVISIONED|CATALOG_EXCEEDED\"}), \"platform\", \"onp\", \"\", \"\"), \"source\", \"internal-balanced-policy\", \"\", \"\")",
+              "refId": "A",
+              "format": "table",
+              "instant": true
+            },
+            {
+              "expr": "(max by(node) (cantaloupe:provider_vm_estimated_monthly_cost_change{platform=\"gcp\"}) and on(node) max by(node) (cantaloupe:provider_vm_recommendation_info{platform=\"gcp\",decision=\"UNDER_PROVISIONED\"})) or (max by(node) (cantaloupe:onprem_node_estimated_cost_change_per_month) and on(node) max by(node) (cantaloupe:onprem_node_decision_info{decision=~\"UNDER_PROVISIONED|CATALOG_EXCEEDED\"})) or ((0 * max by(node) (cantaloupe:provider_vm_recommendation_info{platform=\"aws\",decision=\"UNDER_PROVISIONED\"})) / 0)",
+              "refId": "B",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "판정"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "UNDER_PROVISIONED": {
+                            "text": "성능 위험 · 변경 검토",
+                            "color": "red"
+                          },
+                          "OVER_PROVISIONED": {
+                            "text": "과다 사양 · 축소 검토",
+                            "color": "orange"
+                          },
+                          "OPTIMIZED": {
+                            "text": "적정",
+                            "color": "green"
+                          },
+                          "CATALOG_EXCEEDED": {
+                            "text": "승인 사양 초과 · 용량 설계",
+                            "color": "red"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "noValue",
+                    "value": "추천 없음 / 분석 중"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "월 예상 비용 영향 (-절감 / +증가)"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green"
+                        },
+                        {
+                          "color": "orange",
+                          "value": 1e-06
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "월 예상 비용 영향 (-절감 / +증가)"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "special",
+                        "options": {
+                          "match": "nan",
+                          "result": {
+                            "text": "미지원",
+                            "color": "gray"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "node",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Value #A": true,
+                  "__name__": true,
+                  "container": true,
+                  "endpoint": true,
+                  "group": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true,
+                  "priority": true,
+                  "state": true,
+                  "Value": true,
+                  "source": true,
+                  "label_node_kubernetes_io_instance_type": true
+                },
+                "indexByName": {
+                  "platform": 0,
+                  "node": 1,
+                  "current_profile": 2,
+                  "recommended_profile": 3,
+                  "decision": 4,
+                  "Value #B": 5,
+                  "source": 6
+                },
+                "renameByName": {
+                  "platform": "Platform",
+                  "node": "VM / Node",
+                  "current_profile": "현재 모델",
+                  "recommended_profile": "권장 모델",
+                  "decision": "판정",
+                  "Value #B": "월 예상 비용 영향 (-절감 / +증가)",
+                  "source": "Source"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": 507,
+          "type": "table",
+          "title": "전체 VM 추천 현황 — 검증·참고",
+          "description": "위 후보 목록에 나오지 않은 VM까지 포함한 전체 추천 inventory입니다. 비용·위험 후보를 검증하거나 추천 누락 상태를 확인할 때 사용합니다.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 63,
+            "w": 24,
+            "h": 9
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "instant": true,
+              "format": "table",
+              "expr": "label_replace(label_replace(max by(node,label_platform,label_node_kubernetes_io_instance_type) (kube_node_labels{label_platform=~\"$platform\"}),\"platform\",\"$1\",\"label_platform\",\"(.*)\"),\"current_profile\",\"$1\",\"label_node_kubernetes_io_instance_type\",\"(.*)\")"
+            },
+            {
+              "refId": "B",
+              "instant": true,
+              "format": "table",
+              "expr": "(max by(node) (cantaloupe:provider_vm_current_vcpu{platform=~\"$platform\"}) or max by(node) (cantaloupe:onprem_node_current_profile_vcpu)) and on(node) max by(node) (label_replace(label_replace(max by(node,label_platform,label_node_kubernetes_io_instance_type) (kube_node_labels{label_platform=~\"$platform\"}),\"platform\",\"$1\",\"label_platform\",\"(.*)\"),\"current_profile\",\"$1\",\"label_node_kubernetes_io_instance_type\",\"(.*)\"))"
+            },
+            {
+              "refId": "C",
+              "instant": true,
+              "format": "table",
+              "expr": "(max by(node) (cantaloupe:provider_vm_current_memory_bytes{platform=~\"$platform\"}) or max by(node) (cantaloupe:onprem_node_current_profile_memory_bytes)) and on(node) max by(node) (label_replace(label_replace(max by(node,label_platform,label_node_kubernetes_io_instance_type) (kube_node_labels{label_platform=~\"$platform\"}),\"platform\",\"$1\",\"label_platform\",\"(.*)\"),\"current_profile\",\"$1\",\"label_node_kubernetes_io_instance_type\",\"(.*)\"))"
+            },
+            {
+              "refId": "D",
+              "instant": true,
+              "format": "table",
+              "expr": "(max by(node) (cantaloupe:provider_vm_recommended_vcpu{platform=~\"$platform\"}) or max by(node) (cantaloupe:onprem_node_recommended_vcpu)) and on(node) max by(node) (label_replace(label_replace(max by(node,label_platform,label_node_kubernetes_io_instance_type) (kube_node_labels{label_platform=~\"$platform\"}),\"platform\",\"$1\",\"label_platform\",\"(.*)\"),\"current_profile\",\"$1\",\"label_node_kubernetes_io_instance_type\",\"(.*)\"))"
+            },
+            {
+              "refId": "E",
+              "instant": true,
+              "format": "table",
+              "expr": "(max by(node) (cantaloupe:provider_vm_recommended_memory_bytes{platform=~\"$platform\"}) or max by(node) (cantaloupe:onprem_node_recommended_memory_bytes)) and on(node) max by(node) (label_replace(label_replace(max by(node,label_platform,label_node_kubernetes_io_instance_type) (kube_node_labels{label_platform=~\"$platform\"}),\"platform\",\"$1\",\"label_platform\",\"(.*)\"),\"current_profile\",\"$1\",\"label_node_kubernetes_io_instance_type\",\"(.*)\"))"
+            },
+            {
+              "refId": "F",
+              "instant": true,
+              "format": "table",
+              "expr": "(max by(node) (cantaloupe:provider_vm_estimated_monthly_cost_change{platform=\"gcp\"}) or (-1 * max by(node) (cantaloupe:provider_vm_estimated_monthly_savings{platform=\"aws\"}) and on(node) max by(node) (cantaloupe:provider_vm_recommendation_info{platform=\"aws\",decision!=\"UNDER_PROVISIONED\"})) or max by(node) (cantaloupe:onprem_node_estimated_cost_change_per_month) or ((0 * max by(node) (cantaloupe:provider_vm_recommendation_info{platform=\"aws\",decision=\"UNDER_PROVISIONED\"})) / 0))"
+            },
+            {
+              "refId": "G",
+              "instant": true,
+              "format": "table",
+              "expr": "max by(node,recommended_profile,decision,reason,source) (cantaloupe:provider_vm_recommendation_info{platform=~\"$platform\"} or label_replace(label_replace(label_replace((((cantaloupe:onprem_node_decision_info * on(node) group_left(recommended_profile) cantaloupe:onprem_node_recommendation_info) or (cantaloupe:onprem_node_decision_info unless on(node) cantaloupe:onprem_node_recommendation_info)) * on(node) group_left(current_profile) (label_replace(max by(node,label_node_kubernetes_io_instance_type) (kube_node_labels{label_platform=\"onp\"}),\"current_profile\",\"$1\",\"label_node_kubernetes_io_instance_type\",\"(.*)\"))),\"reason\",\"INTERNAL_POLICY\",\"\",\"\"),\"platform\",\"onp\",\"\",\"\"),\"source\",\"internal-balanced-policy\",\"\",\"\"))"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "node",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "Value #A": true,
+                  "container": true,
+                  "endpoint": true,
+                  "group": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true,
+                  "priority": true,
+                  "location": true,
+                  "project": true,
+                  "state": true,
+                  "source": true,
+                  "label_platform": true,
+                  "label_node_kubernetes_io_instance_type": true,
+                  "Value #G": true
+                },
+                "indexByName": {
+                  "platform": 0,
+                  "node": 1,
+                  "current_profile": 2,
+                  "Value #B": 3,
+                  "Value #C": 4,
+                  "recommended_profile": 5,
+                  "Value #D": 6,
+                  "Value #E": 7,
+                  "decision": 8,
+                  "reason": 9,
+                  "Value #F": 10
+                },
+                "renameByName": {
+                  "platform": "Platform",
+                  "node": "VM / Node",
+                  "current_profile": "현재 모델",
+                  "Value #B": "현재 vCPU",
+                  "Value #C": "현재 Memory",
+                  "recommended_profile": "권장 모델",
+                  "Value #D": "권장 vCPU",
+                  "Value #E": "권장 Memory",
+                  "decision": "판정",
+                  "reason": "판단 근거",
+                  "Value #F": "월 예상 비용 영향 (-절감 / +증가)"
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "decimals": 2
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^(현재 vCPU|권장 vCPU)$"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "cores"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^(현재 Memory|권장 Memory)$"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "월 예상 비용 영향 (-절감 / +증가)"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green"
+                        },
+                        {
+                          "color": "orange",
+                          "value": 1e-06
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "판정"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "UNDER_PROVISIONED": {
+                            "text": "성능 위험 · 변경 검토",
+                            "color": "red"
+                          },
+                          "OVER_PROVISIONED": {
+                            "text": "과다 사양 · 축소 검토",
+                            "color": "orange"
+                          },
+                          "OPTIMIZED": {
+                            "text": "적정",
+                            "color": "green"
+                          },
+                          "CATALOG_EXCEEDED": {
+                            "text": "승인 사양 초과 · 용량 설계",
+                            "color": "red"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "판단 근거"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "CPU": {
+                            "text": "CPU 병목"
+                          },
+                          "MEMORY": {
+                            "text": "메모리 병목"
+                          },
+                          "STORAGE": {
+                            "text": "스토리지 병목"
+                          },
+                          "NETWORK": {
+                            "text": "네트워크 병목"
+                          },
+                          "PERFORMANCE": {
+                            "text": "성능 위험"
+                          },
+                          "RIGHTSIZING": {
+                            "text": "비용 최적화"
+                          },
+                          "PROVIDER_RECOMMENDATION": {
+                            "text": "Provider 추천"
+                          },
+                          "INTERNAL_POLICY": {
+                            "text": "내부 용량 정책"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "판정"
+                },
+                "properties": [
+                  {
+                    "id": "noValue",
+                    "value": "추천 없음 / 분석 중"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "월 예상 비용 영향 (-절감 / +증가)"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "special",
+                        "options": {
+                          "match": "nan",
+                          "result": {
+                            "text": "미지원",
+                            "color": "gray"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "enablePagination": true,
+            "frozenColumns": 2,
+            "sortBy": [
+              {
+                "desc": false,
+                "displayName": "Platform"
+              },
+              {
+                "desc": false,
+                "displayName": "VM / Node"
+              }
+            ],
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "id": 503,
+          "title": "Node별 Idle 분석",
+          "description": "Node 비용 중 Workload에 배분되지 않은 금액입니다. 높은 값은 추가 배치, VM 축소 또는 Karpenter 전환 검토 대상입니다.",
+          "type": "table",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 72,
+            "w": 8,
+            "h": 9
+          },
+          "targets": [
+            {
+              "expr": "730 * cantaloupe:node_total_cost_per_hour",
+              "refId": "A",
+              "format": "table",
+              "instant": true
+            },
+            {
+              "expr": "730 * sum by(node) (cantaloupe:container_allocated_cost_per_hour)",
+              "refId": "B",
+              "format": "table",
+              "instant": true
+            },
+            {
+              "expr": "730 * clamp_min(cantaloupe:node_total_cost_per_hour - on(node) sum by(node) (cantaloupe:container_allocated_cost_per_hour), 0)",
+              "refId": "C",
+              "format": "table",
+              "instant": true
+            },
+            {
+              "expr": "100 * clamp_min(sum by(node) (cantaloupe:node_total_cost_per_hour) - sum by(node) (cantaloupe:container_allocated_cost_per_hour), 0) / sum by(node) (cantaloupe:node_total_cost_per_hour)",
+              "refId": "D",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "/비용|Workload|Idle$/"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Idle 비율"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "percent"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "footer": {
+              "show": false
+            }
+          },
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "node",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true
+                },
+                "indexByName": {
+                  "node": 0,
+                  "Value #A": 1,
+                  "Value #B": 2,
+                  "Value #C": 3,
+                  "Value #D": 4
+                },
+                "renameByName": {
+                  "node": "Node",
+                  "Value #A": "Node 월 비용",
+                  "Value #B": "Workload",
+                  "Value #C": "Idle",
+                  "Value #D": "Idle 비율"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": 505,
+          "title": "Node별 Idle 비율",
+          "description": "Node 비용 중 Workload에 배분되지 않은 비율입니다. 전액이 절감 가능하다는 의미는 아닙니다.",
+          "type": "bargauge",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 72,
+            "w": 4,
+            "h": 9
+          },
+          "targets": [
+            {
+              "expr": "sort_desc(100 * clamp_min(sum by(node) (cantaloupe:node_total_cost_per_hour) - sum by(node) (cantaloupe:container_allocated_cost_per_hour), 0) / sum by(node) (cantaloupe:node_total_cost_per_hour))",
+              "refId": "A",
+              "format": "time_series",
+              "legendFormat": "{{node}}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "decimals": 1
+            },
+            "overrides": []
+          },
+          "options": {
+            "displayMode": "gradient",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true
+          }
+        },
+        {
+          "id": 504,
+          "title": "PVC별 월 비용",
+          "description": "현재 월 환산 비용에 포함되는 PVC별 비용입니다. GCP CSI의 프로비저닝 용량과 서울 pd-standard 공개 단가로 계산하며, On-prem hostPath는 제외합니다.",
+          "type": "bargauge",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 72,
+            "w": 12,
+            "h": 9
+          },
+          "targets": [
+            {
+              "expr": "sort_desc((730 * ((max by(persistentvolume) (pod_pvc_allocation) / 1024^3) * on(persistentvolume) max by(persistentvolume) (kube_persistentvolume_info{csi_driver=\"pd.csi.storage.gke.io\"}) * 0.000071233)) * on(persistentvolume) group_left(namespace,persistentvolumeclaim,storageclass) label_replace(max by(namespace,persistentvolumeclaim,storageclass,volumename) (kube_persistentvolumeclaim_info{volumename!=\"\"}), \"persistentvolume\", \"$1\", \"volumename\", \"(.*)\"))",
+              "refId": "A",
+              "format": "time_series",
+              "legendFormat": "{{persistentvolumeclaim}}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "decimals": 2
+            },
+            "overrides": []
+          },
+          "options": {
+            "displayMode": "gradient",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 24,
+        "h": 1
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": [
+    "cantaloupe-v1"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "platform",
+        "label": "Platform",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(cantaloupe:platform_role_node_cost_per_hour,platform)",
+          "refId": "platform"
+        },
+        "definition": "label_values(cantaloupe:platform_role_node_cost_per_hour,platform)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 1,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(cantaloupe:workload_cpu_requests_cores,namespace)",
+          "refId": "namespace"
+        },
+        "definition": "label_values(cantaloupe:workload_cpu_requests_cores,namespace)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 1,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "workload",
+        "label": "Workload 검색/선택",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(cantaloupe:workload_cpu_requests_cores{namespace=~\"$namespace\"},workload)",
+          "refId": "workload"
+        },
+        "definition": "label_values(cantaloupe:workload_cpu_requests_cores{namespace=~\"$namespace\"},workload)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "refresh": 1,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "rightsizing_type",
+        "label": "권고 유형 필터",
+        "type": "custom",
+        "query": "전체 : -1,Request 축소 : 1,Request 증설 : 2,혼합 조정 : 3,유지 · 허용범위 : 0",
+        "current": {
+          "selected": true,
+          "text": "전체",
+          "value": "-1"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "전체",
+            "value": "-1"
+          },
+          {
+            "selected": false,
+            "text": "Request 축소",
+            "value": "1"
+          },
+          {
+            "selected": false,
+            "text": "Request 증설",
+            "value": "2"
+          },
+          {
+            "selected": false,
+            "text": "혼합 조정",
+            "value": "3"
+          },
+          {
+            "selected": false,
+            "text": "유지 · 허용범위",
+            "value": "0"
+          }
+        ],
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Cantaloupe v1 — Kubernetes FinOps",
+  "uid": "cantaloupe-v1-kubernetes-finops",
+  "version": 1
+}

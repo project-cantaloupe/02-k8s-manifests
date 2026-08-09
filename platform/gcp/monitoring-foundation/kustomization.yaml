@@ -56,6 +56,20 @@ configMapGenerator:
         cost-allocation: shared
       annotations:
         grafana-folder: Cantaloupe
+  - name: cantaloupe-kubernetes-finops
+    namespace: monitoring
+    files:
+      - cantaloupe-kubernetes-finops.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+        app: grafana
+        area: monitoring
+        platform: gcp
+        cost-allocation: shared
+      annotations:
+        grafana-folder: Cantaloupe
   - name: cantaloupe-fluent-bit-delivery
     namespace: monitoring
     files:
