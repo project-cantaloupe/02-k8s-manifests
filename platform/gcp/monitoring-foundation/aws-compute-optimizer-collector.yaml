@@ -83,13 +83,17 @@ spec:
                   aws compute-optimizer get-enrollment-status \
                     --region "$AWS_REGION" --output json > /work/enrollment.json
                   aws compute-optimizer get-ec2-instance-recommendations \
-                    --region "$AWS_REGION" --output json > /work/recommendations.json
+                    --region "$AWS_REGION" \
+                    --recommendation-preferences "cpuVendorArchitectures=$AWS_RECOMMENDATION_ARCHITECTURE" \
+                    --output json > /work/recommendations.json
                   current_types="$(aws compute-optimizer get-ec2-instance-recommendations \
                     --region "$AWS_REGION" \
+                    --recommendation-preferences "cpuVendorArchitectures=$AWS_RECOMMENDATION_ARCHITECTURE" \
                     --query 'instanceRecommendations[].currentInstanceType' \
                     --output text)"
                   recommended_types="$(aws compute-optimizer get-ec2-instance-recommendations \
                     --region "$AWS_REGION" \
+                    --recommendation-preferences "cpuVendorArchitectures=$AWS_RECOMMENDATION_ARCHITECTURE" \
                     --query 'instanceRecommendations[].recommendationOptions[?rank==`1`].instanceType' \
                     --output text)"
                   instance_types="$(printf '%s %s' "$current_types" "$recommended_types" | tr '\t\r\n' ' ')"
@@ -103,6 +107,11 @@ spec:
               env:
                 - name: AWS_REGION
                   value: ap-northeast-2
+                # Match the Graviton resource selection used in the Compute
+                # Optimizer console. Without this preference the API defaults
+                # to the current CPU architecture and returns x86 options.
+                - name: AWS_RECOMMENDATION_ARCHITECTURE
+                  value: AWS_ARM64
                 - name: AWS_EC2_METADATA_DISABLED
                   value: "false"
                 - name: HOME

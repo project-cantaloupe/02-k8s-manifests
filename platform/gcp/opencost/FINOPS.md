@@ -118,6 +118,11 @@ AWS VM 추천도 같은 Pushgateway와 Prometheus 메트릭 계약을 사용한�
 Node에서 실행하며 IMDSv2로 `cntlp-aws-worker-node` Instance Profile의 단기
 Credential을 사용한다. IAM은 다음 읽기 작업만 허용한다.
 
+수집 요청은 Compute Optimizer 콘솔의 Graviton Resource selection과 동일하게
+`recommendationPreferences.cpuVendorArchitectures=AWS_ARM64`를 명시한다. 이를
+생략하면 API 기본값인 현재 CPU 아키텍처 기준 추천이 반환되어 콘솔의 `m7g`,
+`t4g`, `c7g` 추천 및 공식 월 절감액과 달라질 수 있다.
+
 - `compute-optimizer:GetEnrollmentStatus`
 - `compute-optimizer:GetEC2InstanceRecommendations`
 - `ec2:DescribeInstanceTypes`
