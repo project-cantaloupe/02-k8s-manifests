@@ -48,6 +48,9 @@ spec:
       --node-name cntlp-aws-wk-99 \
       --karpenter-node
 
+    # AWS service Worker는 On-Prem Harbor의 MagicDNS 이름을 해석해야 한다.
+    tailscale set --accept-dns=true
+
   tags:
     Name: cntlp-aws-wk-99
     org: cntlp
