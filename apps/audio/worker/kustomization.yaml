@@ -3,6 +3,9 @@ kind: Kustomization
 
 resources:
   - deployment.yaml
+  - metrics-service.yaml
+  - servicemonitor.yaml
+  - allow-prometheus-scrape.yaml
 
 # 03-app-audio의 GitHub Actions가 Harbor에 이미지를 푸시한 뒤 커밋 SHA 태그로
 # 갱신한다.
