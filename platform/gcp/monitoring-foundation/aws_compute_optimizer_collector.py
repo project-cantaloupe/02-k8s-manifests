@@ -88,19 +88,35 @@ def type_specs(payload):
     return specs
 
 
+FINDING_REASON_LABELS = {
+    "CPUUnderprovisioned": "CPU 부족",
+    "CPUOverprovisioned": "CPU 과다",
+    "MemoryUnderprovisioned": "메모리 부족",
+    "MemoryOverprovisioned": "메모리 과다",
+    "EBSThroughputUnderprovisioned": "EBS 처리량 부족",
+    "EBSThroughputOverprovisioned": "EBS 처리량 과다",
+    "EBSIOPSUnderprovisioned": "EBS IOPS 부족",
+    "EBSIOPSOverprovisioned": "EBS IOPS 과다",
+    "NetworkBandwidthUnderprovisioned": "네트워크 대역폭 부족",
+    "NetworkBandwidthOverprovisioned": "네트워크 대역폭 과다",
+    "NetworkPPSUnderprovisioned": "네트워크 PPS 부족",
+    "NetworkPPSOverprovisioned": "네트워크 PPS 과다",
+    "DiskIOPSUnderprovisioned": "디스크 IOPS 부족",
+    "DiskIOPSOverprovisioned": "디스크 IOPS 과다",
+    "DiskThroughputUnderprovisioned": "디스크 처리량 부족",
+    "DiskThroughputOverprovisioned": "디스크 처리량 과다",
+    "GPUUnderprovisioned": "GPU 부족",
+    "GPUOverprovisioned": "GPU 과다",
+    "GPUMemoryUnderprovisioned": "GPU 메모리 부족",
+    "GPUMemoryOverprovisioned": "GPU 메모리 과다",
+}
+
+
 def finding_reason(recommendation):
-    """Collapse verbose Compute Optimizer reason codes into one useful label."""
+    """Keep every official reason in one compact, human-readable label."""
     reason_codes = recommendation.get("findingReasonCodes", [])
-    normalized = " ".join(str(code).upper() for code in reason_codes)
-    if "MEMORY" in normalized:
-        return "MEMORY"
-    if "CPU" in normalized:
-        return "CPU"
-    if "EBS" in normalized or "DISK" in normalized or "STORAGE" in normalized:
-        return "STORAGE"
-    if "NETWORK" in normalized or "PPS" in normalized:
-        return "NETWORK"
-    return "PERFORMANCE" if recommendation.get("finding") == "UNDER_PROVISIONED" else "RIGHTSIZING"
+    reasons = [FINDING_REASON_LABELS.get(code, str(code)) for code in reason_codes]
+    return " · ".join(dict.fromkeys(reasons)) if reasons else "미제공"
 
 
 def parse_recommendations(payload, nodes, specs):

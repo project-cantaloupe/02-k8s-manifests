@@ -185,7 +185,10 @@ def recommendation_metrics(recommendations):
             "recommended_profile": item["recommended_profile"],
             "state": item["state"],
             "decision": item["decision"],
-            "reason": "PROVIDER_RECOMMENDATION",
+            # Machine Type Recommender does not expose AWS-style finding
+            # reason codes. Do not present a locally inferred direction as an
+            # official provider reason.
+            "reason": "미제공",
             "priority": item["priority"],
         }
         lines.append(sample("cantaloupe:provider_vm_recommendation_info", 1, info))
