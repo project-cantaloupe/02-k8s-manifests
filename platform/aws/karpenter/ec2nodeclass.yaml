@@ -6,7 +6,7 @@ spec:
   # kubeadm·Calico·Tailscale이 준비된 Cantaloupe Golden AMI 사용
   amiFamily: Custom
   amiSelectorTerms:
-    - name: cntlp-aws-cicd-k8s-worker-9eadd3e
+    - name: cntlp-aws-cicd-k8s-worker-447ffba
 
   # 기존 Service Worker와 같은 Private Subnet·Security Group·IAM 경계 사용
   subnetSelectorTerms:
