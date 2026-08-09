@@ -37,7 +37,6 @@ resources:
   - vpa-recommender.yaml
   - monitoring-stack.yaml
   - cloudwatch-exporter.yaml
-  - cloudwatch-exporter-audio-sqs.yaml
   - opencost.yaml
   - audio-ingress.yaml
   - secops.yaml

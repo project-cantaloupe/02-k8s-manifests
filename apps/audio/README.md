@@ -21,34 +21,6 @@ api/                  audio-api와 audio-events (같은 Image의 다른 진입�
 worker/               audio-transcode
 ```
 
-## Audio Worker 관측
-
-`audio-transcode`는 Pod의 `metrics` 포트(9090)에서 Prometheus 메트릭을 제공한다.
-`worker/metrics-service.yaml`과 `worker/servicemonitor.yaml`이 이를 중앙
-Prometheus에 연결한다. Pod 이름이나 replica 수에 의존하지 않으므로 향후
-KEDA가 Deployment를 확장하거나 Karpenter Node에 Pod가 배치되어도 같은 쿼리를
-사용한다.
-
-```text
-audio_transcode_completed_total
-audio_transcode_failed_total
-audio_transcode_retried_total
-audio_transcode_duration_seconds
-audio_transcode_in_progress
-```
-
-완료·실패 건수는 특정 Pod의 counter가 아니라 선택 시간 범위에 존재한 모든
-Worker 시계열의 `increase()`를 합산한다. 예를 들어 완료 건수는 다음과 같다.
-
-```promql
-sum(increase(audio_transcode_completed_total[$__range]))
-```
-
-SQS 적체량과 oldest message age는 별도
-`cloudwatch-exporter-audio-sqs` Application이 수집한다. Worker replica 자동
-확장 여부와 무관하게 Queue 대기시간과 정적 Worker 처리 용량을 판단하는 공통
-관측값이다.
-
 ### Mesh 참여 기준 — ambient
 
 **Sidecar를 쓰지 않는다.** Namespace의 `istio.io/dataplane-mode: ambient`가
