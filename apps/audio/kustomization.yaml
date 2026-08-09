@@ -12,6 +12,14 @@ patches:
         value:
           platform: aws
           role: service
+  # Burst Worker는 공통 AWS service 조건에 Karpenter NodePool 조건을 추가한다.
+  - target:
+      kind: Deployment
+      name: audio-transcode-burst
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector/karpenter.sh~1nodepool
+        value: aws-service
   # CronJob 은 template 이 jobTemplate 아래라 경로가 한 단계 깊다.
   - target:
       kind: CronJob

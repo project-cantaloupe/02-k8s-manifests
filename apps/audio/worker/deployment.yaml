@@ -40,6 +40,15 @@ spec:
         # FinOps 기준선. 위 주석 참조.
         istio.io/dataplane-mode: none
     spec:
+      # Base Worker는 Terraform이 유지하는 고정 AWS Worker에서만 실행한다.
+      # Karpenter Node는 같은 platform·role 라벨을 가지므로 명시적으로 제외한다.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: karpenter.sh/nodepool
+                    operator: DoesNotExist
       # SQS 메시지를 처리 중일 때 강제 종료되지 않도록 여유를 준다.
       terminationGracePeriodSeconds: 120
       containers:
