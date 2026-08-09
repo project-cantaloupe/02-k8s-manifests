@@ -1,0 +1,181 @@
+replicaCount: 1
+
+pod:
+  labels:
+    area: monitoring
+    platform: aws
+    component: audio-sqs-metrics
+    cost-allocation: shared
+
+# The existing AWS service Worker Instance Profile supplies temporary
+# CloudWatch credentials. No long-lived access key is stored in Kubernetes.
+nodeSelector:
+  platform: aws
+  role: service
+
+serviceAccount:
+  create: true
+  automountServiceAccountToken: false
+
+rbac:
+  create: false
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 96Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  interval: 1m
+  timeout: 30s
+  labels:
+    release: monitoring
+
+# Keep dashboard queries independent of the exporter statistic suffix. These
+# records remain valid for a static Worker, KEDA replicas, and Karpenter Nodes.
+prometheusRule:
+  enabled: true
+  namespace: monitoring
+  labels:
+    release: monitoring
+  rules:
+    - record: cantaloupe:audio_sqs_collector_up
+      expr: max(up{namespace="monitoring",service=~"cloudwatch-exporter-audio-sqs.*"}) or vector(0)
+    - record: cantaloupe:aws_sqs_visible_messages
+      expr: max by (queue_name) (aws_sqs_approximate_number_of_messages_visible_average)
+    - record: cantaloupe:aws_sqs_inflight_messages
+      expr: max by (queue_name) (aws_sqs_approximate_number_of_messages_not_visible_average)
+    - record: cantaloupe:aws_sqs_oldest_message_age_seconds
+      expr: max by (queue_name) (aws_sqs_approximate_age_of_oldest_message_maximum)
+    - record: cantaloupe:aws_sqs_messages_sent_per_period
+      expr: max by (queue_name) (aws_sqs_number_of_messages_sent_sum)
+    - record: cantaloupe:aws_sqs_messages_received_per_period
+      expr: max by (queue_name) (aws_sqs_number_of_messages_received_sum)
+    - record: cantaloupe:aws_sqs_messages_deleted_per_period
+      expr: max by (queue_name) (aws_sqs_number_of_messages_deleted_sum)
+    - record: cantaloupe:audio_transcode_queue_backlog
+      expr: cantaloupe:aws_sqs_visible_messages{queue_name="cntlp-aws-queue-transcode"} or vector(0)
+    - record: cantaloupe:audio_transcode_queue_inflight
+      expr: cantaloupe:aws_sqs_inflight_messages{queue_name="cntlp-aws-queue-transcode"} or vector(0)
+    - record: cantaloupe:audio_transcode_queue_oldest_age_seconds
+      expr: cantaloupe:aws_sqs_oldest_message_age_seconds{queue_name="cntlp-aws-queue-transcode"} or vector(0)
+    - record: cantaloupe:audio_transcode_dlq_messages
+      expr: cantaloupe:aws_sqs_visible_messages{queue_name="cntlp-aws-queue-transcode-dlq"} or vector(0)
+    - alert: AudioTranscodeDLQNotEmpty
+      expr: cantaloupe:audio_transcode_dlq_messages > 0
+      for: 5m
+      labels:
+        severity: warning
+        category: audio
+        component: transcode
+      annotations:
+        summary: Audio transcode DLQ contains messages.
+        description: Failed transcode jobs have remained in the DLQ for at least 5 minutes.
+        action: Inspect the transcode Worker errors and DLQ messages before attempting a redrive.
+    - alert: AudioSQSCollectorDown
+      expr: cantaloupe:audio_sqs_collector_up == 0
+      for: 10m
+      labels:
+        severity: warning
+        category: monitoring
+        component: audio-sqs-metrics
+      annotations:
+        summary: Audio SQS CloudWatch metrics are unavailable.
+        description: The dedicated Audio SQS CloudWatch exporter has been unavailable for 10 minutes.
+        action: Check the exporter Pod, ServiceMonitor target, EC2 credentials, and CloudWatch API errors.
+
+config: |-
+  region: ap-northeast-2
+  list_metrics_cache_ttl: 3600
+  metrics:
+    - aws_namespace: AWS/SQS
+      aws_metric_name: ApproximateNumberOfMessagesVisible
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: &audio_queues
+          - cntlp-aws-queue-scan-result
+          - cntlp-aws-queue-scan-result-dlq
+          - cntlp-aws-queue-transcode
+          - cntlp-aws-queue-transcode-dlq
+          - cntlp-aws-queue-transcode-result
+          - cntlp-aws-queue-transcode-result-dlq
+      aws_statistics: [Average]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: false
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: ApproximateNumberOfMessagesNotVisible
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: *audio_queues
+      aws_statistics: [Average]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: false
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: ApproximateAgeOfOldestMessage
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: *audio_queues
+      aws_statistics: [Maximum]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: false
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: NumberOfMessagesSent
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: *audio_queues
+      aws_statistics: [Sum]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: false
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: NumberOfMessagesReceived
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: *audio_queues
+      aws_statistics: [Sum]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: false
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: NumberOfMessagesDeleted
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: *audio_queues
+      aws_statistics: [Sum]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: false

@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: audio-transcode
+  namespace: apps
+  labels:
+    app: audio-transcode
+    area: apps
+    component: transcode-metrics
+    platform: aws
+spec:
+  jobLabel: app
+  selector:
+    matchLabels:
+      app: audio-transcode
+      component: transcode-metrics
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

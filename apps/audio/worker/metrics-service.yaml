@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: audio-transcode-metrics
+  namespace: apps
+  labels:
+    app: audio-transcode
+    area: apps
+    component: transcode-metrics
+    platform: aws
+spec:
+  selector:
+    app: audio-transcode
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
