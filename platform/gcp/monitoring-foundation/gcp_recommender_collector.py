@@ -185,6 +185,7 @@ def recommendation_metrics(recommendations):
             "recommended_profile": item["recommended_profile"],
             "state": item["state"],
             "decision": item["decision"],
+            "reason": "PROVIDER_RECOMMENDATION",
             "priority": item["priority"],
         }
         lines.append(sample("cantaloupe:provider_vm_recommendation_info", 1, info))
