@@ -71,11 +71,20 @@ spec:
         # Pod의 request가 동시에 잡히지 않게 한다.
         upgradeStrategy:
           operator:
-            type: Recreate
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 0
+              maxUnavailable: 1
           metricsApiServer:
-            type: Recreate
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 0
+              maxUnavailable: 1
           webhooks:
-            type: Recreate
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 0
+              maxUnavailable: 1
   destination:
     server: https://kubernetes.default.svc
     namespace: keda
