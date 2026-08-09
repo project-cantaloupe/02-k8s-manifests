@@ -50,22 +50,32 @@ spec:
         resources:
           operator:
             requests:
-              cpu: 100m
+              cpu: 50m
               memory: 128Mi
             limits:
               memory: 512Mi
           metricServer:
             requests:
-              cpu: 50m
+              cpu: 25m
               memory: 96Mi
             limits:
               memory: 256Mi
           webhooks:
             requests:
-              cpu: 50m
+              cpu: 25m
               memory: 96Mi
             limits:
               memory: 256Mi
+
+        # Control Plane의 예약 CPU가 높으므로 singleton 업데이트 중 이전 Pod와 새
+        # Pod의 request가 동시에 잡히지 않게 한다.
+        upgradeStrategy:
+          operator:
+            type: Recreate
+          metricsApiServer:
+            type: Recreate
+          webhooks:
+            type: Recreate
   destination:
     server: https://kubernetes.default.svc
     namespace: keda
