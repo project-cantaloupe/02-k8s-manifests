@@ -1,0 +1,151 @@
+# OpenSearch Dashboards 앞의 인증 게이트.
+#
+# **security plugin 을 켜지 않기로 한 결과물이다**
+# → decisions/20260811_opensearch-sso-via-proxy.md
+#
+# ⚠️ **이것이 덮는 것은 5601(UI)뿐이다.** OpenSearch 자체(9200)는 여전히
+# 무인증이다. 프록시를 통과한 뒤에는 전원이 같은 권한이다.
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: aws-secrets-manager
+  namespace: logging
+spec:
+  # `auth:` 가 없으므로 AWS SDK 기본 자격증명 체인 → IMDS → 워커 노드
+  # Instance Profile 을 탄다. 그 역할이 읽을 수 있는 것은 `cntlp/oidc/*`
+  # 로 한정돼 있다 (01-infra-provisioning terraform/keycloak/secrets.tf).
+  #
+  # ⚠️ **네임스페이스 범위인 것이 통제다.** ClusterSecretStore 로 하나만
+  # 두면 어느 네임스페이스에서든 Keycloak DB 비밀번호까지 꺼낼 수 있다.
+  provider:
+    aws:
+      service: SecretsManager
+      region: ap-northeast-2
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oauth2-proxy
+  namespace: logging
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: SecretStore
+  target:
+    name: oauth2-proxy
+    creationPolicy: Owner
+  data:
+    - secretKey: client-id
+      remoteRef: { key: cntlp/oidc/opensearch-dashboards, property: client_id }
+    - secretKey: client-secret
+      remoteRef: { key: cntlp/oidc/opensearch-dashboards, property: client_secret }
+    - secretKey: cookie-secret
+      remoteRef: { key: cntlp/oidc/opensearch-dashboards, property: cookie_secret }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  namespace: logging
+  labels: &lbl
+    app: oauth2-proxy
+    area: logging
+    platform: gcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels: *lbl
+    spec:
+      # ⚠️ **Dashboards 와 같은 노드에 둘 필요는 없다.** Dashboards Service
+      # 가 `Cluster` 정책이라 어느 노드에서든 닿는다. 다만 tailscale serve
+      # 가 cntlp-onp-wk-01 에 있으므로 그 노드에 두면 홉이 하나 준다.
+      nodeSelector:
+        platform: onp
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
+          args:
+            - --provider=keycloak-oidc
+            - --oidc-issuer-url=https://auth.echoprism.cloud/realms/cantaloupe
+            - --redirect-url=https://cntlp-onp-wk-01.tail270b85.ts.net/logs/oauth2/callback
+            # ⚠️ **`--proxy-prefix` 가 tailscale serve 경로와 같아야 한다.**
+            # 기본값은 `/oauth2` 인데, 서브패스 뒤에 있으므로 앞 조각을
+            # 붙여야 콜백 주소가 맞는다. 한쪽만 바꾸면 로그인 후
+            # 리다이렉트가 깨진다 — 인증 실패로 보이지 않는 종류의 고장이다.
+            - --proxy-prefix=/logs/oauth2
+            - --upstream=http://opensearch-dashboards.logging.svc.cluster.local:5601
+            - --http-address=0.0.0.0:4180
+            - --scope=openid profile email groups
+            # 그룹으로 가른다. Keycloak 매퍼가 `groups` 클레임을 싣는다.
+            # ⚠️ **`--allowed-group` 이 없으면 realm 의 누구나 들어온다.**
+            - --oidc-groups-claim=groups
+            - --allowed-group=platform-admin
+            - --allowed-group=devops
+            - --allowed-group=secops
+            - --allowed-group=finops
+            # 프록시 뒤 앱에 사용자를 알린다. Dashboards 는 이 헤더를
+            # 쓰지 않지만, 접근 로그에 남아 "누가 봤나"가 기록된다.
+            - --set-xauthrequest=true
+            - --pass-access-token=false
+            # PKCE. 시크릿이 있어도 인가 코드 가로채기는 막는다.
+            - --code-challenge-method=S256
+            # TLS 종료는 tailscale serve 가 한다. 프록시는 평문으로 받는다.
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --email-domain=*
+            - --skip-provider-button=true
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom: { secretKeyRef: { name: oauth2-proxy, key: client-id } }
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: oauth2-proxy, key: client-secret } }
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom: { secretKeyRef: { name: oauth2-proxy, key: cookie-secret } }
+          ports:
+            - containerPort: 4180
+              name: http
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet: { path: /ping, port: 4180 }
+            initialDelaySeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  namespace: logging
+  labels:
+    app: oauth2-proxy
+    area: logging
+spec:
+  type: NodePort
+  # ⚠️ **`Local` 로 두면 파드가 있는 노드에서만 응답한다.** 지금은 그
+  # 노드(onp)에서 serve 하므로 어느 쪽이든 되지만, 파드가 옮겨가도
+  # 안 깨지도록 `Cluster` 로 둔다.
+  externalTrafficPolicy: Cluster
+  selector:
+    app: oauth2-proxy
+  ports:
+    - port: 4180
+      targetPort: 4180
+      nodePort: 30418
+      name: http

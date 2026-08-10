@@ -27,6 +27,7 @@ resources:
   # → applications/aws-storage.yaml
   - aws-storage.yaml
   - logging-stack.yaml
+  - logging-sso.yaml
   - istio-base.yaml
   - istiod.yaml
   # ambient 데이터플레인. 셋이 한 벌이다 → applications/istiod.yaml

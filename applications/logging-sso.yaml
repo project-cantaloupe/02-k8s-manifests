@@ -1,0 +1,22 @@
+# OpenSearch Dashboards 앞의 인증 게이트.
+# logging 네임스페이스와 Dashboards 가 먼저 있어야 한다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-sso
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: platform/gcp/logging-sso
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
