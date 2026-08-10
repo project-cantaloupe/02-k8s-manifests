@@ -1,0 +1,66 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter-controller
+  namespace: devops
+  annotations:
+    # EC2NodeClass와 NodePool보다 Controller CRD·RBAC·Deployment 우선 생성
+    argocd.argoproj.io/sync-wave: "-15"
+spec:
+  project: default
+  source:
+    # Public ECR OCI Helm chart. Argo CD Helm source에는 oci:// 접두사 미사용
+    repoURL: public.ecr.aws/karpenter
+    chart: karpenter
+    targetRevision: 1.14.0
+    helm:
+      releaseName: karpenter
+      values: |
+        replicas: 1
+
+        # 증설 대상 Worker가 아닌 AWS Control Plane Node에 Controller 고정
+        nodeSelector:
+          platform: aws
+          role: control-plane
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+
+        controller:
+          env:
+            - name: AWS_REGION
+              value: ap-northeast-2
+            - name: AWS_DEFAULT_REGION
+              value: ap-northeast-2
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+
+        settings:
+          clusterName: cntlp-k8s
+          # API 인증서 SAN에 등록된 고정 MagicDNS Node 이름 사용
+          clusterEndpoint: https://cntlp-aws-cp-01:6443
+          eksControlPlane: false
+          interruptionQueue: ""
+          enableZonalShift: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=false
+      # 대형 CRD의 client-side apply annotation 크기 제한 회피
+      - ServerSideApply=true
