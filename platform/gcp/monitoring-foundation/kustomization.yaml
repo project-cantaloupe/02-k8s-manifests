@@ -41,3 +41,17 @@ configMapGenerator:
         app: vpa-recommendation-collector
         area: monitoring
         category: finops
+  - name: cantaloupe-v1-platform-overview
+    namespace: monitoring
+    files:
+      - cantaloupe-v1-platform-overview.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+        app: grafana
+        area: monitoring
+        platform: gcp
+        cost-allocation: shared
+      annotations:
+        grafana-folder: Cantaloupe
