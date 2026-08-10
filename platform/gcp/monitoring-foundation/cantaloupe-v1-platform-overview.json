@@ -2189,8 +2189,8 @@
         "kind": "Panel",
         "spec": {
           "id": 109,
-          "title": "Log Pipeline Errors (5m)",
-          "description": "0이면 정상입니다. Fluent Bit target Down/미발견 수와 최근 5분간 dropped records/OpenSearch output error 수의 합계를 표시합니다. Retry는 상세 그래프에서만 확인합니다.",
+          "title": "Fluent Bit Critical Alerts",
+          "description": "현재 firing 중인 Fluent Bit critical 알림 개수입니다. 0이면 정상이고 1 이상이면 즉시 확인해야 합니다. Warning과 원시 Retry는 포함하지 않습니다.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2207,7 +2207,7 @@
                         "name": "prometheus"
                       },
                       "spec": {
-                        "expr": "(sum(up{job=\"fluent-bit-metrics\"} == 0) or vector(0)) + (sum(absent(up{job=\"fluent-bit-metrics\"})) or vector(0)) + (round(sum(increase(fluentbit_output_dropped_records_total[5m]))) or vector(0)) + (round(sum(increase(fluentbit_output_errors_total[5m]))) or vector(0))",
+                        "expr": "count(ALERTS{alertstate=\"firing\",severity=\"critical\",component=\"fluent-bit\"}) or vector(0)",
                         "format": "time_series",
                         "instant": true
                       }
