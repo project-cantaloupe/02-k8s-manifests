@@ -69,3 +69,4 @@ resources:
   - web
   - api
   - worker
+  - loadtest

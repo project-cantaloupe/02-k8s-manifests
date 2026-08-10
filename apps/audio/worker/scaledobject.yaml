@@ -18,6 +18,15 @@ spec:
   advanced:
     restoreToOriginalReplicaCount: true
   triggers:
+    # 평일 저녁 피크가 예측된다는 실험 가정이다. 20:55에 Burst Worker를 먼저
+    # 요청해 Karpenter Node 준비시간을 사용자 요청 경로에서 분리한다. 실험 기간
+    # 종료 후 이 트리거는 결과 PR과 함께 제거하거나 운영 시간표로 재승인한다.
+    - type: cron
+      metadata:
+        timezone: Asia/Seoul
+        start: 55 20 * * 2-4
+        end: 30 21 * * 2-4
+        desiredReplicas: "1"
     - type: aws-sqs-queue
       metadata:
         # Base Worker가 처리하는 한 건은 확장하지 않고 Visible과 In-flight의 합이
