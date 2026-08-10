@@ -25,7 +25,7 @@
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
       "id": 100,
       "panels": [],
-      "title": "Cluster Health",
+      "title": "1. 지금 정상인가",
       "type": "row"
     },
     {
@@ -121,7 +121,7 @@
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6},
       "id": 200,
       "panels": [],
-      "title": "Platform Capacity & FinOps Signals",
+      "title": "2. 어디가 바쁜가",
       "type": "row"
     },
     {
@@ -179,7 +179,7 @@
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22},
       "id": 300,
       "panels": [],
-      "title": "Workload Health",
+      "title": "3. 문제가 있다면",
       "type": "row"
     },
     {
@@ -265,9 +265,53 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "클러스터 전체 노드 중 정상적으로 scrape되는 Fluent Bit 수집기의 비율입니다. 100%가 아니면 일부 노드의 로그가 누락될 수 있으므로 운영 상세에서 해당 노드를 확인합니다.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "max": 100, "min": 0, "noValue": "0%", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 100}]}, "unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 39},
+      "id": 30,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"expr": "100 * count(max by (node) ((up{job=\"fluent-bit-metrics\"} == 1) * on(namespace,pod) group_left(node) kube_pod_info{namespace=\"logging\"})) / count(max by (node) (kube_node_info))", "instant": true, "legendFormat": "Healthy collectors", "refId": "A"}],
+      "title": "Log Collector Coverage",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "최근 5분 동안 Fluent Bit이 버린 로그 레코드 수입니다. 0보다 크면 로그 유실입니다.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 39},
+      "id": 31,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"expr": "sum(increase(fluentbit_output_dropped_records_total[5m])) or vector(0)", "instant": true, "refId": "A"}],
+      "title": "Log Records Dropped (5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "최근 5분 동안 Fluent Bit이 OpenSearch로 전송하지 못한 오류 수입니다. 0보다 크면 운영 상세에서 오류가 발생한 노드를 확인합니다.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 39},
+      "id": 32,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"expr": "sum(increase(fluentbit_output_errors_total[5m])) or vector(0)", "instant": true, "refId": "A"}],
+      "title": "OpenSearch Delivery Errors (5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "최근 5분 동안 로그 입력과 재시도는 있지만 OpenSearch 전달량이 0인 Fluent Bit 수집기 수입니다. 1 이상이면 운영 상세에서 노드명을 확인합니다. 일시적인 재시도 횟수는 운영 상세 그래프에서 별도로 확인합니다.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "noValue": "0", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 39},
+      "id": 33,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"expr": "count((sum by (pod) (increase(fluentbit_input_records_total[5m])) > 0) and on (pod) (sum by (pod) (increase(fluentbit_output_proc_records_total[5m])) == 0) and on (pod) (sum by (pod) (increase(fluentbit_output_retries_total[5m])) > 0)) or vector(0)", "instant": true, "refId": "A"}],
+      "title": "Stalled Log Collectors",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "현재 조치가 필요한 Workload, Pending PVC, Prometheus Down Target만 통합 표시한다. 정상 상태에서는 행이 없다.",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "cellOptions": {"type": "color-text"}, "inspect": false}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}, "overrides": []},
-      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 39},
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 44},
       "id": 18,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
       "targets": [{"expr": "label_replace((kube_pod_status_phase{namespace=~\"$namespace\",phase=~\"Pending|Failed\"} == 1), \"problem\", \"Pod $1\", \"phase\", \"(.*)\") or label_replace((kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\"} == 1), \"problem\", \"Last termination\", \"reason\", \".*\") or label_replace((kube_pod_container_status_waiting_reason{namespace=~\"$namespace\",reason!=\"\"} == 1), \"problem\", \"Container waiting\", \"reason\", \".*\") or label_replace((kube_pod_status_unschedulable{namespace=~\"$namespace\"} == 1), \"problem\", \"Unschedulable\", \"__name__\", \".*\") or label_replace((kube_persistentvolumeclaim_status_phase{namespace=~\"$namespace\",phase=\"Pending\"} == 1), \"problem\", \"Pending PVC\", \"phase\", \".*\") or label_replace((up == 0), \"problem\", \"Prometheus target down\", \"__name__\", \".*\")", "format": "table", "instant": true, "refId": "A"}],
@@ -277,14 +321,14 @@
     },
     {
       "collapsed": true,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 46},
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 51},
       "id": 400,
       "panels": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "rootfs, tmpfs, overlay 등을 제외한 Node filesystem 사용률이다.",
           "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 75}, {"color": "red", "value": 90}]}, "unit": "percent"}, "overrides": []},
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 47},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 52},
           "id": 19,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
           "targets": [{"expr": "(100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\",mountpoint!~\"/run.*\"})) * on(instance) group_left(node) label_replace(node_uname_info, \"node\", \"$1\", \"nodename\", \"(.*)\") * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "legendFormat": "{{node}} {{mountpoint}}", "refId": "A"}],
@@ -295,7 +339,7 @@
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "Node별 수신·송신 네트워크 대역폭이다. loopback과 가상 인터페이스를 제외한다.",
           "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "Bps"}, "overrides": []},
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 47},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 52},
           "id": 20,
           "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
           "targets": [
@@ -309,7 +353,7 @@
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "kubelet 사용량 메트릭을 제공하는 PVC의 현재 사용률이다. On-prem hostPath는 이 Gauge에 표시되지 않으며 오른쪽 Inventory에서 Capacity와 수집 여부를 확인한다.",
           "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 70}, {"color": "red", "value": 85}]}, "unit": "percent"}, "overrides": []},
-          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 55},
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 60},
           "id": 29,
           "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "valueMode": "color"},
           "targets": [{"expr": "100 * kubelet_volume_stats_used_bytes{namespace=~\"$namespace\"} / kubelet_volume_stats_capacity_bytes{namespace=~\"$namespace\"}", "legendFormat": "{{namespace}} / {{persistentvolumeclaim}}", "refId": "A"}],
@@ -320,7 +364,7 @@
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "전체 PVC 인벤토리와 사용률 수집 범위를 함께 표시한다. GCP CSI는 사용률을 제공하고 On-prem hostPath는 kubelet per-volume stats가 없어 Not collected로 표시한다. hostPath의 전체 디스크 상태는 Node Filesystem에서 확인한다.",
           "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byName", "options": "Capacity"}, "properties": [{"id": "unit", "value": "bytes"}]}, {"matcher": {"id": "byName", "options": "Usage"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "noValue", "value": "Not collected"}]}, {"matcher": {"id": "byName", "options": "Storage Type"}, "properties": [{"id": "noValue", "value": "hostPath"}]}]},
-          "gridPos": {"h": 8, "w": 16, "x": 8, "y": 55},
+          "gridPos": {"h": 8, "w": 16, "x": 8, "y": 60},
           "id": 21,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": false, "displayName": "Claim"}]},
           "targets": [
@@ -336,7 +380,7 @@
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "현재 선택 범위의 Container별 CPU·Memory Actual/Request/Limit을 한 행에서 비교한다. 시계열 전체를 겹쳐 그리지 않고 현재값을 정렬·필터링해 운영 상세를 확인한다. 장기 P95 및 비용 기반 Right-sizing은 Kubernetes FinOps에서 수행한다.",
           "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}}, "overrides": [{"matcher": {"id": "byRegexp", "options": "CPU .*"}, "properties": [{"id": "unit", "value": "cores"}]}, {"matcher": {"id": "byRegexp", "options": "Memory .*"}, "properties": [{"id": "unit", "value": "bytes"}]}]},
-          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 71},
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 76},
           "id": 22,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "CPU Actual"}]},
           "targets": [
@@ -355,7 +399,7 @@
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "Ready가 아니거나 Memory/Disk/PID/Network 문제가 활성화된 Node만 표시한다. 결과가 없으면 선택 범위의 모든 Node condition이 정상이다.",
           "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "unit": "short"}, "overrides": []},
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 63},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 68},
           "id": 23,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
           "targets": [{"expr": "(((1 - kube_node_status_condition{condition=\"Ready\",status=\"true\"}) == 1) or (kube_node_status_condition{condition=~\"MemoryPressure|DiskPressure|PIDPressure|NetworkUnavailable\",status=\"true\"} == 1)) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "format": "table", "instant": true, "refId": "A"}],
@@ -367,16 +411,38 @@
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "description": "현재 Node에 설정된 taint다. control-plane의 NoSchedule은 정상 보호 설정이다. 일반 Pod Pending 발생 시 해당 Pod에 적절한 toleration이 있는지 확인한다.",
           "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "unit": "short"}, "overrides": []},
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 63},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 68},
           "id": 24,
           "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": []},
           "targets": [{"expr": "kube_node_spec_taint * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels{label_platform=~\"$platform\",label_role=~\"$role\"}))", "format": "table", "instant": true, "refId": "A"}],
           "title": "Node Taints",
           "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "container": true, "endpoint": true, "instance": true, "job": true, "service": true, "Value": true}, "indexByName": {"node": 0, "key": 1, "value": 2, "effect": 3, "label_platform": 4, "label_role": 5}, "renameByName": {"node": "Node", "key": "Taint Key", "value": "Value", "effect": "Effect", "label_platform": "Platform", "label_role": "Role"}}}],
           "type": "table"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "description": "노드별 Fluent Bit의 OpenSearch 전달 처리량입니다. 범례는 노드명과 platform/role을 먼저 표시하며, 괄호 안 Pod 이름은 롤링 업데이트와 장애 추적용입니다.",
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "ops"}, "overrides": []},
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 86},
+          "id": 34,
+          "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "sum by (node,pod) (rate(fluentbit_output_proc_records_total[5m]) * on(namespace,pod) group_left(node) kube_pod_info{namespace=\"logging\"}) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels))", "legendFormat": "{{node}} · {{label_platform}}/{{label_role}} ({{pod}})", "refId": "A"}],
+          "title": "Log Delivery Rate by Node",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "description": "노드별 최근 5분 retry와 OpenSearch output error입니다. 오류가 보이면 범례의 노드명을 기준으로 해당 Fluent Bit Pod와 노드 상태를 확인합니다.",
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "short"}, "overrides": []},
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 86},
+          "id": 35,
+          "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "sum by (node,pod) (increase(fluentbit_output_retries_total[5m]) * on(namespace,pod) group_left(node) kube_pod_info{namespace=\"logging\"}) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels))", "legendFormat": "{{node}} · {{label_platform}}/{{label_role}} retries ({{pod}})", "refId": "A"}, {"expr": "sum by (node,pod) (increase(fluentbit_output_errors_total[5m]) * on(namespace,pod) group_left(node) kube_pod_info{namespace=\"logging\"}) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels))", "legendFormat": "{{node}} · {{label_platform}}/{{label_role}} errors ({{pod}})", "refId": "B"}],
+          "title": "Retries and Errors by Node",
+          "type": "timeseries"
         }
       ],
-      "title": "Infrastructure Detail",
+      "title": "4. 운영 상세 — 필요할 때 펼치기",
       "type": "row"
     }
   ],
