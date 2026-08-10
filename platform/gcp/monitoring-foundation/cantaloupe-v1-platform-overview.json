@@ -2189,8 +2189,8 @@
         "kind": "Panel",
         "spec": {
           "id": 109,
-          "title": "Log Pipeline Health (5m)",
-          "description": "Fluent Bit target Down/미발견 또는 최근 5분간 dropped records/OpenSearch output errors가 있으면 ERROR입니다. Retry는 일시적 복구가 가능해 상세 그래프에서만 확인합니다.",
+          "title": "Log Pipeline Errors (5m)",
+          "description": "0이면 정상입니다. Fluent Bit target Down/미발견 수와 최근 5분간 dropped records/OpenSearch output error 수의 합계를 표시합니다. Retry는 상세 그래프에서만 확인합니다.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2207,7 +2207,7 @@
                         "name": "prometheus"
                       },
                       "spec": {
-                        "expr": "clamp_max((sum(up{job=\"fluent-bit-metrics\"} == 0) or vector(0)) + (sum(absent(up{job=\"fluent-bit-metrics\"})) or vector(0)) + (sum(increase(fluentbit_output_dropped_records_total[5m])) or vector(0)) + (sum(increase(fluentbit_output_errors_total[5m])) or vector(0)), 1)",
+                        "expr": "(sum(up{job=\"fluent-bit-metrics\"} == 0) or vector(0)) + (sum(absent(up{job=\"fluent-bit-metrics\"})) or vector(0)) + (round(sum(increase(fluentbit_output_dropped_records_total[5m]))) or vector(0)) + (round(sum(increase(fluentbit_output_errors_total[5m]))) or vector(0))",
                         "format": "time_series",
                         "instant": true
                       }
@@ -2245,21 +2245,8 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "mappings": [
-                    {
-                      "type": "value",
-                      "options": {
-                        "0": {
-                          "text": "NORMAL",
-                          "color": "green"
-                        },
-                        "1": {
-                          "text": "ERROR",
-                          "color": "red"
-                        }
-                      }
-                    }
-                  ],
+                  "unit": "short",
+                  "decimals": 0,
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2277,7 +2264,7 @@
                     "mode": "thresholds"
                   },
                   "links": [],
-                  "noValue": "ERROR"
+                  "noValue": "0"
                 },
                 "overrides": []
               }
