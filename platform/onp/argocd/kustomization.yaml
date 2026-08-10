@@ -71,6 +71,37 @@ patches:
   # Keycloak 쪽에서 기본 스코프로 붙였어도, Argo CD 가 `requestedScopes`
   # 에 안 적으면 요청 자체에서 빠진다. 빠지면 아래 policy.csv 의 `g,`
   # 규칙이 아무에게도 안 걸려 **전원이 policy.default 로 떨어진다.**
+  #
+  # ── ⚠️ `rootCA` 가 없으면 로그인 직후 다시 로그인 화면이다 ──
+  #
+  # 2026-08-10 에 정확히 그렇게 막혔다. **로그인 자체는 성공한다** —
+  # 로그에 `Web login successful` 과 `groups: ["platform-admin"]` 까지
+  # 다 찍힌다. 그 **다음** 세션 검증에서 죽는다.
+  #
+  #   Failed to verify session token: ... failed to query provider
+  #     ".../realms/cantaloupe": tls: failed to verify certificate:
+  #     x509: certificate signed by unknown authority
+  #
+  # 사용자에게는 "로그인했는데 로그인 화면으로 돌아옴"으로만 보인다.
+  # **성공 로그와 실패 로그가 같은 초에 나란히 찍혀서** 어느 쪽을 믿을지
+  # 헷갈리는 것이 이 증상의 고약한 점이다.
+  #
+  # 인증서 자체는 멀쩡하다. 확인한 것들 —
+  #
+  #   체인   leaf ← YR1 ← Root YR ← ISRG Root X1 (교차 서명)
+  #   검증   openssl verify -CAfile ISRG_Root_X1.pem  →  OK
+  #   번들   argocd-server 컨테이너에 ISRG Root X1 있음 (122개 중)
+  #   curl   노드에서도 파드에서도 200
+  #
+  # 즉 **시스템 신뢰 저장소로 충분한데 Argo CD 의 OIDC 클라이언트가
+  # 그것을 안 쓴다.** 그래서 신뢰 앵커를 여기서 명시적으로 준다.
+  #
+  # ⚠️ **`insecureSkipVerify` 로 풀지 않는다.** 그러면 발행자를 사칭하는
+  # 상대에게 토큰을 넘길 수 있다 — 인증 시스템에서 검증을 끄는 것은
+  # 자물쇠를 떼는 것과 같다.
+  #
+  # 넣는 것은 **루트 하나**다. 중간 인증서(YR1)나 leaf 를 넣으면 갱신될
+  # 때마다 여기를 고쳐야 한다. ISRG Root X1 은 2035-06 까지 유효하다.
   - target:
       kind: ConfigMap
       name: argocd-cm
@@ -91,6 +122,38 @@ patches:
             - profile
             - email
             - groups
+          rootCA: |
+            -----BEGIN CERTIFICATE-----
+            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
+            -----END CERTIFICATE-----
 
   # 그룹 하나가 곧 역할이다. 사람마다 권한을 주지 않는다.
   #
