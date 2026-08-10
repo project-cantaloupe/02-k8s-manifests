@@ -23,7 +23,7 @@ spec:
           name: audio-ingress
         service:
           type: NodePort
-          externalTrafficPolicy: Local
+          externalTrafficPolicy: Cluster
           ports:
             - name: status-port
               port: 15021
@@ -51,7 +51,6 @@ spec:
             accessLogFormat: |
               {"level":"info","message":"ingress request completed","event_type":"ingress_request_completed","status":"%RESPONSE_CODE_DETAILS%","request_id":"%REQ(X-REQUEST-ID)%","http_status":"%RESPONSE_CODE%","http_method":"%REQ(:METHOD)%","http_route":"%ROUTE_NAME%","processing_duration_ms":"%DURATION%","upstream_service":"%UPSTREAM_CLUSTER%"}
         nodeSelector:
-          kubernetes.io/hostname: cntlp-aws-wk-01
           platform: aws
           role: service
         containerSecurityContext:
