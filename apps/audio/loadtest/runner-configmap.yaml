@@ -1,0 +1,245 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audio-finops-load-runner
+  namespace: apps
+  labels:
+    app: audio-finops-load-runner
+    area: apps
+    platform: aws
+data:
+  runner.py: |
+    import base64
+    import concurrent.futures
+    import datetime as dt
+    import hashlib
+    import io
+    import json
+    import math
+    import os
+    import random
+    import struct
+    import sys
+    import time
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    import wave
+
+    API = os.getenv("AUDIO_API_URL", "http://audio-api.apps.svc.cluster.local")
+    SUBJECT = os.getenv("AUDIO_SUBJECT", "finops-loadtest")
+    PROFILE = os.getenv("LOAD_PROFILE", "manual-unexpected")
+    COUNT = min(int(os.getenv("LOAD_COUNT", "60")), 100)
+    CONCURRENCY = min(int(os.getenv("LOAD_CONCURRENCY", "10")), 20)
+    INTERVAL = max(float(os.getenv("LOAD_INTERVAL_SECONDS", "0")), 0)
+    END_DATE = os.getenv("EXPERIMENT_END_DATE", "2026-08-14")
+    RUN_ID = os.getenv("RUN_ID") or os.getenv("HOSTNAME") or f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{PROFILE}"
+    DEADLINE = time.monotonic() + int(os.getenv("RUN_DEADLINE_SECONDS", "5400"))
+    PROMETHEUS = os.getenv("PROMETHEUS_URL", "http://monitoring-prometheus.monitoring.svc:9090")
+    PUSHGATEWAY = os.getenv("PUSHGATEWAY_URL", "http://cantaloupe-finops-pushgateway.monitoring.svc:9091")
+
+    # 고정된 8개 음악 패턴을 순환한다. 같은 fixture를 전후 실험에 사용해야
+    # 입력 난이도가 통제되고 매 업로드는 API에서 별도 audio_id를 받는다.
+    FIXTURES = (
+        (15, (261.63, 329.63, 392.00), 1),
+        (15, (293.66, 369.99, 440.00), 2),
+        (30, (329.63, 415.30, 493.88), 3),
+        (30, (349.23, 440.00, 523.25), 4),
+        (30, (392.00, 493.88, 587.33), 5),
+        (60, (220.00, 277.18, 329.63), 6),
+        (60, (246.94, 311.13, 369.99), 7),
+        (90, (261.63, 329.63, 392.00, 523.25), 8),
+    )
+
+    def make_wav(index):
+        seconds, chord, seed = FIXTURES[index % len(FIXTURES)]
+        rate = 16000
+        rng = random.Random(seed)
+        output = io.BytesIO()
+        with wave.open(output, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(rate)
+            frames = bytearray()
+            for n in range(rate * seconds):
+                t = n / rate
+                beat = int(t * 2) % 8
+                melody = chord[(int(t / 2) + seed) % len(chord)] * (2 if beat in (2, 6) else 1)
+                value = 0.24 * math.sin(2 * math.pi * chord[0] * t)
+                value += 0.18 * math.sin(2 * math.pi * chord[1] * t)
+                value += 0.14 * math.sin(2 * math.pi * melody * t)
+                if (t % 0.5) < 0.035:
+                    value += (rng.random() * 2 - 1) * 0.18 * (1 - (t % 0.5) / 0.035)
+                envelope = min(1.0, t * 8, (seconds - t) * 4)
+                sample = max(-32767, min(32767, int(value * envelope * 32767)))
+                frames.extend(struct.pack("<h", sample))
+            wav.writeframes(frames)
+        return output.getvalue(), seconds
+
+    def request_json(method, url, body=None, headers=None, timeout=60):
+        merged = {"X-Cantaloupe-Subject": SUBJECT}
+        if body is not None:
+            merged["Content-Type"] = "application/json"
+            body = json.dumps(body).encode()
+        merged.update(headers or {})
+        req = urllib.request.Request(url, data=body, headers=merged, method=method)
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            raw = response.read()
+            return json.loads(raw) if raw else None
+
+    def prometheus_value(query):
+        url = PROMETHEUS + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
+        try:
+            payload = request_json("GET", url, headers={"X-Cantaloupe-Subject": ""})
+            result = payload["data"]["result"]
+            return float(result[0]["value"][1]) if result else None
+        except Exception as exc:
+            print(f"PROMETHEUS_QUERY_WARNING={query}: {exc}", file=sys.stderr)
+            return None
+
+    def deployment_generation():
+        return prometheus_value('sum(kube_deployment_status_observed_generation{namespace="apps",deployment=~"audio-api|audio-transcode|audio-transcode-burst"})')
+
+    def collect_metrics(elapsed_seconds, generation_before):
+        window = max(60, int(elapsed_seconds) + 60)
+        subquery = f"[{window}s:30s]"
+        generation_after = deployment_generation()
+        values = {
+            "cpu_p95_cores": prometheus_value('quantile_over_time(0.95, (sum(rate(container_cpu_usage_seconds_total{namespace="apps",container="transcode"}[1m])))' + subquery + ')'),
+            "memory_p95_bytes": prometheus_value('quantile_over_time(0.95, (sum(container_memory_working_set_bytes{namespace="apps",container="transcode"}))' + subquery + ')'),
+            "queue_max": prometheus_value('max_over_time((max(cantaloupe:aws_sqs_messages_visible{queue_name="cntlp-aws-queue-transcode"}))' + subquery + ')'),
+            "transcode_completed": prometheus_value(f'sum(increase(audio_transcode_completed_total{{namespace="apps"}}[{window}s]))'),
+            "transcode_failed": prometheus_value(f'sum(increase(audio_transcode_failed_total{{namespace="apps"}}[{window}s]))'),
+            "worker_cost_usd": prometheus_value(f'sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{{namespace="apps",container="transcode"}}[{window}s:1m])) / 60'),
+            "worker_request_cpu_cores": prometheus_value('max(kube_pod_container_resource_requests{namespace="apps",container="transcode",resource="cpu",unit="core"})'),
+            "worker_request_memory_bytes": prometheus_value('max(kube_pod_container_resource_requests{namespace="apps",container="transcode",resource="memory",unit="byte"})'),
+            "elapsed_seconds": elapsed_seconds,
+            "deployment_generation_before": generation_before,
+            "deployment_generation_after": generation_after,
+        }
+        values["deployment_changed"] = 1.0 if generation_before is None or generation_after is None or generation_before != generation_after else 0.0
+        return values
+
+    def push_result_metrics(result, metrics):
+        phase = result["phase"]
+        labels = f'profile="{PROFILE}",phase="{phase}"'
+        ready = result["status_counts"].get("READY", 0)
+        failed = sum(value for key, value in result["status_counts"].items() if key != "READY") + result["upload_errors"]
+        valid = 1 if failed == 0 and metrics.get("deployment_changed") == 0 else 0
+        samples = {
+            "cantaloupe_audio_finops_run_info": valid,
+            "cantaloupe_audio_finops_run_requested": result["requested"],
+            "cantaloupe_audio_finops_run_submitted": result["submitted"],
+            "cantaloupe_audio_finops_run_ready": ready,
+            "cantaloupe_audio_finops_run_failed": failed,
+        }
+        for key, value in metrics.items():
+            if value is not None:
+                samples["cantaloupe_audio_finops_run_" + key] = value
+        body = "\n".join(f'{name}{{{labels}}} {value}' for name, value in samples.items()) + "\n"
+        path = "/metrics/job/audio_finops_experiment/run_id/" + urllib.parse.quote(RUN_ID, safe="")
+        req = urllib.request.Request(PUSHGATEWAY + path, data=body.encode(), method="PUT", headers={"Content-Type": "text/plain; version=0.0.4"})
+        with urllib.request.urlopen(req, timeout=30) as response:
+            if response.status < 200 or response.status >= 300:
+                raise RuntimeError(f"Pushgateway returned {response.status}")
+
+    def upload_one(index):
+        started = time.monotonic()
+        wav_bytes, seconds = make_wav(index)
+        checksum = base64.b64encode(hashlib.sha256(wav_bytes).digest()).decode()
+        title = f"FinOps {RUN_ID} fixture-{index % len(FIXTURES) + 1:02d} item-{index + 1:03d}"
+        session = request_json("POST", API + "/v1/audios/uploads", {
+            "title": title,
+            "content_type": "audio/wav",
+            "content_length": len(wav_bytes),
+            "checksum_sha256": checksum,
+            "visibility": "private",
+        })
+        upload_headers = dict(session.get("upload_headers") or {})
+        put = urllib.request.Request(session["upload_url"], data=wav_bytes, headers=upload_headers, method="PUT")
+        with urllib.request.urlopen(put, timeout=180) as response:
+            if response.status < 200 or response.status >= 300:
+                raise RuntimeError(f"S3 upload returned {response.status}")
+        record = request_json("POST", f"{API}/v1/audios/{session['audio_id']}/complete")
+        return {
+            "audio_id": session["audio_id"],
+            "fixture": index % len(FIXTURES) + 1,
+            "source_seconds": seconds,
+            "submit_seconds": round(time.monotonic() - started, 3),
+            "initial_status": record.get("status"),
+        }
+
+    def poll_ready(item):
+        while time.monotonic() < DEADLINE:
+            record = request_json("GET", f"{API}/v1/audios/{item['audio_id']}")
+            status = record.get("status")
+            if status in ("READY", "FAILED", "REJECTED"):
+                item["final_status"] = status
+                item["duration_ms"] = record.get("duration_ms")
+                return item
+            time.sleep(5)
+        item["final_status"] = "TIMEOUT"
+        return item
+
+    def main():
+        today = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).date().isoformat()
+        if today > END_DATE:
+            print(json.dumps({"run_id": RUN_ID, "profile": PROFILE, "status": "SKIPPED_END_DATE", "date": today}))
+            return 0
+        run_started = dt.datetime.now(dt.timezone.utc)
+        phase = os.getenv("EXPERIMENT_PHASE") or ("baseline" if today <= "2026-08-12" else "candidate" if today == "2026-08-13" else "confirmation")
+        generation_before = deployment_generation()
+        items, errors = [], []
+        if INTERVAL:
+            for index in range(COUNT):
+                try:
+                    items.append(upload_one(index))
+                except Exception as exc:
+                    errors.append({"index": index, "error": str(exc)})
+                if index + 1 < COUNT:
+                    time.sleep(INTERVAL)
+        else:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+                futures = {pool.submit(upload_one, index): index for index in range(COUNT)}
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        items.append(future.result())
+                    except Exception as exc:
+                        errors.append({"index": futures[future], "error": str(exc)})
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(CONCURRENCY, 20)) as pool:
+            items = list(pool.map(poll_ready, items))
+        counts = {}
+        for item in items:
+            counts[item.get("final_status", "UNKNOWN")] = counts.get(item.get("final_status", "UNKNOWN"), 0) + 1
+        result = {
+            "schema_version": 1,
+            "run_id": RUN_ID,
+            "profile": PROFILE,
+            "phase": phase,
+            "subject": SUBJECT,
+            "visibility": "private",
+            "started_at": run_started.isoformat(),
+            "finished_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "requested": COUNT,
+            "submitted": len(items),
+            "upload_errors": len(errors),
+            "status_counts": counts,
+            "items": sorted(items, key=lambda item: item["audio_id"]),
+            "errors": errors,
+        }
+        # 마지막 Worker scrape가 Prometheus에 들어올 시간을 확보한 뒤 해당 Run의
+        # 실제 구간을 집계한다. 실패해도 원본 FINOPS_RUN_RESULT 로그는 보존한다.
+        time.sleep(45)
+        metrics = collect_metrics((dt.datetime.now(dt.timezone.utc) - run_started).total_seconds(), generation_before)
+        result["observed_metrics"] = metrics
+        try:
+            push_result_metrics(result, metrics)
+            result["metrics_pushed"] = True
+        except Exception as exc:
+            result["metrics_pushed"] = False
+            result["metrics_push_error"] = str(exc)
+        print("FINOPS_RUN_RESULT=" + json.dumps(result, separators=(",", ":")))
+        return 0 if not errors and counts.get("READY", 0) == COUNT else 1
+
+    if __name__ == "__main__":
+        sys.exit(main())
