@@ -29,7 +29,6 @@ spec:
           annotations:
             sidecar.istio.io/inject: "false"
         spec:
-          serviceAccountName: audio-finops-load-runner
           restartPolicy: Never
           containers:
             - name: runner
@@ -105,7 +104,6 @@ spec:
           annotations:
             sidecar.istio.io/inject: "false"
         spec:
-          serviceAccountName: audio-finops-load-runner
           restartPolicy: Never
           containers:
             - name: runner
@@ -182,7 +180,6 @@ spec:
           annotations:
             sidecar.istio.io/inject: "false"
         spec:
-          serviceAccountName: audio-finops-load-runner
           restartPolicy: Never
           containers:
             - name: runner
