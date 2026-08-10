@@ -28,6 +28,7 @@ data:
 
     API = os.getenv("AUDIO_API_URL", "http://audio-api.apps.svc.cluster.local")
     SUBJECT = os.getenv("AUDIO_SUBJECT", "finops-loadtest")
+    VISIBILITY = os.getenv("AUDIO_VISIBILITY", "private")
     PROFILE = os.getenv("LOAD_PROFILE", "manual-unexpected")
     COUNT = min(int(os.getenv("LOAD_COUNT", "60")), 100)
     CONCURRENCY = min(int(os.getenv("LOAD_CONCURRENCY", "10")), 20)
@@ -153,7 +154,7 @@ data:
             "content_type": "audio/wav",
             "content_length": len(wav_bytes),
             "checksum_sha256": checksum,
-            "visibility": "private",
+            "visibility": VISIBILITY,
         })
         upload_headers = dict(session.get("upload_headers") or {})
         put = urllib.request.Request(session["upload_url"], data=wav_bytes, headers=upload_headers, method="PUT")
@@ -216,7 +217,7 @@ data:
             "profile": PROFILE,
             "phase": phase,
             "subject": SUBJECT,
-            "visibility": "private",
+            "visibility": VISIBILITY,
             "started_at": run_started.isoformat(),
             "finished_at": dt.datetime.now(dt.timezone.utc).isoformat(),
             "requested": COUNT,
