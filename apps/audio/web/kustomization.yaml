@@ -10,4 +10,4 @@ resources:
 images:
   - name: audio-web
     newName: cntlp-onp-wk-01.tail270b85.ts.net/library/web
-    newTag: b7ffcfc3399b742dc7e7f534f064061762d6bf6a
+    newTag: b4d0192235dcc969c624cc4ead40fa801ff2e6f6
