@@ -10,6 +10,10 @@ resources:
   - aws-compute-optimizer-collector.yaml
   - vpa-recommendation-collector.yaml
   - audio-ingress-observability.yaml
+  # Grafana OIDC 클라이언트 시크릿. Helm 차트(monitoring-stack)가 아니라
+  # 여기 있는 이유는 kustomize 앱이라 ExternalSecret 을 그대로 얹을 수
+  # 있어서다. 차트 values 는 이 Secret 을 env 로 참조하기만 한다.
+  - grafana-oidc-secret.yaml
 
 configMapGenerator:
   - name: gcp-recommender-collector

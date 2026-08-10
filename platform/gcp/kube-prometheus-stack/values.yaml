@@ -73,9 +73,85 @@ grafana:
   fullnameOverride: grafana
   grafana.ini:
     server:
+      # ⚠️ **이 호스트에서 tailscale serve 가 돌아야 실제로 닿는다.**
+      # 이 세 줄은 오래 있었지만 그 노드에 serve 가 없어 죽은 주소였다.
+      # 2026-08-11 에 `cntlp-gcp-wk-01` 의 host_vars 로 열었다
+      # (01-infra-provisioning ansible/inventories/gcp/host_vars/).
+      #
+      # **왜 하필 이 노드냐** — `service.externalTrafficPolicy: Local`(아래)
+      # 이라 grafana 파드가 있는 노드에서만 NodePort 가 응답한다.
+      # UI 프론트인 cntlp-onp-wk-01 에 얹으면 조용히 무응답이 된다.
       domain: cntlp-gcp-wk-01.tail270b85.ts.net
       root_url: https://cntlp-gcp-wk-01.tail270b85.ts.net/grafana/
       serve_from_sub_path: true
+
+    # ── Keycloak OIDC ────────────────────────────────────────────
+    #
+    # ⚠️ **로컬 로그인 폼을 끄지 않는다** (`disable_login_form` 을 안 켠다).
+    # OIDC 를 잘못 붙였을 때 들어갈 문이 그것뿐이다. Grafana 를 두 번째
+    # 대상으로 고른 이유가 이 폴백이다
+    # → tasks/doing/014_oidc-client-rollout.md
+    #
+    # ⚠️ **`auto_login` 도 켜지 않는다.** 켜면 `/login` 이 곧바로 Keycloak
+    # 으로 튕겨서, OIDC 가 깨졌을 때 로컬 폼에 도달할 수 없다. 폴백을
+    # 남겨두고 그리로 가는 길을 막는 셈이 된다.
+    auth:
+      disable_login_form: false
+      oauth_auto_login: false
+      # 로그아웃하면 Keycloak 세션도 끊는다. 안 하면 로그아웃 직후 다시
+      # 누를 때 아무것도 묻지 않고 되로그인되어 "안 끊긴 것"처럼 보인다.
+      signout_redirect_url: https://auth.echoprism.cloud/realms/cantaloupe/protocol/openid-connect/logout?post_logout_redirect_uri=https%3A%2F%2Fcntlp-gcp-wk-01.tail270b85.ts.net%2Fgrafana%2Flogin
+
+    auth.generic_oauth:
+      enabled: true
+      name: Keycloak
+      # ⚠️ **client_id·client_secret 은 여기 안 적는다.** 아래 envValueFrom
+      # 이 ExternalSecret 이 만든 Secret 에서 주입한다.
+      #
+      # confidential 인 이유 — Grafana 는 `client_secret` 을 필수로 요구하고
+      # `use_pkce` 를 켜도 면제되지 않는다. 서버가 인가 코드를 교환하는
+      # 구조라서다. ArgoCD 가 public 일 수 있었던 것은 브라우저가 직접
+      # 교환하기 때문이다 → 01-infra-provisioning terraform/keycloak/clients.tf
+      scopes: openid profile email groups
+      auth_url: https://auth.echoprism.cloud/realms/cantaloupe/protocol/openid-connect/auth
+      token_url: https://auth.echoprism.cloud/realms/cantaloupe/protocol/openid-connect/token
+      api_url: https://auth.echoprism.cloud/realms/cantaloupe/protocol/openid-connect/userinfo
+
+      # 시크릿이 있어도 켠다. 인가 코드 가로채기는 여전히 막는다.
+      use_pkce: true
+
+      # 사용자 식별. ArgoCD 는 email 로 고정돼 있었지만 Grafana 는 고를 수
+      # 있다 — `preferred_username` 이 K8s RBAC 주체와 같은 값이라
+      # 감사 로그를 이어붙이기 쉽다.
+      login_attribute_path: preferred_username
+      name_attribute_path: name
+      email_attribute_path: email
+      groups_attribute_path: groups
+
+      # ── 그룹 → 역할 (014 3단계 매핑표의 Grafana 열) ──────────
+      #
+      # JMESPath 다. 앞에서부터 평가되고 처음 참인 것이 이긴다.
+      # 마지막 `'Viewer'` 가 기본값 역할을 한다 — 매칭이 없어도 로그인은
+      # 되고 읽기만 된다.
+      #
+      # ⚠️ **`GrafanaAdmin` 은 `allow_assign_grafana_admin` 이 있어야
+      # 실제로 붙는다.** 없으면 조용히 `Admin` 으로 떨어진다.
+      role_attribute_path: >-
+        contains(groups[*], 'platform-admin') && 'GrafanaAdmin'
+        || contains(groups[*], 'devops') && 'Admin'
+        || contains(groups[*], 'secops') && 'Editor'
+        || contains(groups[*], 'finops') && 'Editor'
+        || 'Viewer'
+      allow_assign_grafana_admin: true
+
+      # ⚠️ **`role_attribute_strict` 를 켜지 않는다.** 켜면 위 식이 아무것도
+      # 못 고를 때 **로그인 자체가 거부된다.** 지금 realm 가입이 닫혀 있어
+      # 아무나 들어오지 못하므로, 거부보다 Viewer 로 받는 쪽이 낫다.
+      role_attribute_strict: false
+
+      # 새 사용자를 자동으로 만든다. 그룹이 권한을 결정하므로 계정을 미리
+      # 만들어 둘 이유가 없다 — 그것이 "권한을 한 곳에서"의 실체다.
+      allow_sign_up: true
   prune: true
   defaultDashboardsTimezone: Asia/Seoul
   defaultDashboardsEditable: true
@@ -85,6 +161,23 @@ grafana:
     existingSecret: grafana-admin-credentials
     userKey: admin-user
     passwordKey: admin-password
+
+  # OIDC 자격증명을 env 로 주입한다. `grafana.ini` 에 적으면 ConfigMap 에
+  # 평문으로 들어간다 — ConfigMap 은 Secret 과 달리 아무나 읽는다.
+  #
+  # 이름 규칙은 Grafana 의 `GF_<SECTION>_<KEY>` 다. 여기서 섹션은
+  # `auth.generic_oauth` 이고 점이 밑줄로 바뀐다.
+  # Secret 은 ExternalSecret 이 만든다
+  # → platform/gcp/monitoring-foundation/grafana-oidc-secret.yaml
+  envValueFrom:
+    GF_AUTH_GENERIC_OAUTH_CLIENT_ID:
+      secretKeyRef:
+        name: grafana-oidc
+        key: client_id
+    GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+      secretKeyRef:
+        name: grafana-oidc
+        key: client_secret
   nodeSelector:
     platform: gcp
     role: monitoring
