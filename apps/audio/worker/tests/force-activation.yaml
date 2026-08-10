@@ -1,0 +1,6 @@
+# SQS에 테스트 메시지를 넣지 않고 KEDA → Karpenter 확장 경로만 검증한다.
+# kubectl patch --type=merge --patch-file tests/force-activation.yaml \
+#   scaledobject/audio-transcode-burst -n apps
+metadata:
+  annotations:
+    autoscaling.keda.sh/force-activation: "true"

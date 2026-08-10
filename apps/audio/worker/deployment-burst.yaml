@@ -1,0 +1,68 @@
+# SQS 적체가 Base Worker 한 대의 처리량을 넘을 때만 KEDA가 0개에서 1개로
+# 확장한다. Pod는 Karpenter NodePool만 선택하므로 Pending 상태가 Node 증설을
+# 유발하고 Queue가 줄면 다시 0개가 된다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audio-transcode-burst
+  namespace: apps
+  labels:
+    app: audio-transcode-burst
+    area: apps
+    platform: aws
+    component: transcode
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: audio-transcode-burst
+  template:
+    metadata:
+      labels:
+        app: audio-transcode-burst
+        area: apps
+        platform: aws
+        component: transcode
+        istio.io/dataplane-mode: none
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: transcode
+          image: audio-worker
+          imagePullPolicy: Always
+          ports:
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: audio-settings
+          startupProbe:
+            tcpSocket:
+              port: metrics
+            periodSeconds: 3
+            failureThreshold: 40
+          livenessProbe:
+            tcpSocket:
+              port: metrics
+            periodSeconds: 30
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: work
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: work
+          emptyDir: {}

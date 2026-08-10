@@ -1,0 +1,33 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: audio-transcode-burst
+  namespace: apps
+  labels:
+    app: audio-transcode-burst
+    area: apps
+    platform: aws
+spec:
+  scaleTargetRef:
+    name: audio-transcode-burst
+    envSourceContainerName: transcode
+  pollingInterval: 15
+  cooldownPeriod: 120
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  advanced:
+    restoreToOriginalReplicaCount: true
+  triggers:
+    - type: aws-sqs-queue
+      metadata:
+        # Base Worker가 처리하는 한 건은 확장하지 않고 Visible과 In-flight의 합이
+        # 2건 이상일 때 Burst Worker 한 개를 활성화한다.
+        queueURLFromEnv: TRANSCODE_QUEUE_URL
+        queueLength: "1"
+        activationQueueLength: "1"
+        scaleOnInFlight: "true"
+        scaleOnDelayed: "false"
+        awsRegion: ap-northeast-2
+        # KEDA 2.20에서 Operator의 AWS SDK 기본 자격 증명을 사용한다. Operator는
+        # 최소 Queue 조회 권한이 붙은 AWS Control Plane Node에 고정한다.
+        identityOwner: operator

@@ -1,0 +1,107 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keda
+  namespace: devops
+  annotations:
+    # ScaledObject를 포함한 Audio Application보다 KEDA CRD와 Metrics API 우선 생성
+    argocd.argoproj.io/sync-wave: "-13"
+spec:
+  project: default
+  source:
+    repoURL: https://kedacore.github.io/charts
+    chart: keda
+    targetRevision: 2.20.2
+    helm:
+      releaseName: keda
+      values: |
+        clusterName: cntlp-k8s
+
+        image:
+          pullPolicy: IfNotPresent
+
+        # SQS 조회 권한이 있는 AWS Control Plane Node에 세 구성요소를 고정한다.
+        operator:
+          nodeSelector:
+            platform: aws
+            role: control-plane
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+        metricsServer:
+          nodeSelector:
+            platform: aws
+            role: control-plane
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+        webhooks:
+          nodeSelector:
+            platform: aws
+            role: control-plane
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+
+        # 공통 FinOps 기준: CPU request와 Memory request·limit을 명시한다.
+        resources:
+          operator:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          metricServer:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+          webhooks:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+
+        # Control Plane의 예약 CPU가 높으므로 singleton 업데이트 중 이전 Pod와 새
+        # Pod의 request가 동시에 잡히지 않게 한다.
+        upgradeStrategy:
+          operator:
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 0
+              maxUnavailable: 1
+          metricsApiServer:
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 0
+              maxUnavailable: 1
+          webhooks:
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 0
+              maxUnavailable: 1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keda
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.36
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
