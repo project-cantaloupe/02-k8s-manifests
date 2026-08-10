@@ -72,6 +72,17 @@ data:
         Reserve_Data   On
         Preserve_Key   On
 
+    # Istio 1.30 gateway access logs use the Envoy default text format even
+    # when ProxyConfig JSON fields are present. Parse only application-tagged
+    # records; non-matching structured application JSON passes through intact.
+    [FILTER]
+        Name           parser
+        Match          app.*
+        Key_Name       log
+        Parser         istio_access
+        Reserve_Data   On
+        Preserve_Key   On
+
     # Dashboard query fields are flattened here while the original `log` and
     # Kubernetes metadata are retained for incident investigation.
     [FILTER]
@@ -113,6 +124,11 @@ data:
         Format       regex
         Regex        ^(?<http_client_ip>[^ ]+) - (?<http_user>[^ ]+) \[(?<http_request_time>[^\]]+)\] "(?<http_method>[^ ]+) (?<http_path>[^ ]+) [^"]+" (?<http_status>[0-9]{3}) (?<http_response_bytes>[0-9]+) "(?<http_referer>[^"]*)" "(?<http_user_agent>[^"]*)" "(?<http_forwarded_for>[^"]*)"$
         Types        http_status:integer http_response_bytes:integer
+    [PARSER]
+        Name         istio_access
+        Format       regex
+        Regex        ^\[[^\]]+\] "(?<http_method>[^ ]+) (?<http_route>[^ ?]+)(?:\?[^ ]*)? [^"]+" (?<http_status>[0-9]{3}) [^ ]+ [^ ]+ [^ ]+ "[^"]*" [0-9]+ [0-9]+ (?<processing_duration_ms>[0-9]+) [^ ]+ "[^"]*" "[^"]*" "(?<request_id>[^"]*)" "[^"]*" "[^"]*" (?<upstream_service>[^ ]+) .*$
+        Types        http_status:integer processing_duration_ms:integer
   platform-normalize.lua: |
     -- Common schema for platform log dashboards. `collector_platform` is
     -- read once from the node label captured by the init container.
@@ -229,6 +245,11 @@ data:
         normalized["http_status"] = record["http_status"]
         normalized["http_method"] = record["http_method"]
         normalized["http_route"] = record["http_route"]
+        if normalized["namespace"] == "audio-ingress" then
+          normalized["event_type"] = "ingress_request_completed"
+          normalized["status"] = tonumber(record["http_status"]) < 400 and "success" or "error"
+          normalized["message"] = "ingress request completed"
+        end
       end
 
       return 1, timestamp, normalized
