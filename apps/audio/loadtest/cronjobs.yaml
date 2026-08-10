@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: audio-finops-steady
-  namespace: apps
+  namespace: monitoring
   labels:
     app: audio-finops-load-runner
     area: apps
@@ -77,7 +77,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: audio-finops-scheduled-peak
-  namespace: apps
+  namespace: monitoring
   labels:
     app: audio-finops-load-runner
     area: apps
@@ -152,7 +152,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: audio-finops-unexpected-burst
-  namespace: apps
+  namespace: monitoring
   labels:
     app: audio-finops-load-runner
     area: apps

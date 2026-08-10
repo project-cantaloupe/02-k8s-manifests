@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: audio-finops-load-runner
-  namespace: apps
+  namespace: monitoring
   labels:
     app: audio-finops-load-runner
     area: apps
