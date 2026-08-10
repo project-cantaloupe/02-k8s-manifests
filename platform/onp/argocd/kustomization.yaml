@@ -102,6 +102,20 @@ patches:
   #
   # 넣는 것은 **루트 하나**다. 중간 인증서(YR1)나 leaf 를 넣으면 갱신될
   # 때마다 여기를 고쳐야 한다. ISRG Root X1 은 2035-06 까지 유효하다.
+  #
+  # ⚠️⚠️ **이 값을 고치면 argocd-server 를 재시작해야 한다.**
+  #
+  #     kubectl -n devops rollout restart deploy/argocd-server
+  #
+  # ConfigMap 을 고치면 로그에 `subscribed to settings updates` 가 찍혀
+  # **핫 리로드된 것처럼 보인다.** 그런데 세션 검증 경로가 들고 있는 설정
+  # 스냅샷은 안 바뀐다 — `Initializing OIDC provider` 가 계속 찍히면서도
+  # 매번 낡은 TLS 설정으로 다시 만든다. 2026-08-10 에 이것 때문에 고쳤는데
+  # 안 고쳐진 줄 알고 한 바퀴 더 돌았다.
+  #
+  # 확인은 브라우저 없이 된다 — `/argocd/auth/login` 을 치면 provider
+  # 초기화가 유발되고, 로그에 `OIDC supported scopes: [...]` 가 나오면
+  # 통과다. 그 목록은 디스커버리 문서를 실제로 가져와야 알 수 있다.
   - target:
       kind: ConfigMap
       name: argocd-cm
