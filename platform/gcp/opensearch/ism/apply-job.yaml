@@ -10,14 +10,16 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
     argocd.argoproj.io/sync-wave: "10"
 spec:
-  backoffLimit: 6
+  activeDeadlineSeconds: 300
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
   template:
     metadata:
       labels:
         app: opensearch-ism-apply
         area: logging
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
       containers:
         - name: apply-policy
           image: curlimages/curl:8.10.1
@@ -28,7 +30,13 @@ spec:
               endpoint=http://opensearch-cluster-master.logging.svc.cluster.local:9200
               policy=cantaloupe-platform-retention
 
+              wait_attempt=0
               until curl --fail --silent --show-error "$endpoint/_cluster/health" >/dev/null; do
+                wait_attempt=$((wait_attempt + 1))
+                if [ "$wait_attempt" -ge 60 ]; then
+                  echo "OpenSearch did not become ready within 300 seconds" >&2
+                  exit 1
+                fi
                 echo "Waiting for OpenSearch..."
                 sleep 5
               done
@@ -40,24 +48,54 @@ spec:
               if [ "$status" = "200" ]; then
                 sequence=$(sed -n 's/.*"_seq_no"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$existing" | head -n1)
                 primary=$(sed -n 's/.*"_primary_term"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$existing" | head -n1)
-                curl --fail --silent --show-error -X PUT \
+
+                if [ -z "$sequence" ] || [ -z "$primary" ]; then
+                  echo "Failed to extract ISM concurrency metadata" >&2
+                  cat "$existing" >&2
+                  exit 1
+                fi
+
+                echo "Updating ISM policy: policy=$policy seq_no=$sequence primary_term=$primary"
+                response=$(mktemp)
+                status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X PUT \
                   "$endpoint/_plugins/_ism/policies/$policy?if_seq_no=$sequence&if_primary_term=$primary" \
                   -H 'Content-Type: application/json' \
-                  --data-binary @/policy/platform-retention-policy.json
+                  --data-binary @/policy/platform-retention-policy.json)
               elif [ "$status" = "404" ]; then
-                curl --fail --silent --show-error -X PUT \
+                echo "Creating ISM policy: policy=$policy"
+                response=$(mktemp)
+                status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X PUT \
                   "$endpoint/_plugins/_ism/policies/$policy" \
                   -H 'Content-Type: application/json' \
-                  --data-binary @/policy/platform-retention-policy.json
+                  --data-binary @/policy/platform-retention-policy.json)
               else
-                cat "$existing"
+                echo "Failed to read ISM policy: HTTP $status" >&2
+                cat "$existing" >&2
                 exit 1
               fi
 
-              curl --fail --silent --show-error -X PUT \
+              cat "$response"
+              echo
+              if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+                echo "Failed to apply ISM policy: HTTP $status" >&2
+                exit 1
+              fi
+
+              echo "Applying index template: cantaloupe-platform-logs-v2"
+              response=$(mktemp)
+              status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X PUT \
                 "$endpoint/_index_template/cantaloupe-platform-logs-v2" \
                 -H 'Content-Type: application/json' \
-                --data-binary @/policy/platform-index-template.json
+                --data-binary @/policy/platform-index-template.json)
+
+              cat "$response"
+              echo
+              if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+                echo "Failed to apply index template: HTTP $status" >&2
+                exit 1
+              fi
+
+              echo "OpenSearch ISM policy and index template applied successfully"
           volumeMounts:
             - name: policy
               mountPath: /policy
