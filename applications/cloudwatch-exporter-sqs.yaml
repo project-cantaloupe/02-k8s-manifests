@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudwatch-exporter-sqs
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: prometheus-cloudwatch-exporter
+      targetRevision: 0.28.1
+      helm:
+        releaseName: cloudwatch-exporter-sqs
+        valueFiles:
+          - $values/platform/aws/cloudwatch-exporter-sqs/values.yaml
+    - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
