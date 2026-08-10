@@ -27,6 +27,12 @@ resources:
   limits:
     memory: 512Mi
 
+# Cantaloupe workload identity/cost-allocation labels. The chart keeps its
+# own selector labels and adds these to the Deployment pod template.
+labels:
+  area: logging
+  platform: gcp
+
 nodeSelector:
   platform: gcp
   role: logging

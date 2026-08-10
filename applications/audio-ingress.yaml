@@ -44,6 +44,12 @@ spec:
           app: audio-ingress
           area: apps
           platform: aws
+        podAnnotations:
+          proxy.istio.io/config: |
+            accessLogFile: /dev/stdout
+            accessLogEncoding: JSON
+            accessLogFormat: |
+              {"level":"info","message":"ingress request completed","event_type":"ingress_request_completed","status":"%RESPONSE_CODE_DETAILS%","request_id":"%REQ(X-REQUEST-ID)%","http_status":"%RESPONSE_CODE%","http_method":"%REQ(:METHOD)%","http_route":"%ROUTE_NAME%","processing_duration_ms":"%DURATION%","upstream_service":"%UPSTREAM_CLUSTER%"}
         nodeSelector:
           platform: aws
           role: service

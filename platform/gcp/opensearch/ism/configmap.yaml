@@ -110,6 +110,7 @@ data:
             "message": {"type": "text"},
             "event_type": {"type": "keyword"},
             "status": {"type": "keyword"},
+            "request_id": {"type": "keyword"},
             "job_id": {"type": "keyword"},
             "audio_id": {"type": "keyword"},
             "attempt": {"type": "integer"},
@@ -125,7 +126,8 @@ data:
             "http_status": {"type": "integer"},
             "http_status_class": {"type": "keyword"},
             "http_method": {"type": "keyword"},
-            "http_route": {"type": "keyword"}
+            "http_route": {"type": "keyword"},
+            "upstream_service": {"type": "keyword"}
           }
         }
       }

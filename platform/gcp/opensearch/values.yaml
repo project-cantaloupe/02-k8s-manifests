@@ -30,6 +30,13 @@ resources:
   limits:
     memory: "2Gi"
 
+# Cantaloupe workload identity/cost-allocation labels. The chart propagates
+# these labels to the StatefulSet pod template without changing its selector.
+labels:
+  app: opensearch
+  area: logging
+  platform: gcp
+
 nodeSelector:
   platform: gcp
   role: logging

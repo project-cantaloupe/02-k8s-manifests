@@ -215,9 +215,9 @@ data:
       -- Preserve only explicitly approved application fields. Arbitrary JSON
       -- keys are never indexed, avoiding mapping churn and sensitive payloads.
       local application_fields = {
-        "event_type", "status", "job_id", "audio_id", "attempt", "retry_count",
+        "event_type", "status", "request_id", "job_id", "audio_id", "attempt", "retry_count",
         "audio_duration_ms", "processing_duration_ms", "input_bytes", "output_bytes",
-        "error_code", "retryable", "visibility", "content_type"
+        "error_code", "retryable", "visibility", "content_type", "upstream_service"
       }
       for _, field in ipairs(application_fields) do
         if record[field] ~= nil then
