@@ -1,0 +1,118 @@
+# Keycloak 그룹을 K8s RBAC 주체로 쓴다.
+#
+# **이 파일이 "권한을 한 곳에서 준다"의 K8s 쪽 실체다.** 사람이 늘면
+# Keycloak 그룹에 넣는 것으로 끝나야 하고, 여기는 안 바뀌어야 한다
+# → tasks/doing/014_oidc-client-rollout.md 3단계
+#
+# ── ⚠️ `oidc:` 접두사를 빼면 안 된다 ──────────────────────────
+#
+# API 서버의 AuthenticationConfiguration 이 username·groups 에 `oidc:` 를
+# 붙인다 (01-infra-provisioning ansible/vars/cluster.yml). 접두사를 붙이는
+# 이유는 OIDC 이름이 ServiceAccount·노드 같은 내장 주체와 충돌하지 않게
+# 하려는 것이다.
+#
+# **여기서 접두사를 빠뜨리면 에러가 아니라 「권한이 안 붙음」으로 나타난다.**
+# 바인딩은 정상 생성되고 아무에게도 매칭되지 않는다.
+#
+# 확인:
+#   kubectl auth whoami        # groups 에 oidc: 가 보여야 한다
+---
+# ── platform-admin — 전권 ──────────────────────────────────────
+#
+# 지금 이 그룹에 있는 사람은 하나다(pneuma). break-glass 와 함께 이
+# 클러스터의 최고 권한 경로 둘 중 하나다.
+#
+# ⚠️ **break-glass 를 대체하지 않는다.** 이 경로는 Keycloak 이 살아 있어야
+# 동작한다 → references/20260810_k8s-break-glass-kubeconfig.md
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cntlp-oidc-platform-admin
+  labels:
+    area: secops
+    app: oidc-rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: Group
+    name: "oidc:platform-admin"
+    apiGroup: rbac.authorization.k8s.io
+---
+# ── devops — 배포한다 ──────────────────────────────────────────
+#
+# `edit` 은 클러스터 범위로 준다. ArgoCD 가 모든 네임스페이스에 배포하고
+# 그것을 사람이 들여다봐야 하기 때문이다.
+#
+# ⚠️ **`edit` 은 Secret 을 읽을 수 있다.** `view` 와 갈리는 지점이 정확히
+# 거기다. 이 클러스터의 Secret 은 ESO 가 Vault·Secrets Manager 에서
+# 끌어온 실값이므로, 이 그룹은 사실상 그 값들을 볼 수 있다.
+# 좁히려면 별도 ClusterRole 을 만들어야 하는데, 지금 이 그룹에 들어갈
+# 사람과 platform-admin 이 같은 집합이라 실익이 없다. **사람이 늘면
+# 다시 본다.**
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cntlp-oidc-devops
+  labels:
+    area: secops
+    app: oidc-rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  - kind: Group
+    name: "oidc:devops"
+    apiGroup: rbac.authorization.k8s.io
+---
+# ── secops · finops — 클러스터 전체 읽기 ───────────────────────
+#
+# ⚠️ **`view` 는 Secret 을 못 읽는다.** 내장 `view` ClusterRole 이
+# secrets 를 명시적으로 제외한다. 그래서 읽기 권한을 넓게 주는 부담이
+# `edit` 보다 훨씬 작다.
+#
+# ⚠️ **`system:authenticated` 에 주지 않는다.** `008` 초안은 "읽기는
+# 그룹이 아니라 system:authenticated 에 view 를 준다"고 적었는데,
+# **그 그룹에는 모든 ServiceAccount 가 들어간다.** 파드 하나가 뚫리면
+# 클러스터 전체를 읽는 발판이 된다. 그룹으로 주면 사람에게만 간다.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cntlp-oidc-readers
+  labels:
+    area: secops
+    app: oidc-rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: Group
+    name: "oidc:secops"
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: "oidc:finops"
+    apiGroup: rbac.authorization.k8s.io
+---
+# ── apps — 자기 네임스페이스만 ─────────────────────────────────
+#
+# 유일하게 네임스페이스 범위다. 오디오 서비스 개발자가 자기 앱을 보고
+# 고치는 자리이고, 그 밖을 볼 이유가 없다.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cntlp-oidc-apps
+  namespace: apps
+  labels:
+    area: apps
+    app: oidc-rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  - kind: Group
+    name: "oidc:apps"
+    apiGroup: rbac.authorization.k8s.io
