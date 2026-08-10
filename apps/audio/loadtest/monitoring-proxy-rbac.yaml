@@ -20,6 +20,9 @@ rules:
     resourceNames:
       - monitoring-prometheus
       - cantaloupe-finops-pushgateway
+      # Service proxy URL의 name 필드는 scheme과 port를 포함해 인가된다.
+      - http:monitoring-prometheus:9090
+      - http:cantaloupe-finops-pushgateway:9091
     verbs: ["get", "create", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -35,4 +38,3 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: audio-finops-monitoring-proxy
-
