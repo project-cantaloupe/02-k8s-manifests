@@ -90,7 +90,7 @@ data:
     def prometheus_value(query):
         url = PROMETHEUS + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
         try:
-            payload = request_json("GET", url, headers={"X-Cantaloupe-Subject": ""})
+            payload = request_json("GET", url, headers={"X-Cantaloupe-Subject": ""}, timeout=10)
             result = payload["data"]["result"]
             return float(result[0]["value"][1]) if result else None
         except Exception as exc:
