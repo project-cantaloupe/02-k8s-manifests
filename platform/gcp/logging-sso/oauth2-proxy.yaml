@@ -74,11 +74,30 @@ spec:
             - --provider=keycloak-oidc
             - --oidc-issuer-url=https://auth.echoprism.cloud/realms/cantaloupe
             - --redirect-url=https://cntlp-onp-wk-01.tail270b85.ts.net/logs/oauth2/callback
-            # ⚠️ **`--proxy-prefix` 가 tailscale serve 경로와 같아야 한다.**
-            # 기본값은 `/oauth2` 인데, 서브패스 뒤에 있으므로 앞 조각을
-            # 붙여야 콜백 주소가 맞는다. 한쪽만 바꾸면 로그인 후
-            # 리다이렉트가 깨진다 — 인증 실패로 보이지 않는 종류의 고장이다.
-            - --proxy-prefix=/logs/oauth2
+            # ⚠️ **`--proxy-prefix` 에 `/logs` 를 붙이지 않는다.**
+            #
+            # 처음에 `/logs/oauth2` 로 적었다가 로그인이 무한 루프에 빠졌다.
+            # **tailscale serve 는 `--set-path` 접두사를 벗겨서 백엔드에
+            # 넘긴다.** 그래서 프록시가 실제로 받는 경로는 이렇다.
+            #
+            #   브라우저 → /logs/oauth2/callback
+            #   프록시가 받는 것 → /oauth2/callback
+            #
+            # `--proxy-prefix=/logs/oauth2` 면 프록시는 그 요청을 자기
+            # 콜백으로 안 보고 **업스트림 요청으로 취급**한다. 세션이 없으니
+            # 다시 로그인으로 돌리고, 그것이 무한 루프다.
+            #
+            # 로그가 유일한 단서였다 — 화면에는 로그인 화면만 반복된다.
+            #   GET "/oauth2/callback?...code=..." 302
+            #   [oauthproxy.go] No valid authentication in request.
+            #
+            # `--redirect-url` 은 **바깥 주소**라 `/logs` 를 유지한다.
+            # 둘이 달라 보이는 것이 정상이다 — 하나는 브라우저가 보는 주소,
+            # 하나는 프록시가 받는 경로다.
+            #
+            # 같은 벗김을 오늘 Prometheus 헬스체크에서도 만났다
+            # → 01-infra-provisioning inventories/gcp/host_vars/cntlp-gcp-wk-01.yml
+            - --proxy-prefix=/oauth2
             - --upstream=http://opensearch-dashboards.logging.svc.cluster.local:5601
             - --http-address=0.0.0.0:4180
             - --scope=openid profile email groups
