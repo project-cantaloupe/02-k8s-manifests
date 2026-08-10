@@ -4,4 +4,3 @@ kind: Kustomization
 resources:
   - runner-configmap.yaml
   - cronjobs.yaml
-  - monitoring-proxy-rbac.yaml

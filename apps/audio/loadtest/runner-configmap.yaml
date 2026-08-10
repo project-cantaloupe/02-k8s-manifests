@@ -18,7 +18,6 @@ data:
     import math
     import os
     import random
-    import ssl
     import struct
     import sys
     import time
@@ -27,7 +26,7 @@ data:
     import urllib.request
     import wave
 
-    API = os.getenv("AUDIO_API_URL", "http://audio-api.apps.svc.cluster.local")
+    API = os.getenv("AUDIO_API_URL", "https://audio.echoprism.cloud")
     SUBJECT = os.getenv("AUDIO_SUBJECT", "finops-loadtest")
     PROFILE = os.getenv("LOAD_PROFILE", "manual-unexpected")
     COUNT = min(int(os.getenv("LOAD_COUNT", "60")), 100)
@@ -36,10 +35,8 @@ data:
     END_DATE = os.getenv("EXPERIMENT_END_DATE", "2026-08-14")
     RUN_ID = os.getenv("RUN_ID") or os.getenv("HOSTNAME") or f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{PROFILE}"
     DEADLINE = time.monotonic() + int(os.getenv("RUN_DEADLINE_SECONDS", "5400"))
-    KUBE_API = "https://kubernetes.default.svc"
-    PROMETHEUS = KUBE_API + "/api/v1/namespaces/monitoring/services/http:monitoring-prometheus:9090/proxy"
-    PUSHGATEWAY = KUBE_API + "/api/v1/namespaces/monitoring/services/http:cantaloupe-finops-pushgateway:9091/proxy"
-    SERVICE_ACCOUNT = "/var/run/secrets/kubernetes.io/serviceaccount"
+    PROMETHEUS = os.getenv("PROMETHEUS_URL", "http://monitoring-prometheus.monitoring.svc:9090")
+    PUSHGATEWAY = os.getenv("PUSHGATEWAY_URL", "http://cantaloupe-finops-pushgateway.monitoring.svc:9091")
 
     # 고정된 8개 음악 패턴을 순환한다. 같은 fixture를 전후 실험에 사용해야
     # 입력 난이도가 통제되고 매 업로드는 API에서 별도 audio_id를 받는다.
@@ -90,21 +87,10 @@ data:
             raw = response.read()
             return json.loads(raw) if raw else None
 
-    def kube_request(method, url, body=None, headers=None, timeout=15):
-        with open(SERVICE_ACCOUNT + "/token", encoding="utf-8") as token_file:
-            token = token_file.read().strip()
-        merged = {"Authorization": "Bearer " + token}
-        merged.update(headers or {})
-        context = ssl.create_default_context(cafile=SERVICE_ACCOUNT + "/ca.crt")
-        req = urllib.request.Request(url, data=body, headers=merged, method=method)
-        with urllib.request.urlopen(req, timeout=timeout, context=context) as response:
-            return response.status, response.read()
-
     def prometheus_value(query):
         url = PROMETHEUS + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
         try:
-            _, raw = kube_request("GET", url, timeout=10)
-            payload = json.loads(raw)
+            payload = request_json("GET", url, headers={"X-Cantaloupe-Subject": ""}, timeout=10)
             result = payload["data"]["result"]
             return float(result[0]["value"][1]) if result else None
         except Exception as exc:
@@ -152,9 +138,10 @@ data:
                 samples["cantaloupe_audio_finops_run_" + key] = value
         body = "\n".join(f'{name}{{{labels}}} {value}' for name, value in samples.items()) + "\n"
         path = "/metrics/job/audio_finops_experiment/run_id/" + urllib.parse.quote(RUN_ID, safe="")
-        status, _ = kube_request("PUT", PUSHGATEWAY + path, body.encode(), {"Content-Type": "text/plain; version=0.0.4"})
-        if status < 200 or status >= 300:
-            raise RuntimeError(f"Pushgateway returned {status}")
+        req = urllib.request.Request(PUSHGATEWAY + path, data=body.encode(), method="PUT", headers={"Content-Type": "text/plain; version=0.0.4"})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            if response.status < 200 or response.status >= 300:
+                raise RuntimeError(f"Pushgateway returned {response.status}")
 
     def upload_one(index):
         started = time.monotonic()
