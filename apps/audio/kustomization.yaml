@@ -34,7 +34,7 @@ patches:
   # 경계를 건너지 않고 Run 결과를 보존한다.
   - target:
       kind: CronJob
-      name: "audio-finops-.*"
+      name: audio-finops-result-collector
     patch: |
       - op: replace
         path: /spec/jobTemplate/spec/template/spec/nodeSelector
