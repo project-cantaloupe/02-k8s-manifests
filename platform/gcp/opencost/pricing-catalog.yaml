@@ -52,3 +52,8 @@ persistentVolumes:
     source: gcp-public-pricing
     sourceDate: "2026-08-06"
     sourceRef: pd-standard-seoul-0.052-usd-per-gib-month
+  - storageClass: gcp-pd-retain
+    hourlyPricePerGiBUSD: 0.000071233
+    source: gcp-public-pricing
+    sourceDate: "2026-08-06"
+    sourceRef: pd-standard-seoul-0.052-usd-per-gib-month
