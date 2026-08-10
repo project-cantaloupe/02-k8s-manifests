@@ -2189,8 +2189,8 @@
         "kind": "Panel",
         "spec": {
           "id": 109,
-          "title": "Fluent Bit Targets Up",
-          "description": "현재 Prometheus가 정상적으로 scrape하는 Fluent Bit target 수입니다.",
+          "title": "Log Pipeline Health (5m)",
+          "description": "Fluent Bit target Down/미발견 또는 최근 5분간 dropped records/OpenSearch output errors가 있으면 ERROR입니다. Retry는 일시적 복구가 가능해 상세 그래프에서만 확인합니다.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2207,7 +2207,7 @@
                         "name": "prometheus"
                       },
                       "spec": {
-                        "expr": "sum(up{job=\"fluent-bit-metrics\"} == 1) or vector(0)",
+                        "expr": "clamp_max((sum(up{job=\"fluent-bit-metrics\"} == 0) or vector(0)) + (sum(absent(up{job=\"fluent-bit-metrics\"})) or vector(0)) + (sum(increase(fluentbit_output_dropped_records_total[5m])) or vector(0)) + (sum(increase(fluentbit_output_errors_total[5m])) or vector(0)), 1)",
                         "format": "time_series",
                         "instant": true
                       }
@@ -2245,17 +2245,31 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "unit": "short",
+                  "mappings": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "0": {
+                          "text": "NORMAL",
+                          "color": "green"
+                        },
+                        "1": {
+                          "text": "ERROR",
+                          "color": "red"
+                        }
+                      }
+                    }
+                  ],
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
                       {
                         "value": 0,
-                        "color": "red"
+                        "color": "green"
                       },
                       {
                         "value": 1,
-                        "color": "green"
+                        "color": "red"
                       }
                     ]
                   },
@@ -2263,7 +2277,7 @@
                     "mode": "thresholds"
                   },
                   "links": [],
-                  "noValue": "0"
+                  "noValue": "ERROR"
                 },
                 "overrides": []
               }
@@ -2373,128 +2387,6 @@
               "fieldConfig": {
                 "defaults": {
                   "unit": "short",
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "value": 0,
-                        "color": "green"
-                      },
-                      {
-                        "value": 80,
-                        "color": "red"
-                      }
-                    ]
-                  },
-                  "color": {
-                    "mode": "palette-classic"
-                  },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 8,
-                    "gradientMode": "none",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineWidth": 2,
-                    "pointSize": 5,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "showPoints": "never",
-                    "showValues": false,
-                    "spanNulls": true,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  },
-                  "decimals": 2
-                },
-                "overrides": []
-              }
-            }
-          }
-        }
-      },
-      "panel-408": {
-        "kind": "Panel",
-        "spec": {
-          "id": 408,
-          "title": "Log Delivery Rate by Node",
-          "description": "노드별 Fluent Bit의 OpenSearch 전달 처리량입니다. 범례는 노드명과 platform/role을 먼저 표시하고 Pod 이름은 장애 추적용으로 유지합니다.",
-          "links": [],
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "query": {
-                      "kind": "DataQuery",
-                      "group": "prometheus",
-                      "version": "v0",
-                      "datasource": {
-                        "name": "prometheus"
-                      },
-                      "spec": {
-                        "expr": "sum by (node,pod) (rate(fluentbit_output_proc_records_total[5m]) * on(namespace,pod) group_left(node) kube_pod_info{namespace=\"logging\"}) * on(node) group_left(label_platform,label_role) (max by (node,label_platform,label_role) (kube_node_labels))",
-                        "legendFormat": "{{node}} · {{label_platform}}/{{label_role}} ({{pod}})"
-                      }
-                    },
-                    "refId": "A",
-                    "hidden": false
-                  }
-                }
-              ],
-              "transformations": [],
-              "queryOptions": {}
-            }
-          },
-          "vizConfig": {
-            "kind": "VizConfig",
-            "group": "timeseries",
-            "version": "13.1.1",
-            "spec": {
-              "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
-                "legend": {
-                  "calcs": [
-                    "lastNotNull"
-                  ],
-                  "displayMode": "table",
-                  "enableFacetedFilter": false,
-                  "overflow": "ellipsis",
-                  "placement": "bottom",
-                  "showLegend": true
-                },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "multi",
-                  "sort": "desc"
-                }
-              },
-              "fieldConfig": {
-                "defaults": {
-                  "unit": "ops",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2892,19 +2784,6 @@
                         "element": {
                           "kind": "ElementReference",
                           "name": "panel-404"
-                        }
-                      }
-                    },
-                    {
-                      "kind": "GridLayoutItem",
-                      "spec": {
-                        "x": 0,
-                        "y": 25,
-                        "width": 24,
-                        "height": 9,
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-408"
                         }
                       }
                     }
