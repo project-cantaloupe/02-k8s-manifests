@@ -138,6 +138,10 @@ grafana:
       searchNamespace: ALL
       folderAnnotation: grafana-folder
       provider:
+        # ConfigMap sidecar가 dashboard 파일을 갱신해도 filesystem watch
+        # 이벤트가 전달되지 않는 경우가 있다. 10초보다 크게 설정하면
+        # Grafana가 파일을 polling해 GitOps dashboard 변경을 확실히 읽는다.
+        updateIntervalSeconds: 30
         foldersFromFilesStructure: true
     datasources:
       alertmanager:
@@ -223,7 +227,9 @@ prometheus:
     routePrefix: /
     replicas: 1
     shards: 1
-    retention: 7d
+    # Preserve the complete two-week Audio Service experiment plus one day of
+    # clock/scrape margin for before/after comparisons.
+    retention: 15d
     retentionSize: 15GB
     walCompression: true
     nodeSelector:

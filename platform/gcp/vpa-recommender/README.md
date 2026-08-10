@@ -70,8 +70,9 @@ A에는 업무 Deployment 전체와 Grafana, OpenCost, exporter, dashboard 등 �
 Recommender는 checkpoint에 자체 샘플을 보존하고 최신 Metrics API 샘플을 계속
 반영한다. VPA 1.7.0의 Prometheus history provider는 metric 이름을 query 설정에
 전달하지 않는 결함이 라이브 검증에서 확인되어 사용하지 않는다. 짧은 프로젝트의
-운영 보조 근거는 별도 대시보드가 Prometheus 7일 이력의 P95/P99/Max, OOM,
-throttling, HPA와 OpenCost allocation을 계속 계산해 제공한다. 이 값들은 request
+운영 보조 근거는 별도 대시보드가 Prometheus의 15일 보존 시계열 중 최근 7일을
+분석해 P95/P99/Max, OOM, throttling, HPA와 OpenCost allocation을 계속 계산해
+제공한다. 이 값들은 request
 권고 계산에 사용하지 않으며 VPA 결과의 운영 위험과 비용 맥락만 설명한다.
 
 대시보드의 유일한 권고값은 VPA Recommender의 Target이며 Lower/Upper를 함께

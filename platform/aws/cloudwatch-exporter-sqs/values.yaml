@@ -1,0 +1,148 @@
+replicaCount: 1
+
+pod:
+  labels:
+    area: monitoring
+    platform: aws
+    cost-allocation: shared
+
+nodeSelector:
+  platform: aws
+  role: service
+
+serviceAccount:
+  create: true
+  automountServiceAccountToken: false
+
+rbac:
+  create: false
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 96Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  interval: 1m
+  timeout: 45s
+  labels:
+    release: monitoring
+
+prometheusRule:
+  enabled: true
+  namespace: monitoring
+  labels:
+    release: monitoring
+  rules:
+    - record: cantaloupe:aws_sqs_messages_visible
+      expr: last_over_time(aws_sqs_approximate_number_of_messages_visible_average[10m])
+    - record: cantaloupe:aws_sqs_messages_not_visible
+      expr: last_over_time(aws_sqs_approximate_number_of_messages_not_visible_average[10m])
+    - record: cantaloupe:aws_sqs_oldest_message_age_seconds
+      expr: last_over_time(aws_sqs_approximate_age_of_oldest_message_average[10m])
+    - record: cantaloupe:aws_sqs_messages_sent_total
+      expr: last_over_time(aws_sqs_number_of_messages_sent_sum[10m])
+    - record: cantaloupe:aws_sqs_messages_received_total
+      expr: last_over_time(aws_sqs_number_of_messages_received_sum[10m])
+    - record: cantaloupe:aws_sqs_messages_deleted_total
+      expr: last_over_time(aws_sqs_number_of_messages_deleted_sum[10m])
+    - record: cantaloupe:aws_sqs_sample_age_seconds
+      expr: time() - max_over_time(timestamp(aws_sqs_approximate_number_of_messages_visible_average)[15m:])
+
+# Fully specified QueueName selections avoid ListMetrics calls. With three
+# primary queues (six metrics) and three DLQs (one metric), this performs 21
+# GetMetricStatistics calls per minute: 423,360 calls over the 14-day trial.
+config: |-
+  region: ap-northeast-2
+  list_metrics_cache_ttl: 3600
+  use_get_metric_data: false
+  metrics:
+    - aws_namespace: AWS/SQS
+      aws_metric_name: ApproximateNumberOfMessagesVisible
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName:
+          - cntlp-aws-queue-scan-result
+          - cntlp-aws-queue-transcode
+          - cntlp-aws-queue-transcode-result
+          - cntlp-aws-queue-scan-result-dlq
+          - cntlp-aws-queue-transcode-dlq
+          - cntlp-aws-queue-transcode-result-dlq
+      aws_statistics: [Average]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: true
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: ApproximateNumberOfMessagesNotVisible
+      aws_dimensions: [QueueName]
+      aws_dimension_select: &primary_queues
+        QueueName:
+          - cntlp-aws-queue-scan-result
+          - cntlp-aws-queue-transcode
+          - cntlp-aws-queue-transcode-result
+      aws_statistics: [Average]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: true
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: ApproximateAgeOfOldestMessage
+      aws_dimensions: [QueueName]
+      aws_dimension_select: *primary_queues
+      aws_statistics: [Average]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: true
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: NumberOfMessagesSent
+      aws_dimensions: [QueueName]
+      aws_dimension_select: *primary_queues
+      aws_statistics: [Sum]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: true
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: NumberOfMessagesReceived
+      aws_dimensions: [QueueName]
+      aws_dimension_select: *primary_queues
+      aws_statistics: [Sum]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: true
+
+    - aws_namespace: AWS/SQS
+      aws_metric_name: NumberOfMessagesDeleted
+      aws_dimensions: [QueueName]
+      aws_dimension_select: *primary_queues
+      aws_statistics: [Sum]
+      period_seconds: 60
+      range_seconds: 600
+      delay_seconds: 120
+      set_timestamp: true

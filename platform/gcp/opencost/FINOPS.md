@@ -64,7 +64,14 @@ On-prem은 Provider Recommender가 없으므로 회사 서버 재고와 TCO를 �
 추천한다. `onprem-rightsizing-policy.yaml`에는 실제 제공 가능한 Profile, Host
 TCO와 안전 여유가 있고, 생성된 Recording Rule은 다음을 계산한다.
 
-- 최근 7일 Node CPU/Memory P95
+OpenCost의 `pricing-catalog.yaml`은 현재 실행 중인 Node 가격의 원본이고,
+`onprem-rightsizing-policy.yaml`은 권장 가능한 VM Profile과 후보 비용 계산의
+원본이다. 현재 `custom-8vcpu-16gib` Node는 정책의 `onp-large`에 대응한다. 작은
+Profile은 아직 실행 중인 Node가 아니므로 OpenCost 가격표에 없어도 되며, 후보
+비용은 물리 Host TCO에 CPU/Memory 예약비율을 적용해 생성한다. 추천 Profile을
+실제로 배포하기로 승인한 뒤 해당 instance type과 확정 가격을 가격표에 등록한다.
+
+- Prometheus에 15일간 보존된 시계열 중 최근 7일 Node CPU/Memory P95
 - P95 30% 여유와 OS/kubelet 예약량을 포함한 필요 용량
 - 필요 용량을 만족하는 가장 저렴한 내부 Profile
 - 현재 Profile과 권장 Profile의 월 TCO 차이
@@ -77,9 +84,10 @@ Request가 들어가지 않으면 Workload Right-sizing을 먼저 수행한다. 
 
 ## Workload 관측 신뢰도
 
-전체 Kubernetes Workload에는 인위적인 부하 테스트를 요구하지 않는다. 현재
-Prometheus에 자연스럽게 축적된 데이터로 최대 7일 P95를 계산하고, 확보된 표본
-기간을 권장값과 별도로 표시한다.
+전체 Kubernetes Workload에는 인위적인 부하 테스트를 요구하지 않는다. Prometheus는
+시계열을 15일간 보존하지만 현재 Right-sizing Recording Rule은 그중 최근 7일의
+P95를 계산한다. 확보된 표본 기간은 권장값과 별도로 표시하며, 보존기간 15일을
+곧바로 14일 분석 기준으로 해석하지 않는다.
 
 | 관측 시간 | 분류 | 사용 방법 |
 | --- | --- | --- |
@@ -117,6 +125,11 @@ AWS VM 추천도 같은 Pushgateway와 Prometheus 메트릭 계약을 사용한�
 `aws-compute-optimizer-collector` CronJob은 매일 09:30 KST에 AWS `role=service`
 Node에서 실행하며 IMDSv2로 `cntlp-aws-worker-node` Instance Profile의 단기
 Credential을 사용한다. IAM은 다음 읽기 작업만 허용한다.
+
+수집 요청은 Compute Optimizer 콘솔의 Graviton Resource selection과 동일하게
+`recommendationPreferences.cpuVendorArchitectures=AWS_ARM64`를 명시한다. 이를
+생략하면 API 기본값인 현재 CPU 아키텍처 기준 추천이 반환되어 콘솔의 `m7g`,
+`t4g`, `c7g` 추천 및 공식 월 절감액과 달라질 수 있다.
 
 - `compute-optimizer:GetEnrollmentStatus`
 - `compute-optimizer:GetEC2InstanceRecommendations`

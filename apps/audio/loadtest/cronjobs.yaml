@@ -1,0 +1,306 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audio-finops-steady
+  namespace: apps
+  labels:
+    app: audio-finops-load-runner
+    area: apps
+    platform: aws
+    experiment: audio-finops
+spec:
+  schedule: "0 14 * * 2-4"
+  timeZone: Asia/Seoul
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 4
+  failedJobsHistoryLimit: 4
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 18000
+      template:
+        metadata:
+          labels:
+            app: audio-finops-load-runner
+            area: apps
+            platform: aws
+            experiment: audio-finops
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          serviceAccountName: default
+          restartPolicy: Never
+          containers:
+            - name: runner
+              image: python:3.12-alpine
+              imagePullPolicy: IfNotPresent
+              command: [python, /opt/loadtest/runner.py]
+              env:
+                - name: LOAD_PROFILE
+                  value: steady
+                - name: LOAD_COUNT
+                  value: "48"
+                - name: LOAD_CONCURRENCY
+                  value: "1"
+                - name: LOAD_INTERVAL_SECONDS
+                  value: "300"
+                - name: EXPERIMENT_END_DATE
+                  value: "2026-08-14"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65532
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 192Mi
+              volumeMounts:
+                - name: runner
+                  mountPath: /opt/loadtest
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: runner
+              configMap:
+                name: audio-finops-load-runner
+            - name: tmp
+              emptyDir: {}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audio-finops-scheduled-peak
+  namespace: apps
+  labels:
+    app: audio-finops-load-runner
+    area: apps
+    platform: aws
+    experiment: audio-finops
+spec:
+  schedule: "0 21 * * 2-4"
+  timeZone: Asia/Seoul
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 4
+  failedJobsHistoryLimit: 4
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 5400
+      template:
+        metadata:
+          labels:
+            app: audio-finops-load-runner
+            area: apps
+            platform: aws
+            experiment: audio-finops
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          serviceAccountName: default
+          restartPolicy: Never
+          containers:
+            - name: runner
+              image: python:3.12-alpine
+              imagePullPolicy: IfNotPresent
+              command: [python, /opt/loadtest/runner.py]
+              env:
+                - name: LOAD_PROFILE
+                  value: scheduled-peak
+                - name: LOAD_COUNT
+                  value: "60"
+                - name: LOAD_CONCURRENCY
+                  value: "10"
+                - name: LOAD_INTERVAL_SECONDS
+                  value: "0"
+                - name: EXPERIMENT_END_DATE
+                  value: "2026-08-14"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65532
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 192Mi
+              volumeMounts:
+                - name: runner
+                  mountPath: /opt/loadtest
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: runner
+              configMap:
+                name: audio-finops-load-runner
+            - name: tmp
+              emptyDir: {}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audio-finops-unexpected-burst
+  namespace: apps
+  labels:
+    app: audio-finops-load-runner
+    area: apps
+    platform: aws
+    experiment: audio-finops
+spec:
+  # 스케줄링하지 않는다. Windows 실행 스크립트가 이 템플릿에서 일회성 Job을 만든다.
+  schedule: "0 0 1 1 *"
+  suspend: true
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 4
+  failedJobsHistoryLimit: 4
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 5400
+      template:
+        metadata:
+          labels:
+            app: audio-finops-load-runner
+            area: apps
+            platform: aws
+            experiment: audio-finops
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          serviceAccountName: default
+          restartPolicy: Never
+          containers:
+            - name: runner
+              image: python:3.12-alpine
+              imagePullPolicy: IfNotPresent
+              command: [python, /opt/loadtest/runner.py]
+              env:
+                - name: LOAD_PROFILE
+                  value: unexpected-burst
+                - name: LOAD_COUNT
+                  value: "60"
+                - name: LOAD_CONCURRENCY
+                  value: "10"
+                - name: LOAD_INTERVAL_SECONDS
+                  value: "0"
+                - name: EXPERIMENT_END_DATE
+                  value: "2026-08-14"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65532
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 192Mi
+              volumeMounts:
+                - name: runner
+                  mountPath: /opt/loadtest
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: runner
+              configMap:
+                name: audio-finops-load-runner
+            - name: tmp
+              emptyDir: {}
+---
+# 발표자가 웹에서 자동 처리 결과를 직접 재생하기 위한 대표곡이다. 대규모
+# 성능 Run은 계속 private이며, 이 Job만 하루 한 곡을 공개한다.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audio-finops-web-validation
+  namespace: apps
+  labels:
+    app: audio-finops-load-runner
+    area: apps
+    platform: aws
+    experiment: audio-finops
+spec:
+  schedule: "30 18 * * 2-4"
+  timeZone: Asia/Seoul
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 4
+  failedJobsHistoryLimit: 4
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: audio-finops-load-runner
+            area: apps
+            platform: aws
+            experiment: audio-finops
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          serviceAccountName: default
+          restartPolicy: Never
+          containers:
+            - name: runner
+              image: python:3.12-alpine
+              imagePullPolicy: IfNotPresent
+              command: [python, /opt/loadtest/runner.py]
+              env:
+                - name: LOAD_PROFILE
+                  value: web-validation
+                - name: LOAD_COUNT
+                  value: "1"
+                - name: LOAD_CONCURRENCY
+                  value: "1"
+                - name: LOAD_INTERVAL_SECONDS
+                  value: "0"
+                - name: AUDIO_SUBJECT
+                  value: public-upload-test
+                - name: AUDIO_VISIBILITY
+                  value: public
+                - name: EXPERIMENT_END_DATE
+                  value: "2026-08-14"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65532
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 192Mi
+              volumeMounts:
+                - name: runner
+                  mountPath: /opt/loadtest
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: runner
+              configMap:
+                name: audio-finops-load-runner
+            - name: tmp
+              emptyDir: {}

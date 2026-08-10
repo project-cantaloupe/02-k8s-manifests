@@ -5,6 +5,7 @@ metadata:
   labels:
     app: opensearch
     area: logging
+    platform: gcp
 data:
   platform-retention-policy.json: |
     {
@@ -45,7 +46,7 @@ data:
   platform-index-template.json: |
     {
       "index_patterns": ["cantaloupe-platform-logs-v2"],
-      "priority": 100,
+      "priority": 200,
       "template": {
         "settings": {
           "number_of_shards": 1,

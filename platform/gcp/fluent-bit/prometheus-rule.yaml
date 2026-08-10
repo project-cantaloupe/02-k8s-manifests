@@ -10,6 +10,20 @@ spec:
   groups:
     - name: fluent-bit.delivery
       rules:
+        - alert: FluentBitTargetDown
+          expr: (sum(up{job="fluent-bit-metrics"} == 0) > 0) or absent(up{job="fluent-bit-metrics"})
+          for: 5m
+          labels:
+            severity: critical
+            category: monitoring
+            component: fluent-bit
+          annotations:
+            summary: Fluent Bit metrics target is unavailable.
+            description: >-
+              One or more Fluent Bit metrics targets have been down, or no Fluent Bit target
+              has been discovered, for at least 5 minutes. Logs from affected nodes may not
+              reach OpenSearch.
+            action: Check the Fluent Bit DaemonSet Pods, metrics Service, ServiceMonitor, and affected nodes.
         - alert: FluentBitDroppedRecords
           expr: sum(increase(fluentbit_output_dropped_records_total[5m])) > 0
           labels:

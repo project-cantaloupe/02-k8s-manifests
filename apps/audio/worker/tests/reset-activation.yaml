@@ -1,0 +1,6 @@
+# 확장 검증 후 Queue 메트릭 기준으로 복귀한다.
+# kubectl patch --type=merge --patch-file tests/reset-activation.yaml \
+#   scaledobject/audio-transcode-burst -n apps
+metadata:
+  annotations:
+    autoscaling.keda.sh/force-activation: null

@@ -39,7 +39,10 @@ Microsoft Azure Migrate Business Case의 공개 On-prem TCO 모델을 기준으�
 맞추기 위해 저장소 비용은 Compute 가격과 분리한다.
 
 실제 장비 구매가, 전력계 측정값 또는 조직의 인건비 기준을 확보하면 이 문서의
-가정과 `pricing-catalog.yaml`의 최종 시간당 가격만 함께 갱신한다.
+가정, `pricing-catalog.yaml`의 현재 노드 시간당 가격,
+`onprem-rightsizing-policy.yaml`의 `physicalHostHourlyTCOUSD`를 함께 갱신한다.
+현재 노드 가격과 추천 Profile 가격은 서로 다른 파일에서 생성되므로 한쪽만
+변경하면 대시보드의 현재 비용과 권장 비용이 서로 다른 TCO 기준을 사용하게 된다.
 
 ## On-prem Right-sizing Profile
 
@@ -58,12 +61,34 @@ profile hourly TCO
   * max(profile vCPU / host vCPU, profile GiB / host GiB)
 ```
 
-| Profile | vCPU | Memory | 시간당 TCO |
-| --- | ---: | ---: | ---: |
-| onp-small | 2 | 4 GiB | $0.015 |
-| onp-medium | 4 | 8 GiB | $0.030 |
-| onp-memory-balanced | 4 | 12 GiB | $0.045 |
-| onp-large | 8 | 16 GiB | $0.060 |
+| Profile | Kubernetes instance type | vCPU | Memory | 시간당 TCO |
+| --- | --- | ---: | ---: | ---: |
+| onp-small | `custom-2vcpu-4gib` | 2 | 4 GiB | $0.015 |
+| onp-medium | `custom-4vcpu-8gib` | 4 | 8 GiB | $0.030 |
+| onp-memory-balanced | `custom-4vcpu-12gib` | 4 | 12 GiB | $0.045 |
+| onp-large | `custom-8vcpu-16gib` | 8 | 16 GiB | $0.060 |
+
+`onp-large`는 추천 정책에서 사용하는 논리 Profile 이름이고,
+`custom-8vcpu-16gib`는 실제 Kubernetes Node의
+`node.kubernetes.io/instance-type` 라벨 값이다. 현재 `cntlp-onp-wk-01`은 이
+라벨을 사용하므로 Grafana의 현재 모델에는 `custom-8vcpu-16gib`가 표시된다.
+
+현재 비용과 권장 비용의 원본은 다음처럼 의도적으로 분리한다.
+
+1. `pricing-catalog.yaml`은 현재 실제로 운영 중인 Node의 instance type과 OpenCost
+   시간당 가격을 관리한다. 현재 On-prem 항목은
+   `custom-8vcpu-16gib = $0.06/hour`다.
+2. `onprem-rightsizing-policy.yaml`은 회사가 제공할 수 있는 네 가지 승인 Profile과
+   물리 호스트 용량·TCO를 관리한다. 아직 실제 Node로 배포되지 않은 작은 Profile도
+   추천 후보이므로 OpenCost 현재 가격표에 미리 등록할 필요가 없다.
+3. `generate_onprem_rightsizing.py`가 각 후보 비용을
+   `host TCO * max(CPU 예약비율, Memory 예약비율)`로 계산하고
+   `monitoring-foundation/onprem-rightsizing-rules.yaml`을 생성한다.
+4. 생성된 Prometheus Rule은 Node의 실제 instance type을 현재 Profile에 매핑하고,
+   최근 7일 P95와 안전 여유를 만족하는 가장 저렴한 승인 Profile을 선택한다.
+5. 추천은 정보와 검토 신호만 만들며 VM 사양이나 Node 라벨을 자동 변경하지 않는다.
+   승인 후 실제 Profile을 적용하면 그 instance type과 확정 가격을
+   `pricing-catalog.yaml`에 등록한다.
 
 추천 필요 용량은 최근 7일 Node 전체 Container 사용량 P95에 CPU/Memory 30%
 여유를 적용하고 OS·kubelet을 위해 0.5 CPU와 1 GiB를 추가한다. 이 필요 용량을

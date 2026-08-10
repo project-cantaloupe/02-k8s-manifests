@@ -15,10 +15,10 @@ AWS Service Worker에서 실행하는 Audio 서비스 매니페스트다. `nodeS
 gateway.yaml          audio-ingress Namespace의 Gateway 진입점
 settings.yaml         세 워크로드가 공유하는 비민감 ConfigMap
 virtual-service.yaml  경로 분기를 한 곳에서 관리 (/v1 -> api, 나머지 -> web)
-policies/             IMDS Egress 제한 등 보안 정책
+policies/             IMDS Egress 제한과 공개 조회 전용 Gateway 정책
 web/                  audio-web
 api/                  audio-api와 audio-events (같은 Image의 다른 진입점)
-worker/               audio-transcode
+worker/               audio-transcode Base·Burst와 SQS ScaledObject
 ```
 
 ### Mesh 참여 기준 — ambient
@@ -39,10 +39,16 @@ worker/               audio-transcode
 | `audio-api` | O | Gateway에서 오는 트래픽 수신 |
 | `audio-events` | O | Namespace 기본값. 빼도 이득이 없어 그대로 둔다 |
 | `audio-transcode` | X | Pod 라벨 `istio.io/dataplane-mode: none`. S3·SQS만 쓰고, 트랙당 처리 비용에 Mesh 비용을 섞지 않는다 |
+| `audio-transcode-burst` | X | KEDA가 0~1개로 관리하고 Karpenter `aws-service` NodePool에서만 실행한다 |
 
 ⚠️ **ztunnel은 L4까지만 집행한다.** HTTP 메서드·경로 조건이 붙은
 AuthorizationPolicy나 DestinationRule의 트래픽 정책은 waypoint 프록시를 세우기
 전까지 **에러 없이 무시된다.**
+
+`audio-public-readonly`는 예외다. 이 정책은 일반 ambient Workload가 아니라
+`audio-ingress` Envoy Gateway를 선택하므로 Gateway가 HTTP 메서드를 직접 검사한다.
+Keycloak OIDC 검증 전에는 `GET`·`HEAD`만 허용하고 VirtualService가 외부
+`X-Cantaloupe-Subject`를 제거한다.
 
 `istio-injection` 라벨은 Namespace에 두지 않는다. ambient에서는 주입기를 안 쓰니
 무해해 보이지만, 값이 `disabled`면 Webhook이 그 Namespace를 대상에서 제외해

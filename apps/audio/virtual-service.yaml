@@ -16,6 +16,12 @@ spec:
     - match:
         - uri:
             prefix: /v1/
+      # 외부에서 넣은 개발용 Subject를 API까지 전달하지 않는다. 공개 트랙은
+      # 익명 조회가 가능하고 비공개 트랙은 API가 Not Found로 처리한다.
+      headers:
+        request:
+          remove:
+            - x-cantaloupe-subject
       route:
         - destination:
             host: audio-api.apps.svc.cluster.local

@@ -12,6 +12,14 @@ patches:
         value:
           platform: aws
           role: service
+  # Burst Worker는 공통 AWS service 조건에 Karpenter NodePool 조건을 추가한다.
+  - target:
+      kind: Deployment
+      name: audio-transcode-burst
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector/karpenter.sh~1nodepool
+        value: aws-service
   # CronJob 은 template 이 jobTemplate 아래라 경로가 한 단계 깊다.
   - target:
       kind: CronJob
@@ -21,6 +29,18 @@ patches:
         value:
           platform: aws
           role: service
+  # 부하 발생기는 실제 사용자처럼 공개 Ingress를 호출한다. 중앙 Prometheus와
+  # Pushgateway가 있는 GCP monitoring 노드에서 실행해 하이브리드 ClusterIP
+  # 경계를 건너지 않고 Run 결과를 보존한다.
+  - target:
+      kind: CronJob
+      name: audio-finops-result-collector
+    patch: |
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/nodeSelector
+        value:
+          platform: gcp
+          role: monitoring
   # ⚠️ **seccompProfile 이 없으면 PSA `restricted` 를 못 지난다.**
   # 컨테이너 쪽 `runAsNonRoot`·`allowPrivilegeEscalation`·`capabilities.drop`
   # 은 이미 다 맞춰져 있는데 이것 하나가 빠져 있었다. 2026-08-06 컨트롤플레인
@@ -61,3 +81,4 @@ resources:
   - web
   - api
   - worker
+  - loadtest

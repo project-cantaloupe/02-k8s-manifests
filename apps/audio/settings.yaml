@@ -48,7 +48,6 @@ data:
   AUDIO_MAXIMUM_DURATION_SECONDS: "7200"
   METRICS_PORT: "9090"
 
-  # Cognito JWT 검증이 없는 동안 X-Cantaloupe-Subject 헤더를 신뢰한다.
-  # 이 값으로는 공개 경로에 노출하지 않는다. NLB Security Group을 사용자 IP로
-  # 제한한 상태에서만 외부 접근을 허용한다.
+  # Cognito JWT 검증이 없는 동안 내부 요청의 X-Cantaloupe-Subject를 신뢰한다.
+  # 공개 Gateway는 이 헤더를 제거하고 조회 메서드만 허용한다.
   AUTH_MODE: development

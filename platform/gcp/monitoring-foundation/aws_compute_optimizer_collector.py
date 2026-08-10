@@ -88,6 +88,37 @@ def type_specs(payload):
     return specs
 
 
+FINDING_REASON_LABELS = {
+    "CPUUnderprovisioned": "CPU 부족",
+    "CPUOverprovisioned": "CPU 과다",
+    "MemoryUnderprovisioned": "메모리 부족",
+    "MemoryOverprovisioned": "메모리 과다",
+    "EBSThroughputUnderprovisioned": "EBS 처리량 부족",
+    "EBSThroughputOverprovisioned": "EBS 처리량 과다",
+    "EBSIOPSUnderprovisioned": "EBS IOPS 부족",
+    "EBSIOPSOverprovisioned": "EBS IOPS 과다",
+    "NetworkBandwidthUnderprovisioned": "네트워크 대역폭 부족",
+    "NetworkBandwidthOverprovisioned": "네트워크 대역폭 과다",
+    "NetworkPPSUnderprovisioned": "네트워크 PPS 부족",
+    "NetworkPPSOverprovisioned": "네트워크 PPS 과다",
+    "DiskIOPSUnderprovisioned": "디스크 IOPS 부족",
+    "DiskIOPSOverprovisioned": "디스크 IOPS 과다",
+    "DiskThroughputUnderprovisioned": "디스크 처리량 부족",
+    "DiskThroughputOverprovisioned": "디스크 처리량 과다",
+    "GPUUnderprovisioned": "GPU 부족",
+    "GPUOverprovisioned": "GPU 과다",
+    "GPUMemoryUnderprovisioned": "GPU 메모리 부족",
+    "GPUMemoryOverprovisioned": "GPU 메모리 과다",
+}
+
+
+def finding_reason(recommendation):
+    """Keep every official reason in one compact, human-readable label."""
+    reason_codes = recommendation.get("findingReasonCodes", [])
+    reasons = [FINDING_REASON_LABELS.get(code, str(code)) for code in reason_codes]
+    return " · ".join(dict.fromkeys(reasons)) if reasons else "미제공"
+
+
 def parse_recommendations(payload, nodes, specs):
     parsed = []
     for recommendation in payload.get("instanceRecommendations", []):
@@ -115,6 +146,7 @@ def parse_recommendations(payload, nodes, specs):
             "monthly_savings_usd": savings.get("value", 0) if savings.get("currency", "USD") == "USD" else 0,
             "state": recommendation.get("finding", "UNKNOWN"),
             "decision": recommendation.get("finding", "UNKNOWN"),
+            "reason": finding_reason(recommendation),
             "priority": f'rank-{top.get("rank", 1)}',
             "last_refresh": timestamp_seconds(recommendation.get("lastRefreshTimestamp")),
         })
@@ -134,6 +166,7 @@ def recommendation_metrics(recommendations):
             "recommended_profile": item["recommended_profile"],
             "state": item["state"],
             "decision": item["decision"],
+            "reason": item["reason"],
             "priority": item["priority"],
         }
         lines.append(sample("cantaloupe:provider_vm_recommendation_info", 1, info))
