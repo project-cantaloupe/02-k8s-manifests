@@ -1,0 +1,24 @@
+# Keycloak 그룹 → K8s RBAC 매핑.
+#
+# **namespaces 다음이다.** `apps` 네임스페이스가 없으면 그 안의
+# RoleBinding 이 실패한다. sync-wave 로 순서를 준다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: governance-rbac
+  namespace: devops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: governance/rbac
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

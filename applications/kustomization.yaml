@@ -5,6 +5,7 @@ resources:
   # ⚠️ 순서는 여기가 아니라 각 Application 의 sync-wave 가 정한다.
   # governance-namespaces(-40)가 가장 먼저, governance-policies(10)가 마지막.
   - governance-namespaces.yaml
+  - governance-rbac.yaml
   - governance-policies.yaml
   # wave -5. **`secops.yaml`(wave 0)보다 반드시 먼저다.** 그 카탈로그 안의
   # `cert-manager/cluster-issuer.yaml` 이 여기서 설치되는 CRD 를 쓴다.
