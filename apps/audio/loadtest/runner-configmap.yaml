@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: audio-finops-load-runner
-  namespace: monitoring
+  namespace: apps
   labels:
     app: audio-finops-load-runner
     area: apps
@@ -26,7 +26,7 @@ data:
     import urllib.request
     import wave
 
-    API = os.getenv("AUDIO_API_URL", "https://audio.echoprism.cloud")
+    API = os.getenv("AUDIO_API_URL", "http://audio-api.apps.svc.cluster.local")
     SUBJECT = os.getenv("AUDIO_SUBJECT", "finops-loadtest")
     PROFILE = os.getenv("LOAD_PROFILE", "manual-unexpected")
     COUNT = min(int(os.getenv("LOAD_COUNT", "60")), 100)
@@ -188,7 +188,6 @@ data:
             return 0
         run_started = dt.datetime.now(dt.timezone.utc)
         phase = os.getenv("EXPERIMENT_PHASE") or ("baseline" if today <= "2026-08-12" else "candidate" if today == "2026-08-13" else "confirmation")
-        generation_before = deployment_generation()
         items, errors = [], []
         if INTERVAL:
             for index in range(COUNT):
@@ -227,17 +226,10 @@ data:
             "items": sorted(items, key=lambda item: item["audio_id"]),
             "errors": errors,
         }
-        # 마지막 Worker scrape가 Prometheus에 들어올 시간을 확보한 뒤 해당 Run의
-        # 실제 구간을 집계한다. 실패해도 원본 FINOPS_RUN_RESULT 로그는 보존한다.
-        time.sleep(45)
-        metrics = collect_metrics((dt.datetime.now(dt.timezone.utc) - run_started).total_seconds(), generation_before)
-        result["observed_metrics"] = metrics
-        try:
-            push_result_metrics(result, metrics)
-            result["metrics_pushed"] = True
-        except Exception as exc:
-            result["metrics_pushed"] = False
-            result["metrics_push_error"] = str(exc)
+        # GCP monitoring 노드의 Collector가 이 로그와 정확한 시작·종료 시각을
+        # 읽어 Prometheus 구간 집계를 수행한다.
+        result["metrics_pushed"] = False
+        result["metrics_collection"] = "pending_collector"
         print("FINOPS_RUN_RESULT=" + json.dumps(result, separators=(",", ":")))
         return 0 if not errors and counts.get("READY", 0) == COUNT else 1
 

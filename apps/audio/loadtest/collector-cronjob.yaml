@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audio-finops-result-collector
+  namespace: monitoring
+  labels:
+    app: audio-finops-result-collector
+    experiment: audio-finops
+spec:
+  schedule: "5 14-23 * * 2-5"
+  timeZone: Asia/Seoul
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app: audio-finops-result-collector
+            experiment: audio-finops
+        spec:
+          serviceAccountName: audio-finops-result-collector
+          restartPolicy: Never
+          containers:
+            - name: collector
+              image: python:3.12-alpine
+              imagePullPolicy: IfNotPresent
+              command: [python, /opt/collector/collector.py]
+              env:
+                - name: EXPERIMENT_END_DATE
+                  value: "2026-08-14"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65532
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 96Mi
+              volumeMounts:
+                - name: collector
+                  mountPath: /opt/collector
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: collector
+              configMap:
+                name: audio-finops-result-collector
+            - name: tmp
+              emptyDir: {}
+

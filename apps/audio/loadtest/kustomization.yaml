@@ -4,3 +4,6 @@ kind: Kustomization
 resources:
   - runner-configmap.yaml
   - cronjobs.yaml
+  - collector-configmap.yaml
+  - collector-cronjob.yaml
+  - collector-rbac.yaml
