@@ -448,7 +448,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["cantaloupe", "platform", "operations", "kubernetes", "finops-signal"],
+  "tags": ["cantaloupe", "platform", "operations", "kubernetes", "finops-signal", "fluent-bit"],
   "templating": {
     "list": [
       {
