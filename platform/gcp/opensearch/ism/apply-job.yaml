@@ -95,6 +95,18 @@ spec:
                 exit 1
               fi
 
+              echo "Removing legacy index template: cantaloupe-platform-logs"
+              response=$(mktemp)
+              status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X DELETE \
+                "$endpoint/_index_template/cantaloupe-platform-logs")
+
+              cat "$response"
+              echo
+              if { [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; } && [ "$status" != "404" ]; then
+                echo "Failed to remove legacy index template: HTTP $status" >&2
+                exit 1
+              fi
+
               echo "OpenSearch ISM policy and index template applied successfully"
           volumeMounts:
             - name: policy
