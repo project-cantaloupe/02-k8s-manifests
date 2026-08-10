@@ -3,8 +3,9 @@ kind: Job
 metadata:
   name: opensearch-ism-apply
   labels:
-    app: opensearch
+    app: opensearch-ism-apply
     area: logging
+    platform: gcp
   annotations:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
@@ -18,7 +19,11 @@ spec:
       labels:
         app: opensearch-ism-apply
         area: logging
+        platform: gcp
     spec:
+      nodeSelector:
+        platform: gcp
+        role: logging
       restartPolicy: Never
       containers:
         - name: apply-policy
