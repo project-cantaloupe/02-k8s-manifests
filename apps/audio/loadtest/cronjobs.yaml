@@ -25,7 +25,6 @@ spec:
             area: apps
             platform: aws
             experiment: audio-finops
-            istio.io/dataplane-mode: none
           annotations:
             sidecar.istio.io/inject: "false"
         spec:
@@ -101,7 +100,6 @@ spec:
             area: apps
             platform: aws
             experiment: audio-finops
-            istio.io/dataplane-mode: none
           annotations:
             sidecar.istio.io/inject: "false"
         spec:
@@ -178,7 +176,6 @@ spec:
             area: apps
             platform: aws
             experiment: audio-finops
-            istio.io/dataplane-mode: none
           annotations:
             sidecar.istio.io/inject: "false"
         spec:
