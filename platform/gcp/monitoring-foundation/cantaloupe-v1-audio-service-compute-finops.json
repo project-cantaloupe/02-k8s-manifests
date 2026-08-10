@@ -1,0 +1,1396 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "description": "Audio 요청→변환 운영 상태와 Kubernetes Compute FinOps를 한 화면에서 연결합니다. S3 Lifecycle 용량·비용은 별도 4번 대시보드 범위입니다.",
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "1. Service Outcome — 운영 상태와 단위 비용",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 101,
+      "type": "stat",
+      "title": "요청률",
+      "description": "Audio Ingress에서 Web/API로 전달된 최근 5분 평균 요청률입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 3,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload_namespace=\"apps\",destination_workload=~\"audio-web|audio-api\"}[5m]))",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "noValue": "0 req/s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 102,
+      "type": "stat",
+      "title": "5xx 오류율",
+      "description": "클라이언트 오류(4xx)는 제외한 서비스 장애 비율입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 3,
+        "y": 1,
+        "w": 3,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload_namespace=\"apps\",destination_workload=~\"audio-web|audio-api\",response_code=~\"5..\"}[5m])) / clamp_min(sum(rate(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload_namespace=\"apps\",destination_workload=~\"audio-web|audio-api\"}[5m])), 0.000001)",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "noValue": "0%",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 103,
+      "type": "stat",
+      "title": "응답 P95",
+      "description": "Web/API 요청의 최근 5분 P95 응답시간입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 1,
+        "w": 3,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(istio_request_duration_milliseconds_bucket{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload_namespace=\"apps\",destination_workload=~\"audio-web|audio-api\"}[5m])))",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 3000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 104,
+      "type": "stat",
+      "title": "처리 중",
+      "description": "현재 FFmpeg Worker가 처리 중인 Track 수입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 1,
+        "w": 3,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(audio_transcode_in_progress{namespace=\"apps\"})",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "데이터 없음",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 105,
+      "type": "stat",
+      "title": "완료 Track",
+      "description": "Grafana에서 선택한 시간 범위에 정상 완료된 Track 수입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 3,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 106,
+      "type": "stat",
+      "title": "시도 실패율",
+      "description": "Worker 처리 시도 중 실패 비율입니다. 재시도 가능한 실패를 포함하므로 최종 사용자 실패율과는 다릅니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 15,
+        "y": 1,
+        "w": 3,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(increase(audio_transcode_failed_total{namespace=\"apps\"}[$__range])) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])) + sum(increase(audio_transcode_failed_total{namespace=\"apps\"}[$__range])), 1)",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 107,
+      "type": "stat",
+      "title": "Worker 비용 / Track",
+      "description": "선택 구간 Worker 누적 OpenCost 비용을 같은 구간 완료 Track으로 나눈 값입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 1,
+        "w": 3,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "(sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{namespace=\"apps\",container=\"transcode\"}[$__range:1m])) / 60) / ((sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) > 0)",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "noValue": "완료 없음",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 108,
+      "type": "stat",
+      "title": "Audio K8s 비용 / Track",
+      "description": "Web/API/Events/Worker의 선택 구간 Kubernetes 직접비용을 완료 Track으로 나눈 값입니다. S3·SQS·RDS 비용은 제외합니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 21,
+        "y": 1,
+        "w": 3,
+        "h": 5
+      },
+      "targets": [
+        {
+          "expr": "(sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{namespace=\"apps\",container=~\"web|api|events|transcode\"}[$__range:1m])) / 60) / ((sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) > 0)",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "noValue": "완료 없음",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 200,
+      "type": "row",
+      "title": "2. Request-to-Track Pipeline — 요청에서 변환까지",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 201,
+      "type": "timeseries",
+      "title": "Web / API 요청률",
+      "description": "Audio Ingress에서 실제 Web/API Workload로 전달된 요청률입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by(destination_workload) (rate(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload_namespace=\"apps\",destination_workload=~\"audio-web|audio-api\"}[$__rate_interval]))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "{{destination_workload}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 202,
+      "type": "timeseries",
+      "title": "HTTP 응답 분포",
+      "description": "2xx·4xx·5xx를 분리해 사용자 입력 오류와 서비스 장애를 구분합니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by(destination_workload,status_class) (label_replace(rate(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload_namespace=\"apps\",destination_workload=~\"audio-web|audio-api\"}[$__rate_interval]), \"status_class\", \"$1xx\", \"response_code\", \"([0-9])..\"))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "{{destination_workload}} {{status_class}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 203,
+      "type": "timeseries",
+      "title": "변환 완료 / 시도 실패 / 재시도",
+      "description": "시간당 완료와 Worker 시도 실패, 재시도 이벤트를 함께 봅니다. 시도 실패는 최종 실패가 아닙니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(audio_transcode_completed_total{namespace=\"apps\"}[$__rate_interval])) * 3600",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "완료 / h"
+        },
+        {
+          "expr": "sum(rate(audio_transcode_failed_total{namespace=\"apps\"}[$__rate_interval])) * 3600",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "시도 실패 / h"
+        },
+        {
+          "expr": "sum(rate(audio_transcode_retried_total{namespace=\"apps\"}[$__rate_interval])) * 3600",
+          "refId": "C",
+          "format": "time_series",
+          "legendFormat": "재시도 / h"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 204,
+      "type": "timeseries",
+      "title": "변환 처리시간",
+      "description": "FFmpeg Track 처리시간의 P50/P95입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(audio_transcode_duration_seconds_bucket{namespace=\"apps\"}[$__rate_interval])))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "P50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(audio_transcode_duration_seconds_bucket{namespace=\"apps\"}[$__rate_interval])))",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 300,
+      "type": "row",
+      "title": "3. Compute Scale & Efficiency — 확장과 비용 효율",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 301,
+      "type": "timeseries",
+      "title": "SQS 대기량 / Worker Replica",
+      "description": "1분 CloudWatch 수집 기반 Transcode Queue/DLQ 대기량과 Worker 가용 Replica입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "max by(queue_name) (cantaloupe:aws_sqs_messages_visible{queue_name=~\"cntlp-aws-queue-transcode|cntlp-aws-queue-transcode-dlq\"})",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "{{queue_name}} visible"
+        },
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"apps\",deployment=\"audio-transcode\"})",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "Worker available"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 302,
+      "type": "timeseries",
+      "title": "Worker CPU — Actual vs Request",
+      "description": "지속적인 여유는 비용 최적화 후보이고 Actual이 Request에 근접하면 성능 위험 신호입니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"apps\",container=\"transcode\"}[$__rate_interval]))",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "Actual"
+        },
+        {
+          "expr": "sum(kube_pod_container_resource_requests{namespace=\"apps\",container=\"transcode\",resource=\"cpu\",unit=\"core\"})",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "Request"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "decimals": 3,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 303,
+      "type": "timeseries",
+      "title": "Worker Memory — Actual vs Request",
+      "description": "Working Set과 Request를 비교합니다. OOM 여부는 운영 상세에서 별도 확인합니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{namespace=\"apps\",container=\"transcode\"})",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "Actual"
+        },
+        {
+          "expr": "sum(kube_pod_container_resource_requests{namespace=\"apps\",container=\"transcode\",resource=\"memory\",unit=\"byte\"})",
+          "refId": "B",
+          "format": "time_series",
+          "legendFormat": "Request"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 304,
+      "type": "timeseries",
+      "title": "Rolling 1h Worker 비용 / Track",
+      "description": "최근 1시간 Worker 누적비용을 최근 1시간 완료 Track으로 나눈 이동 단가입니다. 완료가 없으면 값을 표시하지 않습니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "(sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{namespace=\"apps\",container=\"transcode\"}[1h:1m])) / 60) / ((sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[1h]))) > 0)",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "Worker $/track"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 305,
+      "type": "timeseries",
+      "title": "Audio Kubernetes 비용률",
+      "description": "Web/API/Events/Worker의 현재 OpenCost 시간당 비용입니다. S3·SQS·RDS는 포함하지 않습니다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by(container) (cantaloupe:container_allocated_cost_per_hour{namespace=\"apps\",container=~\"web|api|events|transcode\"})",
+          "refId": "A",
+          "format": "time_series",
+          "legendFormat": "{{container}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 400,
+      "type": "row",
+      "title": "4. Operational Detail — 오류·Pod·수집 상태",
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 401,
+          "type": "table",
+          "title": "선택 구간 HTTP 오류",
+          "description": "4xx와 5xx를 Workload·응답코드별로 보여줍니다.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 41,
+            "w": 12,
+            "h": 9
+          },
+          "targets": [
+            {
+              "expr": "sum by(destination_workload,response_code,response_flags) (increase(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload_namespace=\"apps\",destination_workload=~\"audio-web|audio-api\",response_code=~\"4..|5..\"}[$__range]))",
+              "refId": "A",
+              "format": "table",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "enablePagination": true,
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "id": 402,
+          "type": "table",
+          "title": "Audio Container Restart / OOM",
+          "description": "Restart와 최근 OOMKilled가 있는 Container만 표시합니다. 정상 상태에서는 비어 있습니다.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 41,
+            "w": 12,
+            "h": 9
+          },
+          "targets": [
+            {
+              "expr": "sum by(pod,container) (increase(kube_pod_container_status_restarts_total{namespace=\"apps\",pod=~\"audio-.*\"}[$__range])) > 0",
+              "refId": "A",
+              "format": "table",
+              "instant": true,
+              "range": false
+            },
+            {
+              "expr": "max by(pod,container,reason) (kube_pod_container_status_last_terminated_reason{namespace=\"apps\",pod=~\"audio-.*\",reason=\"OOMKilled\"} == 1)",
+              "refId": "B",
+              "format": "table",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "enablePagination": true,
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "id": 403,
+          "type": "table",
+          "title": "Audio Deployment Readiness",
+          "description": "Desired와 Available Replica를 비교합니다.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 50,
+            "w": 12,
+            "h": 8
+          },
+          "targets": [
+            {
+              "expr": "kube_deployment_spec_replicas{namespace=\"apps\",deployment=~\"audio-.*\"}",
+              "refId": "A",
+              "format": "table",
+              "instant": true,
+              "range": false
+            },
+            {
+              "expr": "kube_deployment_status_replicas_available{namespace=\"apps\",deployment=~\"audio-.*\"}",
+              "refId": "B",
+              "format": "table",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "enablePagination": true,
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "id": 404,
+          "type": "text",
+          "title": "Metric Contract / 실험 운영법",
+          "description": "수집 경계와 Right-sizing A/B 비교 방법입니다.",
+          "gridPos": {
+            "x": 12,
+            "y": 50,
+            "w": 12,
+            "h": 8
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "### 수집 계약 — Audio 앱 무변경\n- Istio Web/API 요청·응답·지연시간\n- 기존 Worker 완료·시도 실패·재시도·처리 중·처리시간\n- SQS backlog/in-flight/oldest age/DLQ (CloudWatch 1분, 약 2분 지연)\n- Kubernetes CPU/Memory/Replica와 OpenCost 직접비용\n\n### Right-sizing A/B\n동일 오디오 10개를 A(Request 2 CPU/2Gi), B(P95 근거 Request 1 CPU/1Gi)로 각각 처리한 시간 범위를 선택해 완료 수, P95, **시도 실패율**, Worker 비용/Track을 비교합니다. 비용 감소와 함께 P95·시도 실패율이 악화되지 않아야 합니다.\n\n기존 지표로는 최종 사용자 실패와 내부 S3/SQS SDK 오류를 직접 분리하지 않습니다. SQS/DLQ 상태와 `error_code`별 시도 실패로 진단합니다. S3 Lifecycle 7/37/120일 예측은 4번 대시보드가 단일 소유합니다."
+          }
+        },
+        {
+          "id": 405,
+          "type": "timeseries",
+          "title": "Worker 시도 실패 원인",
+          "description": "기존 Worker의 error_code와 retryable label로 시간당 처리 시도 실패를 구분합니다. 재시도 가능한 실패는 최종 실패가 아닙니다.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "x": 0, "y": 58, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "sum by(error_code,retryable) (rate(audio_transcode_failed_total{namespace=\"apps\"}[$__rate_interval])) * 3600",
+              "legendFormat": "{{error_code}} retryable={{retryable}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 406,
+          "type": "timeseries",
+          "title": "SQS Oldest / In-flight / 수집 경과",
+          "description": "Primary Queue별 oldest age와 in-flight, CloudWatch 샘플 경과시간입니다. 샘플 경과가 5분을 넘으면 수집 상태부터 확인합니다.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "x": 12, "y": 58, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "max by(queue_name) (cantaloupe:aws_sqs_oldest_message_age_seconds)",
+              "legendFormat": "{{queue_name}} oldest",
+              "refId": "A"
+            },
+            {
+              "expr": "max by(queue_name) (cantaloupe:aws_sqs_messages_not_visible)",
+              "legendFormat": "{{queue_name}} in-flight",
+              "refId": "B"
+            },
+            {
+              "expr": "max by(queue_name) (cantaloupe:aws_sqs_sample_age_seconds)",
+              "legendFormat": "{{queue_name}} sample age",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "s", "min": 0 },
+            "overrides": [
+              {
+                "matcher": { "id": "byFrameRefID", "options": "B" },
+                "properties": [{ "id": "unit", "value": "short" }]
+              }
+            ]
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 1
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": [
+    "cantaloupe-v1",
+    "audio",
+    "service",
+    "compute-finops",
+    "bp"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Cantaloupe v1 — Audio Service & Compute FinOps",
+  "uid": "cantaloupe-v1-audio-service-finops",
+  "version": 1,
+  "weekStart": ""
+}
