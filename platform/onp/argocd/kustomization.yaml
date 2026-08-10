@@ -43,6 +43,85 @@ patches:
         server.basehref: "/argocd"
         server.rootpath: "/argocd"
 
+  # Keycloak SSO. Dex 를 거치지 않고 argocd-server 가 직접 OIDC 를 말한다.
+  #
+  # ── ⚠️ `url` 이 없으면 OIDC 가 아예 안 붙는다 ───────────────
+  #
+  # Argo CD 는 이 값으로 리다이렉트 주소를 **만든다.** 없으면 콜백 주소를
+  # 조립하지 못해 로그인 버튼조차 뜨지 않는다. 그리고 이 값은 Keycloak 의
+  # `valid_redirect_uris` 와 **문자 하나까지 같아야** 한다 —
+  # 뒤에 `/` 가 붙거나 호스트 대소문자가 달라도 Keycloak 이 거절한다.
+  #
+  # `/argocd` 가 붙는 것은 위 `server.rootpath` 때문이다.
+  #
+  # ── ⚠️ 시크릿이 없다. PKCE 를 쓴다 ─────────────────────────
+  #
+  # `clientSecret` 을 안 적는다. Keycloak 쪽 클라이언트가 public 이고
+  # PKCE(S256)를 강제한다 → 01-infra-provisioning terraform/keycloak/clients.tf
+  #
+  # 브라우저가 매 로그인마다 난수를 만들어 그 해시를 먼저 보내므로,
+  # 저장해 둘 고정 비밀이 없다. **온프렘 Argo CD 에 시크릿을 배달하는
+  # 사슬(Secrets Manager → ESO → Secret)이 통째로 사라진다.**
+  #
+  # ⚠️ **PKCE 는 브라우저 UI 전용이다.** `argocd login --sso` (CLI)는
+  # 이 방식으로 안 된다. CLI 는 로컬 `admin` 계정이나 API 토큰을 쓴다.
+  #
+  # ── ⚠️ `groups` 는 요청해야 실린다 ─────────────────────────
+  #
+  # Keycloak 쪽에서 기본 스코프로 붙였어도, Argo CD 가 `requestedScopes`
+  # 에 안 적으면 요청 자체에서 빠진다. 빠지면 아래 policy.csv 의 `g,`
+  # 규칙이 아무에게도 안 걸려 **전원이 policy.default 로 떨어진다.**
+  - target:
+      kind: ConfigMap
+      name: argocd-cm
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-cm
+      data:
+        url: "https://cntlp-onp-wk-01.tail270b85.ts.net/argocd"
+        oidc.config: |
+          name: Keycloak
+          issuer: https://auth.echoprism.cloud/realms/cantaloupe
+          clientID: argocd
+          enablePKCEAuthentication: true
+          requestedScopes:
+            - openid
+            - profile
+            - email
+            - groups
+
+  # 그룹 하나가 곧 역할이다. 사람마다 권한을 주지 않는다.
+  #
+  # ── ⚠️ `scopes` 를 명시한다 ─────────────────────────────────
+  #
+  # 기본값은 `[groups, sub]` 라, groups 매칭에 실패하면 **`sub`(UUID)로
+  # 폴백한다.** 그러면 `g, <uuid>, role:admin` 같은 규칙을 쓰게 되고
+  # 사람이 바뀔 때마다 UUID 를 옮겨 적게 된다. groups 만 본다.
+  #
+  # ── ⚠️ `policy.default` 가 인증된 전원에게 걸린다 ──────────
+  #
+  # 그룹에 없는 사용자도 readonly 를 받는다. `CONSTRAINTS.md` 의
+  # "읽기는 system:authenticated 에 준다"와 같은 결이다 — realm 에
+  # 들어온 것 자체가 이미 팀원이라는 뜻이라서다.
+  # **realm 가입을 열면(registration_allowed) 이 줄이 위험해진다.**
+  # 지금은 닫혀 있다 → terraform/keycloak/realm.tf
+  - target:
+      kind: ConfigMap
+      name: argocd-rbac-cm
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-rbac-cm
+      data:
+        scopes: "[groups]"
+        policy.default: role:readonly
+        policy.csv: |
+          g, platform-admin, role:admin
+          g, devops, role:admin
+
   # Tailscale Serve가 전달할 Argo CD backend를 NodePort로 고정한다.
   # server.insecure=true이므로 targetPort 8080은 평문 HTTP를 제공한다.
   # Tailscale Serve backend는 http://127.0.0.1:31430/argocd 를 사용한다.
