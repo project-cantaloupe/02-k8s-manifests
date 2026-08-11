@@ -275,8 +275,6 @@ spec:
                   value: "1"
                 - name: LOAD_INTERVAL_SECONDS
                   value: "0"
-                - name: AUDIO_SUBJECT
-                  value: public-upload-test
                 - name: AUDIO_VISIBILITY
                   value: public
                 - name: EXPERIMENT_END_DATE
