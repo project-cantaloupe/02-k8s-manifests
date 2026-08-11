@@ -10,7 +10,7 @@
 # NetworkPolicy 를 채운다.
 #
 # ⚠️ **착지 직후 PolicyReport 를 본다.** 여기 있는 정책 중 Enforce 인 것이
-# 기존 워크로드를 거부할 수 있다. Harbor·Jenkins·Prometheus 같은 차트는
+# 기존 워크로드를 거부할 수 있다. Harbor·Prometheus 같은 차트는
 # 위반 목록을 미리 알 수 없다 → governance/README.md 의 Audit 우선 절차,
 # tasks/todo/002_bootstrap-blockers.md 2번
 apiVersion: argoproj.io/v1alpha1

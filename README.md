@@ -73,7 +73,7 @@ Audio Edge Application 정의는 코드로 먼저 병합한 뒤 `istio-base`, `i
 `audio-ingress`, `audio-edge-smoke` 순서로 Root 목록에 추가한다. 각 단계는 이전
 구성의 실제 Ready 상태를 확인한 뒤 진행한다.
 
-DevOps UI(Argo CD·Jenkins·Harbor)는 Istio를 경유하지 않는다. Tailscale과 각
+DevOps UI(Argo CD·Harbor)는 Istio를 경유하지 않는다. Tailscale과 각
 서비스의 NodePort로 직접 접근한다. On-Prem Node에는 Istio Workload를 두지 않으며
 `istiod`는 AWS Control Plane Node에서 실행한다.
 

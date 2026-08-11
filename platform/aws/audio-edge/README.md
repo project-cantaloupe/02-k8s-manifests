@@ -24,7 +24,7 @@ Cluster에 Ingress Gateway는 `audio-ingress` 하나다.
 | --- | --- | --- | --- |
 | `audio-ingress` | `platform=aws`, `role=service` | `audio-ingress` | 30080 / 30443 / 32021 |
 
-이전에는 `istio-ingress`가 On-Prem DevOps Node에서 Argo CD·Jenkins·Harbor를 경로로
+이전에는 `istio-ingress`가 On-Prem DevOps Node에서 Argo CD·Harbor를 경로로
 노출했다. 그 구성은 Argo CD가 Istio를 배포하면서 Istio가 Argo CD 접근을 통제하는
 순환 의존을 만들었고, NLB가 AWS Service Worker NodePort를 Target으로 하는데 Gateway
 Pod는 On-Prem에 있어 Target Health가 성립하지 않았다. DevOps 도구를 Tailscale과

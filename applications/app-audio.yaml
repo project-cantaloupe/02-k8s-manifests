@@ -1,5 +1,5 @@
-# Audio Workload는 apps Namespace에서 실행한다. devops는 Argo CD, Jenkins,
-# Harbor 같은 DevOps 도구의 자리이므로 섞지 않는다.
+# Audio Workload는 apps Namespace에서 실행한다. devops는 Argo CD, Harbor 같은
+# DevOps 도구의 자리이므로 섞지 않는다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
