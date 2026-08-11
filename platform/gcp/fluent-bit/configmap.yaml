@@ -270,10 +270,16 @@ data:
         normalized["auth_result"] = "failure"
         normalized["error_code"] = "authentication_required"
         is_security_event = true
-      elseif string.find(message, "Error redeeming code", 1, true) then
+      elseif string.find(message, "Error redeeming code", 1, true)
+        or (route == "/oauth2/callback" and http_status ~= nil
+          and tonumber(http_status) >= 400) then
         normalized["security_event_type"] = "oauth_callback"
         normalized["auth_result"] = "failure"
-        normalized["error_code"] = "code_redemption_failed"
+        if string.find(message, "Error redeeming code", 1, true) then
+          normalized["error_code"] = "code_redemption_failed"
+        else
+          normalized["error_code"] = "callback_http_error"
+        end
         is_security_event = true
       end
 
