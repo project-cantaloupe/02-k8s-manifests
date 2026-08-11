@@ -34,6 +34,7 @@ resources:
   - istio-cni.yaml
   - ztunnel.yaml
   - karpenter-controller.yaml
+  - kubelet-csr-approver.yaml
   - karpenter-nodepool.yaml
   - keda.yaml
   - monitoring-foundation.yaml
