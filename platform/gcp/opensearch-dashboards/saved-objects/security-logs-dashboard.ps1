@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $indexPatternId = "cantaloupe-platform-logs-current"
-$securityQuery = '(app : keycloak and message : "org.keycloak.events") or (app : oauth2-proxy and message : ("AuthSuccess" or "AuthFailure" or "No valid authentication" or "Error redeeming code")) or (namespace : kyverno and message : "policy=")'
+$securityQuery = 'security_event_type : *'
 
 function ConvertTo-CompactJson {
   param([Parameter(Mandatory = $true)]$Value, [int]$Depth = 20)
@@ -96,10 +96,10 @@ Save-Object -Type visualization -Id "security-logs-scope-filters" -Attributes @{
 ) -MigrationVersion @{ visualization = "7.10.0" }
 
 Save-Metric -Id "security-logs-total-events" -Title "Security Events" -Query $securityQuery -Description "Authentication events and Kyverno policy activity in the selected time range."
-Save-Metric -Id "security-logs-auth-failures" -Title "Authentication Failures" -Query '(app : keycloak and message : "LOGIN_ERROR") or (app : oauth2-proxy and message : ("AuthFailure" or "No valid authentication" or "Error redeeming code"))' -Description "Failed, rejected, or invalid authentication attempts."
-Save-Metric -Id "security-logs-auth-success" -Title "Authentication Successes" -Query 'app : oauth2-proxy and message : "AuthSuccess"' -Description "Successful OAuth2 Proxy authentication events."
-Save-Metric -Id "security-logs-session-errors" -Title "Session / Callback Errors" -Query '(app : keycloak and message : "LOGOUT_ERROR") or (app : oauth2-proxy and message : "Error redeeming code")' -Description "Keycloak logout errors and OAuth callback redemption errors."
-Save-Metric -Id "security-logs-kyverno-activity" -Title "Kyverno Policy Activity" -Query 'namespace : kyverno and message : "policy="' -Description "Policy processing activity found in Kyverno logs; this is not a policy violation count."
+Save-Metric -Id "security-logs-auth-failures" -Title "Authentication Failures" -Query 'auth_result : failure' -Description "Failed, rejected, or invalid authentication attempts parsed by Fluent Bit."
+Save-Metric -Id "security-logs-auth-success" -Title "Authentication Successes" -Query 'auth_result : success' -Description "Successful Keycloak and OAuth2 Proxy authentication events."
+Save-Metric -Id "security-logs-session-errors" -Title "Session / Callback Errors" -Query 'auth_result : failure and security_event_type : (keycloak_logout_error or oauth_callback)' -Description "Keycloak logout errors and OAuth callback redemption errors."
+Save-Metric -Id "security-logs-kyverno-activity" -Title "Kyverno Policy Activity" -Query 'security_event_type : kyverno_policy_activity' -Description "Policy processing activity found in Kyverno logs; this is not a policy violation count."
 
 $timelineState = @{
   title = "Security Events Over Time"; type = "line"
@@ -134,11 +134,11 @@ $classificationState = @{
   aggs = @(
     @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
     @{ id = "2"; enabled = $true; type = "filters"; schema = "segment"; params = @{ filters = @(
-      @{ label = "Login failure"; input = @{ query = 'message : "LOGIN_ERROR"'; language = "kuery" } },
-      @{ label = "OAuth rejection"; input = @{ query = 'message : ("AuthFailure" or "No valid authentication" or "Error redeeming code")'; language = "kuery" } },
-      @{ label = "Authentication success"; input = @{ query = 'message : "AuthSuccess"'; language = "kuery" } },
-      @{ label = "Logout error"; input = @{ query = 'message : "LOGOUT_ERROR"'; language = "kuery" } },
-      @{ label = "Kyverno policy activity"; input = @{ query = 'namespace : kyverno and message : "policy="'; language = "kuery" } }
+      @{ label = "Keycloak failure"; input = @{ query = 'app : keycloak and auth_result : failure'; language = "kuery" } },
+      @{ label = "OAuth rejection"; input = @{ query = 'app : oauth2-proxy and auth_result : failure'; language = "kuery" } },
+      @{ label = "Authentication success"; input = @{ query = 'auth_result : success'; language = "kuery" } },
+      @{ label = "Logout / callback error"; input = @{ query = 'security_event_type : (keycloak_logout_error or oauth_callback)'; language = "kuery" } },
+      @{ label = "Kyverno policy activity"; input = @{ query = 'security_event_type : kyverno_policy_activity'; language = "kuery" } }
     ) } }
   )
   params = @{ type = "pie"; addTooltip = $true; addLegend = $true; legendPosition = "right"; isDonut = $true; labels = @{ show = $true; values = $true; last_level = $true; truncate = 100 } }
@@ -151,8 +151,8 @@ Save-Object -Type visualization -Id "security-logs-event-classification" -Attrib
 
 Save-Object -Type search -Id "security-logs-recent-evidence" -Attributes @{
   title = "Recent Security Event Evidence"
-  description = "Raw security event evidence. Message may contain usernames, email addresses, or IP addresses; restrict dashboard access accordingly."
-  columns = @("collector_platform", "namespace", "app", "level", "pod", "message")
+  description = "Structured security evidence. Principal and source IP values are masked by Fluent Bit before indexing."
+  columns = @("collector_platform", "namespace", "app", "security_event_type", "auth_result", "client_id", "principal_masked", "source_network", "error_code", "policy_name", "message")
   sort = @("@timestamp", "desc"); hits = 0
   kibanaSavedObjectMeta = @{ searchSourceJSON = New-SearchSource $securityQuery }
 } -References $indexReference -MigrationVersion @{ search = "7.9.3" }
@@ -167,7 +167,7 @@ $panels = @(
   @{ gridData = @{ x = 0; y = 12; w = 30; h = 11; i = "timeline" }; panelIndex = "timeline"; version = "7.10.0"; panelRefName = "panel_timeline"; embeddableConfig = @{} },
   @{ gridData = @{ x = 30; y = 12; w = 18; h = 11; i = "component" }; panelIndex = "component"; version = "7.10.0"; panelRefName = "panel_component"; embeddableConfig = @{} },
   @{ gridData = @{ x = 0; y = 23; w = 18; h = 12; i = "classification" }; panelIndex = "classification"; version = "7.10.0"; panelRefName = "panel_classification"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 18; y = 23; w = 30; h = 12; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{ columns = @("collector_platform", "namespace", "app", "level", "pod", "message"); sort = @("@timestamp", "desc") } }
+  @{ gridData = @{ x = 18; y = 23; w = 30; h = 12; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{ columns = @("collector_platform", "namespace", "app", "security_event_type", "auth_result", "client_id", "principal_masked", "source_network", "error_code", "policy_name", "message"); sort = @("@timestamp", "desc") } }
 )
 $dashboardReferences = @(
   @{ name = "panel_scope"; id = "security-logs-scope-filters"; type = "visualization" },
@@ -183,7 +183,7 @@ $dashboardReferences = @(
 )
 Save-Object -Type dashboard -Id "security-logs-overview-v1" -Attributes @{
   title = "Security Logs Overview v1"
-  description = "Authentication events and policy activity derived from platform logs. Component health remains in Grafana; logging pipeline operations remain in Platform Logging Operations v2."
+  description = "Structured authentication and policy events with pre-index PII masking. Component health remains in Grafana; logging pipeline operations remain in Platform Logging Operations v2."
   version = 1; hits = 0; timeRestore = $true; timeFrom = "now-24h"; timeTo = "now"
   refreshInterval = @{ pause = $false; value = 30000 }
   optionsJSON = ConvertTo-CompactJson @{ useMargins = $true; hidePanelTitles = $false }

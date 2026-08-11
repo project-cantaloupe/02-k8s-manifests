@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: security-parser-dry-run
+  namespace: logging
+  labels:
+    app: security-parser-dry-run
+    area: logging
+    platform: gcp
+spec:
+  activeDeadlineSeconds: 10
+  restartPolicy: Never
+  containers:
+    - name: fluent-bit
+      image: cr.fluentbit.io/fluent/fluent-bit:3.1.9
+      args: ["-c", "/test/security-parser.conf"]
+      volumeMounts:
+        - name: test-config
+          mountPath: /test
+          readOnly: true
+      resources:
+        requests:
+          cpu: 5m
+          memory: 16Mi
+        limits:
+          memory: 32Mi
+  volumes:
+    - name: test-config
+      configMap:
+        name: security-parser-dry-run

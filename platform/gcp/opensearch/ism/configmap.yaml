@@ -68,9 +68,30 @@ data:
             "http_status": { "type": "integer" },
             "http_status_class": { "type": "keyword" },
             "http_method": { "type": "keyword" },
-            "http_route": { "type": "keyword" }
+            "http_route": { "type": "keyword" },
+            "security_event_type": { "type": "keyword" },
+            "auth_result": { "type": "keyword" },
+            "realm": { "type": "keyword" },
+            "client_id": { "type": "keyword" },
+            "principal_masked": { "type": "keyword" },
+            "source_network": { "type": "keyword" },
+            "error_code": { "type": "keyword" },
+            "policy_name": { "type": "keyword" }
           }
         }
+      }
+    }
+  platform-current-mapping.json: |
+    {
+      "properties": {
+        "security_event_type": { "type": "keyword" },
+        "auth_result": { "type": "keyword" },
+        "realm": { "type": "keyword" },
+        "client_id": { "type": "keyword" },
+        "principal_masked": { "type": "keyword" },
+        "source_network": { "type": "keyword" },
+        "error_code": { "type": "keyword" },
+        "policy_name": { "type": "keyword" }
       }
     }
   app-retention-policy.json: |

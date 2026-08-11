@@ -164,6 +164,149 @@ data:
       return path
     end
 
+    -- PII is removed before the record leaves Fluent Bit. These masks are
+    -- deliberately non-reversible. They provide coarse correlation only; a
+    -- future keyed HMAC implementation must use a Secret-backed key rather
+    -- than an unsalted digest.
+    local function mask_principal(value)
+      if value == nil or value == "" or value == "null" then
+        return nil
+      end
+
+      local first, domain = string.match(value, "^(.).+@([^@]+)$")
+      if first ~= nil then
+        return string.lower(first) .. "***@" .. string.lower(string.sub(domain, 1, 1)) .. "***"
+      end
+
+      return string.sub(value, 1, 1) .. "***"
+    end
+
+    local function mask_ip(value)
+      if value == nil or value == "" then
+        return nil
+      end
+
+      local a, b, c = string.match(value, "^(%d+)%.(%d+)%.(%d+)%.%d+$")
+      if a ~= nil then
+        return a .. "." .. b .. "." .. c .. ".0/24"
+      end
+
+      local h1, h2, h3, h4 = string.match(value, "^([^:]+):([^:]+):([^:]+):([^:]+):")
+      if h1 ~= nil then
+        return h1 .. ":" .. h2 .. ":" .. h3 .. ":" .. h4 .. "::/64"
+      end
+
+      return "[redacted]"
+    end
+
+    local function sanitize_message(message, source_network)
+      local sanitized = message
+      sanitized = string.gsub(sanitized, "[%w%.%_%+%-]+@[%w%.%-]+%.[%a]+", "[redacted-email]")
+      sanitized = string.gsub(sanitized, 'username="[^"]*"', 'username="[redacted]"')
+      sanitized = string.gsub(sanitized, 'userId="[^"]*"', 'userId="[redacted]"')
+      sanitized = string.gsub(sanitized, 'code_id="[^"]*"', 'code_id="[redacted]"')
+      sanitized = string.gsub(sanitized, "email in id_token %([^%)]*%)", "email in id_token ([redacted])")
+      sanitized = string.gsub(sanitized, "([?&]code=)[^&%s\"]+", "%1[redacted]")
+      if source_network ~= nil then
+        sanitized = string.gsub(sanitized, 'ipAddress="[^"]*"', 'ipAddress="' .. source_network .. '"')
+      else
+        sanitized = string.gsub(sanitized, 'ipAddress="[^"]*"', 'ipAddress="[redacted]"')
+      end
+      return sanitized
+    end
+
+    local function parse_keycloak_security(normalized, message)
+      if normalized["app"] ~= "keycloak" then
+        return false
+      end
+
+      local event_type = string.match(message, 'type="([A-Z_]+)"')
+      if event_type == nil or string.find(message, "org.keycloak.events", 1, true) == nil then
+        normalized["message"] = sanitize_message(message, nil)
+        return false
+      end
+
+      normalized["security_event_type"] = "keycloak_" .. string.lower(event_type)
+      normalized["auth_result"] = string.find(event_type, "ERROR", 1, true) and "failure" or "success"
+      normalized["realm"] = string.match(message, 'realmName="([^"]+)"')
+      normalized["client_id"] = string.match(message, 'clientId="([^"]+)"')
+      normalized["error_code"] = string.match(message, 'error="([^"]+)"')
+
+      local principal = string.match(message, 'username="([^"]+)"')
+        or string.match(message, 'email="([^"]+)"')
+      normalized["principal_masked"] = mask_principal(principal)
+
+      local source_ip = string.match(message, 'ipAddress="([^"]+)"')
+      normalized["source_network"] = mask_ip(source_ip)
+      normalized["message"] = sanitize_message(message, normalized["source_network"])
+      return true
+    end
+
+    local function parse_oauth2_security(normalized, message)
+      if normalized["app"] ~= "oauth2-proxy" then
+        return false
+      end
+
+      -- oauth2-proxy access lines place the user-agent between the request and
+      -- response status, so extract each value independently.
+      local method = string.match(message, '%s([A-Z]+)%s+%-%s+"')
+      local route = string.match(message, '%-%s+"([^%s%?"]+)')
+      local http_status = string.match(message, 'HTTP/[^%s]+%s+"[^"]*"%s+(%d%d%d)%s')
+      if method ~= nil then
+        normalized["http_method"] = method
+        normalized["http_route"] = string.match(route, "^[^?]+") or route
+        normalized["http_status"] = tonumber(http_status)
+        normalized["http_status_class"] = string.sub(http_status, 1, 1) .. "xx"
+      end
+
+      local is_security_event = false
+      if string.find(message, "AuthSuccess", 1, true) then
+        normalized["security_event_type"] = "oauth_authentication"
+        normalized["auth_result"] = "success"
+        is_security_event = true
+      elseif string.find(message, "AuthFailure", 1, true)
+        or string.find(message, "No valid authentication", 1, true) then
+        normalized["security_event_type"] = "oauth_authentication"
+        normalized["auth_result"] = "failure"
+        normalized["error_code"] = "authentication_required"
+        is_security_event = true
+      elseif string.find(message, "Error redeeming code", 1, true) then
+        normalized["security_event_type"] = "oauth_callback"
+        normalized["auth_result"] = "failure"
+        normalized["error_code"] = "code_redemption_failed"
+        is_security_event = true
+      end
+
+      local email = string.match(message, "([%w%.%_%+%-]+@[%w%.%-]+%.[%a]+)")
+      normalized["principal_masked"] = mask_principal(email)
+      local source_ip = string.match(message, "^(%d+%.%d+%.%d+%.%d+)")
+      local source_network = mask_ip(source_ip)
+      normalized["source_network"] = source_network
+
+      local sanitized = sanitize_message(message, nil)
+      if source_ip ~= nil and source_network ~= nil then
+        local escaped_source_ip = string.gsub(source_ip, "(%W)", "%%%1")
+        sanitized = string.gsub(sanitized, "^" .. escaped_source_ip, source_network, 1)
+      end
+      normalized["message"] = sanitized
+      return is_security_event
+    end
+
+    local function parse_kyverno_security(normalized, message)
+      if normalized["namespace"] ~= "kyverno" then
+        return false
+      end
+
+      local policy = string.match(message, "policy=([^%s]+)")
+      if policy == nil then
+        return false
+      end
+
+      normalized["security_event_type"] = "kyverno_policy_activity"
+      normalized["policy_name"] = policy
+      return true
+    end
+
     function normalize(tag, timestamp, record)
       local kubernetes = record["kubernetes"] or {}
       local pod_labels = kubernetes["labels"] or {}
@@ -183,8 +326,13 @@ data:
       -- logs do not, so derive a consistent severity from their HTTP status.
       -- Keep 4xx as warning because many client errors (for example 401/404)
       -- are not platform failures; 5xx is a server-side error.
-      normalized["message"] = record["msg"] or record["message"] or record["log"] or ""
-      local http_status = tonumber(record["http_status"])
+      local raw_message = record["msg"] or record["message"] or record["log"] or ""
+      normalized["message"] = raw_message
+      parse_keycloak_security(normalized, raw_message)
+      parse_oauth2_security(normalized, raw_message)
+      parse_kyverno_security(normalized, raw_message)
+
+      local http_status = tonumber(record["http_status"] or normalized["http_status"])
       if http_status ~= nil then
         normalized["http_status_class"] = tostring(math.floor(http_status / 100)) .. "xx"
         if http_status >= 500 then
