@@ -78,7 +78,18 @@ function Ensure-SecurityIndexPatternFields {
   if ($LASTEXITCODE -ne 0) { throw "Failed to read index pattern $indexPatternId`: $existingJson" }
 
   $existing = $existingJson | ConvertFrom-Json
-  $fields = @($existing.attributes.fields | ConvertFrom-Json)
+  $parsedFields = ConvertFrom-Json -InputObject $existing.attributes.fields
+  # Windows PowerShell 5.1 can preserve a previously wrapped array as a
+  # single object with a `value` property. Unwrap it so Dashboards receives
+  # the flat field-definition array it expects.
+  $fields = @()
+  foreach ($item in @($parsedFields)) {
+    if ($item.PSObject.Properties.Name -contains "value") {
+      $fields += @($item.value)
+    } elseif ($item.PSObject.Properties.Name -contains "name") {
+      $fields += $item
+    }
+  }
   $securityFields = @(
     @{ name = "security_event_type"; type = "string"; esTypes = @("keyword") },
     @{ name = "auth_result"; type = "string"; esTypes = @("keyword") },
@@ -106,7 +117,7 @@ function Ensure-SecurityIndexPatternFields {
   foreach ($property in $existing.attributes.PSObject.Properties) {
     $attributes[$property.Name] = $property.Value
   }
-  $attributes["fields"] = ConvertTo-CompactJson $fields
+  $attributes["fields"] = ConvertTo-Json -InputObject $fields -Depth 20 -Compress
   Save-Object -Type "index-pattern" -Id $indexPatternId -Attributes $attributes `
     -References @($existing.references) -MigrationVersion @{ "index-pattern" = "7.6.0" }
 }
