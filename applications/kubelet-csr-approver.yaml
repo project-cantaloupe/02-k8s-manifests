@@ -21,9 +21,10 @@ spec:
           - 100.64.0.0/10
         maxExpirationSeconds: "31536000"
 
-        # DNS 이름이 실제 Tailscale IP로 해석되는지 확인하고, 이름 검사를
-        # 우회하지 않는다. 조건 불일치 CSR은 거부하지 않고 Pending으로 남긴다.
-        bypassDnsResolution: false
+        # Cluster DNS는 Tailscale MagicDNS의 Node 이름을 해석하지 못한다. DNS
+        # Resolution만 우회하되 정확한 Node 이름, Tailscale IP 대역, Hostname,
+        # Signer/CN/SAN 개수 검사는 유지한다. 불일치는 거부하지 않고 Pending으로 남긴다.
+        bypassDnsResolution: true
         bypassHostnameCheck: false
         allowedDnsNames: 1
         ignoreNonSystemNode: true
@@ -45,14 +46,12 @@ spec:
           area: platform
           platform: aws
 
-        # 승인 대상인 동적 Worker가 아니라 고정 Control Plane에서 실행한다.
+        # 승인 대상인 동적 Worker는 Audio 전용 Taint 때문에 제외된다. CPU가 이미
+        # 예약된 Control Plane 대신 기존 고정 AWS Service Worker에서 실행한다.
         nodeSelector:
           platform: aws
-          role: control-plane
-        tolerations:
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
-            effect: NoSchedule
+          role: service
+        tolerations: []
 
         resources:
           requests:
