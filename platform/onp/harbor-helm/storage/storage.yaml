@@ -158,7 +158,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: harbor-v2-trivy
+  name: data-harbor-v2-trivy-0
   namespace: harbor-system
 spec:
   accessModes: [ReadWriteOnce]
@@ -234,5 +234,5 @@ spec:
             claimName: harbor-v2-redis
         - name: trivy
           persistentVolumeClaim:
-            claimName: harbor-v2-trivy
+            claimName: data-harbor-v2-trivy-0
 
