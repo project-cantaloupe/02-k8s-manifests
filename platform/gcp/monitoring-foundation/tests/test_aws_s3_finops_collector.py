@@ -44,6 +44,7 @@ class CollectorTest(unittest.TestCase):
             self.write(f"lifecycle-{bucket}.json", {"Rules": [{
                 "ID": "rule", "Status": "Enabled",
                 "Transitions": [{"Days": 30, "StorageClass": "STANDARD_IA"}],
+                "Expiration": {"Days": 365},
                 "NoncurrentVersionExpiration": {"NoncurrentDays": 7},
             }]})
             self.write(f"encryption-{bucket}.json", {"ServerSideEncryptionConfiguration": {"Rules": [{}]}})
@@ -63,13 +64,20 @@ class CollectorTest(unittest.TestCase):
         self.assertIn('cantaloupe_s3_inventory_expected_monthly_list_requests 480', body)
         self.assertIn('policy="enabled"', body)
         self.assertIn('horizon_days="120"', body)
+        self.assertIn('horizon_days="180"', body)
+        self.assertIn('cantaloupe_s3_whatif_cumulative_cost_usd', body)
+        self.assertIn('cantaloupe_s3_whatif_cumulative_savings_usd', body)
 
     def test_policy_metrics(self):
         self.policy_inputs()
         body = collector.policy_metrics(self.now)
         self.assertIn('cantaloupe_s3_bucket_versioning_enabled{bucket_name="cntlp-aws-quarantine"} 1', body)
         self.assertIn('cantaloupe_s3_bucket_public_access_blocked{bucket_name="cntlp-aws-transcode"} 1', body)
-        self.assertIn('cantaloupe_s3_bucket_lifecycle_transition_days{bucket_name="cntlp-aws-quarantine",rule_id="rule",storage_type="StandardIAStorage"} 30', body)
+        self.assertIn('cantaloupe_s3_bucket_lifecycle_rule_count{bucket_name="cntlp-aws-quarantine",status="enabled"} 1', body)
+        self.assertIn('cantaloupe_s3_bucket_lifecycle_rule_info{bucket_name="cntlp-aws-quarantine",rule_id="rule",scope="all-objects",status="Enabled"} 1', body)
+        self.assertIn('cantaloupe_s3_bucket_lifecycle_transition_days{bucket_name="cntlp-aws-quarantine",rule_id="rule",scope="all-objects",status="Enabled",storage_type="StandardIAStorage"} 30', body)
+        self.assertIn('cantaloupe_s3_bucket_current_expiration_days{bucket_name="cntlp-aws-quarantine",rule_id="rule",scope="all-objects",status="Enabled"} 365', body)
+        self.assertIn('cantaloupe_s3_bucket_noncurrent_expiration_days{bucket_name="cntlp-aws-quarantine",rule_id="rule",scope="all-objects",status="Enabled"} 7', body)
         self.assertIn('cantaloupe_s3_policy_api_get_requests 12', body)
 
 

@@ -21,7 +21,7 @@ BUCKETS = tuple(filter(None, (
         "AWS_S3_BUCKETS", "cntlp-aws-quarantine,cntlp-aws-transcode"
     ).split(",")
 )))
-HORIZONS = (0, 30, 60, 90, 120)
+HORIZONS = (0, 30, 60, 90, 120, 180)
 QUARANTINE_BUCKET = os.environ.get("QUARANTINE_BUCKET", "cntlp-aws-quarantine")
 QUARANTINE_PREFIX = os.environ.get("QUARANTINE_PREFIX", "incoming/")
 STANDARD_IA_DAYS = int(os.environ.get("QUARANTINE_STANDARD_IA_DAYS", "30"))
@@ -108,6 +108,51 @@ def target_class(age_days, policy):
     if age_days >= STANDARD_IA_DAYS:
         return "StandardIAStorage"
     return "StandardStorage"
+
+
+def lifecycle_scope(rule):
+    """Render a compact, stable rule scope for fleet policy tables."""
+    if rule.get("Prefix"):
+        return f'prefix:{rule["Prefix"]}'
+    rule_filter = rule.get("Filter") or {}
+    if not rule_filter:
+        return "all-objects"
+    if "Prefix" in rule_filter:
+        return f'prefix:{rule_filter["Prefix"] or "(empty)"}'
+    if "Tag" in rule_filter:
+        tag = rule_filter["Tag"]
+        return f'tag:{tag.get("Key", "?")}={tag.get("Value", "?")}'
+    if "ObjectSizeGreaterThan" in rule_filter or "ObjectSizeLessThan" in rule_filter:
+        lower = rule_filter.get("ObjectSizeGreaterThan", "-")
+        upper = rule_filter.get("ObjectSizeLessThan", "-")
+        return f"size:{lower}..{upper}"
+    if "And" in rule_filter:
+        return "combined-filter"
+    return "filtered"
+
+
+def cumulative_cohort_storage_cost(cohort, horizon_days, policy):
+    """Storage-only cumulative cost for a synthetic cohort created on day zero."""
+    if horizon_days <= 0:
+        return 0.0
+    if policy == "disabled":
+        total_bytes = sum(int(item.get("Size", 0)) for item in cohort)
+        return total_bytes / (1024 ** 3) * PRICES["StandardStorage"] * horizon_days / 30
+
+    class_days = {
+        "StandardStorage": min(horizon_days, STANDARD_IA_DAYS),
+        "StandardIAStorage": max(
+            min(horizon_days, GLACIER_IR_DAYS) - STANDARD_IA_DAYS, 0
+        ),
+        "GlacierInstantRetrievalStorage": max(horizon_days - GLACIER_IR_DAYS, 0),
+    }
+    cost = 0.0
+    for storage, days in class_days.items():
+        if not days:
+            continue
+        billable = sum(billable_bytes(item.get("Size", 0), storage) for item in cohort)
+        cost += billable / (1024 ** 3) * PRICES[storage] * days / 30
+    return cost
 
 
 def inventory_metrics(now):
@@ -207,6 +252,28 @@ def inventory_metrics(now):
         lines.append(sample("cantaloupe_s3_whatif_monthly_savings_usd", savings, labels))
         lines.append(sample("cantaloupe_s3_whatif_savings_ratio", savings / disabled if disabled else 0, labels))
 
+        cumulative = {
+            policy: cumulative_cohort_storage_cost(cohort, horizon, policy)
+            for policy in ("disabled", "enabled")
+        }
+        for policy, cost in cumulative.items():
+            labels = {
+                "bucket_name": QUARANTINE_BUCKET,
+                "policy": policy,
+                "horizon_days": str(horizon),
+                "cost_scope": "storage-only",
+            }
+            lines.append(sample("cantaloupe_s3_whatif_cumulative_cost_usd", cost, labels))
+        cumulative_savings = max(cumulative["disabled"] - cumulative["enabled"], 0)
+        labels = {
+            "bucket_name": QUARANTINE_BUCKET,
+            "horizon_days": str(horizon),
+            "cost_scope": "storage-only",
+        }
+        lines.append(sample("cantaloupe_s3_whatif_cumulative_savings_usd", cumulative_savings, labels))
+        ratio = cumulative_savings / cumulative["disabled"] if cumulative["disabled"] else 0
+        lines.append(sample("cantaloupe_s3_whatif_cumulative_savings_ratio", ratio, labels))
+
     timestamp = int(now.timestamp())
     expected_monthly = page_count * 4 * 30
     lines.extend([
@@ -238,7 +305,10 @@ def policy_metrics(now):
 
         lines.append(sample("cantaloupe_s3_bucket_versioning_enabled", 1 if versioning.get("Status") == "Enabled" else 0, {"bucket_name": bucket}))
         rules = lifecycle.get("Rules") or []
-        lines.append(sample("cantaloupe_s3_bucket_lifecycle_enabled", 1 if any(rule.get("Status") == "Enabled" for rule in rules) else 0, {"bucket_name": bucket}))
+        enabled_rules = [rule for rule in rules if rule.get("Status") == "Enabled"]
+        lines.append(sample("cantaloupe_s3_bucket_lifecycle_enabled", 1 if enabled_rules else 0, {"bucket_name": bucket}))
+        lines.append(sample("cantaloupe_s3_bucket_lifecycle_rule_count", len(rules), {"bucket_name": bucket, "status": "all"}))
+        lines.append(sample("cantaloupe_s3_bucket_lifecycle_rule_count", len(enabled_rules), {"bucket_name": bucket, "status": "enabled"}))
         encryption_rules = encryption.get("ServerSideEncryptionConfiguration", {}).get("Rules") or []
         lines.append(sample("cantaloupe_s3_bucket_encryption_enabled", 1 if encryption_rules else 0, {"bucket_name": bucket}))
         pab = public_access.get("PublicAccessBlockConfiguration", {})
@@ -248,15 +318,27 @@ def policy_metrics(now):
         lines.append(sample("cantaloupe_s3_bucket_owner_enforced", 1 if any(rule.get("ObjectOwnership") == "BucketOwnerEnforced" for rule in controls) else 0, {"bucket_name": bucket}))
 
         for rule in rules:
+            base = {
+                "bucket_name": bucket,
+                "rule_id": rule.get("ID", "unnamed"),
+                "status": rule.get("Status", "Unknown"),
+                "scope": lifecycle_scope(rule),
+            }
+            lines.append(sample("cantaloupe_s3_bucket_lifecycle_rule_info", 1, base))
             if rule.get("Status") != "Enabled":
                 continue
-            base = {"bucket_name": bucket, "rule_id": rule.get("ID", "unnamed")}
             for transition in rule.get("Transitions") or []:
                 labels = {**base, "storage_type": STORAGE_TYPES.get(transition.get("StorageClass", ""), transition.get("StorageClass", "unknown"))}
                 lines.append(sample("cantaloupe_s3_bucket_lifecycle_transition_days", transition.get("Days", 0), labels))
-            expiration = rule.get("NoncurrentVersionExpiration", {})
-            if "NoncurrentDays" in expiration:
-                lines.append(sample("cantaloupe_s3_bucket_noncurrent_expiration_days", expiration["NoncurrentDays"], base))
+            current_expiration = rule.get("Expiration") or {}
+            if "Days" in current_expiration:
+                lines.append(sample("cantaloupe_s3_bucket_current_expiration_days", current_expiration["Days"], base))
+            for transition in rule.get("NoncurrentVersionTransitions") or []:
+                labels = {**base, "storage_type": STORAGE_TYPES.get(transition.get("StorageClass", ""), transition.get("StorageClass", "unknown"))}
+                lines.append(sample("cantaloupe_s3_bucket_noncurrent_transition_days", transition.get("NoncurrentDays", 0), labels))
+            noncurrent_expiration = rule.get("NoncurrentVersionExpiration", {})
+            if "NoncurrentDays" in noncurrent_expiration:
+                lines.append(sample("cantaloupe_s3_bucket_noncurrent_expiration_days", noncurrent_expiration["NoncurrentDays"], base))
 
     lines.extend([
         sample("cantaloupe_s3_policy_collection_timestamp_seconds", int(now.timestamp())),
