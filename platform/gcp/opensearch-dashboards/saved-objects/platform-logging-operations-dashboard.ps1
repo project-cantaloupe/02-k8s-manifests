@@ -158,7 +158,7 @@ Save-Object "search" "platform-ops-recent-warning-error" @{
 } $indexReference @{ search = "7.9.3" }
 
 # 3. Cluster changes
-Save-Terms "platform-ops-k8s-reasons" "Kubernetes 경고 이벤트 주요 발생 원인" 'app : kubernetes-events and level : warning' "event_reason" "Kubernetes 경고 이벤트를 발생 원인별로 표시합니다." 12 "#F9AB00"
+Save-Terms "platform-ops-k8s-reasons" "Kubernetes 경고 이벤트 주요 발생 원인" 'app : kubernetes-events and level : warning' "event_reason" "Kubernetes 경고 이벤트를 발생 원인별로 표시합니다." 12
 Save-Object "search" "platform-ops-scaling-events" @{
   title = "스케일링 이벤트 타임라인"; description = "HPA, Karpenter, Node 및 스케줄링 이벤트를 시간순으로 확인합니다."; hits = 0
   columns = @("collector_platform", "namespace", "event_kind", "event_name", "event_reason", "message")
