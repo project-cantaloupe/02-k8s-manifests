@@ -12,7 +12,7 @@ resources:
   - onprem-rightsizing-rules.yaml
   - gcp-recommender-collector.yaml
   - aws-compute-optimizer-collector.yaml
-  - aws-s3-storage-collector.yaml
+  - aws-s3-finops-collector.yaml
   - vpa-recommendation-collector.yaml
   - audio-ingress-observability.yaml
   # Grafana OIDC 클라이언트 시크릿. Helm 차트(monitoring-stack)가 아니라
@@ -45,13 +45,13 @@ configMapGenerator:
         area: monitoring
         category: finops
 
-  - name: s3-storage-collector
+  - name: aws-s3-finops-collector
     namespace: monitoring
     files:
-      - aws_s3_storage_collector.py
+      - aws_s3_finops_collector.py
     options:
       labels:
-        app: s3-storage-collector
+        app: aws-s3-finops-collector
         area: monitoring
         category: finops
 

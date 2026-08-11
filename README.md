@@ -86,12 +86,13 @@ Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics는
 `platform/gcp/kube-prometheus-stack/`에서 하나의 Helm release로 관리한다.
 OpenCost는 별도 release로 두되 같은 Prometheus를 데이터 원본으로 사용한다.
 
-S3 버킷의 현재 객체 수와 용량은 AWS service Worker의 10분 CronJob이
-`ListObjectsV2`로 조회해 FinOps Pushgateway에 게시한다. 이전 버전·삭제 마커·
-미완료 Multipart Upload는 이 값에 포함하지 않는다. SQS 운영 지표는 1분 단위
-CloudWatch Exporter를 계속 사용한다. 전환 검증 중에는 S3 일별 CloudWatch
-Exporter도 비교 기준으로 유지하고, 두 데이터의 의미와 최신성을 확인한 뒤 별도
-변경으로 제거한다.
+S3 FinOps 인벤토리는 AWS service Worker에서 6시간마다 `ListObjectsV2`와
+`ListObjectVersions`로 현재·비현재 버전, 삭제 마커, 용량·객체 수를 집계해
+Pushgateway에 게시한다. Bucket Versioning, Lifecycle, 암호화, Public Access
+Block, Policy 공개 상태와 Object Ownership은 매주 월요일 03:00(KST)에 별도로
+확인한다. Lifecycle What-if는 객체의 실제 Size·LastModified로만 계산하며 S3를
+변경하지 않는다. SQS 운영 지표는 기존 1분 CloudWatch Exporter를 계속 사용하고,
+S3 CloudWatch Exporter는 사용하지 않는다.
 
 ## 거버넌스
 
