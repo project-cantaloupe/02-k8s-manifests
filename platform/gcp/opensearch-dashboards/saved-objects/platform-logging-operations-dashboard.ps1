@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$DashboardsUrl = "https://cntlp-gcp-wk-02.tail270b85.ts.net"
 )
 
@@ -12,8 +12,14 @@ function SearchSource([string]$Query) {
 function Save-Object([string]$Type, [string]$Id, $Attributes, [array]$References, $MigrationVersion) {
   $body = Json @{ attributes = $Attributes; references = $References }
   $endpoint = "$($DashboardsUrl.TrimEnd('/'))/api/saved_objects/$Type/$Id`?overwrite=true"
-  $response = $body | curl.exe -k -sS --fail-with-body -H "osd-xsrf: true" -H "Content-Type: application/json" -X POST $endpoint --data-binary "@-"
-  if ($LASTEXITCODE -ne 0) { throw "Failed to save $Type/$Id`: $response" }
+  $bodyFile = [IO.Path]::GetTempFileName()
+  try {
+    [IO.File]::WriteAllText($bodyFile, $body, [Text.UTF8Encoding]::new($false))
+    $response = curl.exe -k -sS --fail-with-body -H "osd-xsrf: true" -H "Content-Type: application/json" -X POST $endpoint --data-binary "@$bodyFile"
+    if ($LASTEXITCODE -ne 0) { throw "Failed to save $Type/$Id`: $response" }
+  } finally {
+    Remove-Item -LiteralPath $bodyFile -Force -ErrorAction SilentlyContinue
+  }
   Write-Host "saved $Type/$Id"
 }
 
@@ -43,6 +49,15 @@ function Ensure-OperationalFields {
   $attributes = @{}
   foreach ($property in $existing.attributes.PSObject.Properties) { $attributes[$property.Name] = $property.Value }
   $attributes.fields = Json $fields
+  $formatMap = @{}
+  if ($attributes.fieldFormatMap) {
+    $parsedFormatMap = $attributes.fieldFormatMap | ConvertFrom-Json
+    foreach ($property in $parsedFormatMap.PSObject.Properties) { $formatMap[$property.Name] = $property.Value }
+  }
+  # Keep the indexed value in bytes for exact aggregation, but render sums as
+  # KB/MB/GB according to magnitude in metrics and data tables.
+  $formatMap.ingest_bytes = @{ id = "bytes"; params = @{ pattern = "0,0.[00] b" } }
+  $attributes.fieldFormatMap = Json $formatMap
   Save-Object "index-pattern" $indexPatternId $attributes @($existing.references) @{ "index-pattern" = "7.6.0" }
 }
 function Save-Visualization([string]$Id, [string]$Title, [string]$Description, $VisState, [string]$Query = "") {
@@ -69,105 +84,121 @@ function Save-Terms([string]$Id, [string]$Title, [string]$Query, [string]$Field,
     params = @{ type = "histogram"; addTooltip = $true; addLegend = $false; legendPosition = "right"; seriesParams = @(@{ data = @{ id = "1"; label = "Count" }; type = "histogram"; mode = "normal"; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; barWidth = 0.2 }) }
   } $Query
 }
+function Save-GroupHeader([string]$Id, [string]$Title) {
+  Save-Visualization $Id $Title $Title @{
+    title = $Title; type = "markdown"; aggs = @()
+    params = @{ markdown = "## $Title"; openLinksInNewTab = $false; fontSize = 16 }
+  }
+}
 
 Ensure-OperationalFields
 
 # Scope: Platform -> Namespace -> Area -> Workload/App.
 $controls = @{
-  title = "Operations Scope Filters"; type = "input_control_vis"; aggs = @()
+  title = "조회 범위"; type = "input_control_vis"; aggs = @()
   params = @{ updateFiltersOnChange = $true; useTimeFilter = $true; pinFilters = $false; controls = @(
-    @{ id = "platform"; label = "Platform"; type = "list"; parent = ""; indexPatternRefName = "control_0_index_pattern"; fieldName = "collector_platform"; options = @{ dynamicOptions = $true; type = "terms"; multiselect = $true; size = 10; order = "desc" } },
-    @{ id = "namespace"; label = "Namespace"; type = "list"; parent = "platform"; indexPatternRefName = "control_1_index_pattern"; fieldName = "namespace"; options = @{ dynamicOptions = $true; type = "terms"; multiselect = $true; size = 30; order = "desc" } },
-    @{ id = "area"; label = "Area"; type = "list"; parent = "namespace"; indexPatternRefName = "control_2_index_pattern"; fieldName = "area"; options = @{ dynamicOptions = $true; type = "terms"; multiselect = $true; size = 30; order = "desc" } },
-    @{ id = "workload"; label = "Workload/App"; type = "list"; parent = "area"; indexPatternRefName = "control_3_index_pattern"; fieldName = "app"; options = @{ dynamicOptions = $true; type = "terms"; multiselect = $true; size = 50; order = "desc" } }
+    @{ id = "platform"; label = "플랫폼"; type = "list"; parent = ""; indexPatternRefName = "control_0_index_pattern"; fieldName = "collector_platform"; options = @{ dynamicOptions = $true; type = "terms"; multiselect = $true; size = 10; order = "desc" } },
+    @{ id = "namespace"; label = "네임스페이스"; type = "list"; parent = "platform"; indexPatternRefName = "control_1_index_pattern"; fieldName = "namespace"; options = @{ dynamicOptions = $true; type = "terms"; multiselect = $true; size = 30; order = "desc" } },
+    @{ id = "area"; label = "영역"; type = "list"; parent = "namespace"; indexPatternRefName = "control_2_index_pattern"; fieldName = "area"; options = @{ dynamicOptions = $true; type = "terms"; multiselect = $true; size = 30; order = "desc" } },
+    @{ id = "workload"; label = "워크로드/앱"; type = "list"; parent = "area"; indexPatternRefName = "control_3_index_pattern"; fieldName = "app"; options = @{ dynamicOptions = $true; type = "terms"; multiselect = $true; size = 50; order = "desc" } }
   ) }
 }
 $controlRefs = 0..3 | ForEach-Object { @{ name = "control_$($_)_index_pattern"; id = $indexPatternId; type = "index-pattern" } }
-Save-Object "visualization" "platform-ops-scope-v2" @{ title = "Operations Scope Filters"; description = "Progressive platform, namespace, area, and workload filters."; version = 1; uiStateJSON = "{}"; visState = Json $controls; kibanaSavedObjectMeta = @{ searchSourceJSON = Json @{ query = @{ query = ""; language = "kuery" }; filter = @() } } } $controlRefs @{ visualization = "7.10.0" }
+Save-Object "visualization" "platform-ops-scope-v2" @{ title = "조회 범위"; description = "플랫폼, 네임스페이스, 영역, 워크로드 순서의 단계별 필터입니다."; version = 1; uiStateJSON = "{}"; visState = Json $controls; kibanaSavedObjectMeta = @{ searchSourceJSON = Json @{ query = @{ query = ""; language = "kuery" }; filter = @() } } } $controlRefs @{ visualization = "7.10.0" }
+
+Save-GroupHeader "platform-ops-group-current" "① 운영 현황"
+Save-GroupHeader "platform-ops-group-incident" "② 장애 발생 위치 분석"
+Save-GroupHeader "platform-ops-group-cluster" "③ 클러스터 변경 및 이벤트"
+Save-GroupHeader "platform-ops-group-health" "④ 로그 플랫폼 상태"
 
 # 1. Current health
-Save-Count "platform-ops-total" "Total Logs" "" "All platform log documents in the selected time range."
-Save-Count "platform-ops-warning" "Warning" 'level : warning' "Normalized warning-level logs."
-Save-Count "platform-ops-error" "Error" 'level : error' "Normalized error-level logs."
-Save-Count "platform-ops-k8s-warning" "K8s Warning Events" 'app : kubernetes-events and level : warning' "Kubernetes API warning events collected by the dedicated single-replica event collector."
-Save-Count "platform-ops-delivery-fail" "Delivery Failures" 'namespace : logging and app : fluent-bit and level : error and message : (flush or retry or delivery or opensearch)' "Fluent Bit output delivery failures, not all Fluent Bit errors."
+Save-Count "platform-ops-total" "전체 로그" "" "선택한 시간 범위의 전체 플랫폼 로그입니다."
+Save-Count "platform-ops-warning" "경고 로그" 'level : warning' "정규화된 경고 로그입니다."
+Save-Count "platform-ops-error" "오류 로그" 'level : error' "정규화된 오류 로그입니다."
+Save-Count "platform-ops-k8s-warning" "K8s 경고" 'app : kubernetes-events and level : warning' "Kubernetes API에서 수집한 경고 이벤트입니다."
+Save-Count "platform-ops-delivery-fail" "전송 실패" 'namespace : logging and app : fluent-bit and level : error and message : (flush or retry or delivery or opensearch)' "Fluent Bit의 OpenSearch 전송 실패 이벤트입니다."
 
-$volume = @{ title = "Log Volume Over Time"; type = "line"; aggs = @(
+$volume = @{ title = "시간대별 로그 발생량"; type = "line"; aggs = @(
   @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
   @{ id = "2"; enabled = $true; type = "date_histogram"; schema = "segment"; params = @{ field = "@timestamp"; interval = "auto"; min_doc_count = 1; extended_bounds = @{ min = ""; max = "" } } }
 ); params = @{ type = "line"; addTooltip = $true; addLegend = $false; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "Logs" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $false; lineWidth = 2; interpolation = "linear" }) } }
-Save-Visualization "platform-ops-volume-trend" "Log Volume Over Time" "Log production trend for the selected scope." $volume
+Save-Visualization "platform-ops-volume-trend" "시간대별 로그 발생량" "선택한 범위의 로그 발생 추이입니다." $volume
 
-$levels = @{ title = "Log Level Distribution"; type = "pie"; aggs = @(
+$levels = @{ title = "로그 레벨 분포"; type = "pie"; aggs = @(
   @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
   @{ id = "2"; enabled = $true; type = "terms"; schema = "segment"; params = @{ field = "level"; size = 5; order = "desc"; orderBy = "1"; missingBucket = $true; otherBucket = $false } }
 ); params = @{ type = "pie"; addTooltip = $true; addLegend = $true; legendPosition = "right"; isDonut = $true; labels = @{ show = $true; values = $true; last_level = $true; truncate = 100 }; colors = @{ info = "#00A69C"; warning = "#F9AB00"; error = "#D36086"; unknown = "#5274C7" } } }
-Save-Visualization "platform-ops-levels" "Log Level Distribution" "Normalized levels; unknown indicates missing source severity after parser fallbacks." $levels
-Save-Terms "platform-ops-unknown-apps" "Top Apps Producing Unknown Log Level" 'level : unknown' "app" "Temporary data-quality diagnostic. Unknown is now reserved for empty or unparseable records." 15
+Save-Visualization "platform-ops-levels" "로그 레벨 분포" "정규화된 로그 레벨 분포입니다. unknown은 빈 메시지 또는 파싱 실패를 의미합니다." $levels
+Save-Terms "platform-ops-unknown-apps" "Unknown 레벨 발생 상위 앱" 'level : unknown' "app" "빈 메시지 또는 파싱 실패가 발생한 앱을 확인하는 임시 진단 패널입니다." 15
 
 # 2. Incident location
-Save-Terms "platform-ops-errors-by-namespace" "Warning / Error by Namespace" 'level : (warning or error)' "namespace" "Where warning/error logs are concentrated." 15
-Save-Terms "platform-ops-top-error-workloads" "Top Error Workloads" 'level : error' "app" "Workloads producing the most error logs." 10
-Save-Terms "platform-ops-by-platform" "Log Volume by Platform" "" "collector_platform" "Compare AWS, GCP, and on-prem log volume." 10
-Save-Terms "platform-ops-top-producers" "Top Log Producers" "" "app" "Highest-volume workloads/apps; use the scope controls to drill into namespace and pod." 15
+Save-Terms "platform-ops-errors-by-namespace" "네임스페이스별 경고/오류" 'level : (warning or error)' "namespace" "경고와 오류가 집중된 네임스페이스를 확인합니다." 15
+Save-Terms "platform-ops-top-error-workloads" "오류 발생 상위 워크로드" 'level : error' "app" "오류 로그를 가장 많이 발생시킨 워크로드입니다." 10
+Save-Terms "platform-ops-by-platform" "플랫폼별 로그 발생량" "" "collector_platform" "AWS, GCP, 온프레미스의 로그 발생량을 비교합니다." 10
+Save-Terms "platform-ops-top-producers" "로그 발생량 상위 소스" "" "app" "로그를 가장 많이 발생시킨 워크로드/앱입니다." 15
 
 Save-Object "search" "platform-ops-recent-warning-error" @{
-  title = "Recent Warning / Error Logs"; description = "Latest warning/error evidence in the selected scope."; hits = 0
+  title = "최근 경고/오류 로그"; description = "선택한 범위의 최신 경고 및 오류 로그입니다."; hits = 0
   columns = @("collector_platform", "namespace", "app", "level", "message")
   sort = @("@timestamp", "desc")
   kibanaSavedObjectMeta = @{ searchSourceJSON = SearchSource 'level : (warning or error)' }
 } $indexReference @{ search = "7.9.3" }
 
 # 3. Cluster changes
-Save-Terms "platform-ops-k8s-reasons" "Kubernetes Warning Event Reasons" 'app : kubernetes-events and level : warning' "event_reason" "Warning events grouped by Kubernetes reason." 12
+Save-Terms "platform-ops-k8s-reasons" "Kubernetes 경고 이벤트 주요 발생 원인" 'app : kubernetes-events and level : warning' "event_reason" "Kubernetes 경고 이벤트를 발생 원인별로 표시합니다." 12
 Save-Object "search" "platform-ops-scaling-events" @{
-  title = "Scaling Events Timeline"; description = "HPA, Karpenter, Node, and scheduling events that explain scaling changes."; hits = 0
+  title = "스케일링 이벤트 타임라인"; description = "HPA, Karpenter, Node 및 스케줄링 이벤트를 시간순으로 확인합니다."; hits = 0
   columns = @("collector_platform", "namespace", "event_kind", "event_name", "event_reason", "message")
   sort = @("@timestamp", "desc")
   kibanaSavedObjectMeta = @{ searchSourceJSON = SearchSource 'app : kubernetes-events and (event_reason : SuccessfulRescale or event_kind : NodeClaim or event_reason : (DisruptionBlocked or Disrupted or Registered or NodeReady or Scheduled))' }
 } $indexReference @{ search = "7.9.3" }
-Save-Count "platform-ops-argocd" "Argo CD Warning / Error" 'app : argocd* and level : (warning or error)' "Explicit Argo CD warning/error logs."
-Save-Terms "platform-ops-harbor" "Harbor Registry HTTP Errors" 'app : harbor* and http_status_class : (4xx or 5xx)' "http_status_class" "Harbor 4xx and 5xx responses only." 4
-Save-Terms "platform-ops-core-components" "Other Core Component Errors" 'level : (warning or error) and app : (jenkins or keycloak or oauth2-proxy or opensearch or opensearch-dashboards or cert-manager or external-secrets)' "app" "Warning/error logs from other core platform components." 12
+Save-Count "platform-ops-argocd" "Argo CD 경고/오류" 'app : argocd* and level : (warning or error)' "Argo CD의 경고 및 오류 로그입니다."
+Save-Terms "platform-ops-harbor" "Harbor HTTP 상태" 'app : harbor* and http_status_class : (4xx or 5xx)' "http_status_class" "Harbor의 4xx 및 5xx 응답입니다." 4
+Save-Terms "platform-ops-core-components" "핵심 컴포넌트 경고/오류" 'level : (warning or error) and app : (jenkins or keycloak or oauth2-proxy or opensearch or opensearch-dashboards or cert-manager or external-secrets)' "app" "핵심 플랫폼 컴포넌트의 경고 및 오류입니다." 12
 
 # 4. Logging platform health and approximate source ingest
-Save-Count "platform-ops-logging-error" "Logging Stack Errors" 'namespace : logging and level : error' "Error-level events emitted by the logging stack."
-$dailyIngest = @{ title = "Daily Source Ingest Bytes"; type = "metric"; aggs = @(@{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "Bytes" } }); params = @{ type = "metric"; addTooltip = $true; addLegend = $false; metric = @{ percentageMode = $false; useRanges = $false; metricColorMode = "None"; labels = @{ show = $true }; style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 42; subText = "source payload bytes" } } } }
-Save-Visualization "platform-ops-daily-ingest" "Daily Source Ingest Bytes" "Approximate source message bytes indexed during the panel's fixed 24-hour window; this is not Lucene store size." $dailyIngest
-$ingestTrend = @{ title = "Ingest Volume Over Time"; type = "line"; aggs = @(
-  @{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "Bytes" } },
+Save-Count "platform-ops-logging-error" "로깅 스택 오류" 'namespace : logging and level : error' "로깅 스택에서 발생한 오류 로그입니다."
+$dailyIngest = @{ title = "일일 원본 로그 용량"; type = "metric"; aggs = @(@{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "용량" } }); params = @{ type = "metric"; addTooltip = $true; addLegend = $false; metric = @{ percentageMode = $false; useRanges = $false; metricColorMode = "None"; labels = @{ show = $true }; style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 42; subText = "원본 메시지 기준" } } } }
+Save-Visualization "platform-ops-daily-ingest" "일일 원본 로그 용량" "최근 24시간 동안 수집한 원본 메시지 용량의 근사치이며 MB/GB 단위로 표시합니다." $dailyIngest
+$ingestTrend = @{ title = "시간대별 원본 로그 용량"; type = "line"; aggs = @(
+  @{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "용량" } },
   @{ id = "2"; enabled = $true; type = "date_histogram"; schema = "segment"; params = @{ field = "@timestamp"; interval = "auto"; min_doc_count = 1; extended_bounds = @{ min = ""; max = "" } } }
-); params = @{ type = "line"; addTooltip = $true; addLegend = $false; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "Bytes" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $false; lineWidth = 2; interpolation = "linear" }) } }
-Save-Visualization "platform-ops-ingest-trend" "Ingest Volume Over Time" "Approximate source message bytes over time." $ingestTrend
-$usage = @{ title = "Log Usage by Namespace"; type = "table"; aggs = @(
-  @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{ customLabel = "Documents" } },
-  @{ id = "2"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "Ingest Bytes" } },
+); params = @{ type = "line"; addTooltip = $true; addLegend = $false; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "용량" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $false; lineWidth = 2; interpolation = "linear" }) } }
+Save-Visualization "platform-ops-ingest-trend" "시간대별 원본 로그 용량" "시간대별 원본 메시지 용량의 근사치이며 MB/GB 단위로 표시합니다." $ingestTrend
+$usage = @{ title = "네임스페이스별 원본 로그 용량"; type = "table"; aggs = @(
+  @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{ customLabel = "문서 수" } },
+  @{ id = "2"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "원본 로그 용량" } },
   @{ id = "3"; enabled = $true; type = "terms"; schema = "bucket"; params = @{ field = "namespace"; size = 30; order = "desc"; orderBy = "2"; otherBucket = $false; missingBucket = $false } }
 ); params = @{ type = "table"; perPage = 15; showPartialRows = $false; showMetricsAtAllLevels = $false; sort = @{ columnIndex = 2; direction = "desc" }; showTotal = $false; totalFunc = "sum" } }
-Save-Visualization "platform-ops-usage-by-namespace" "Log Usage by Namespace" "Documents and approximate source payload bytes by namespace." $usage
+Save-Visualization "platform-ops-usage-by-namespace" "네임스페이스별 원본 로그 용량" "네임스페이스별 문서 수와 원본 메시지 용량의 근사치입니다." $usage
 
 $panels = @()
 function Panel([string]$Index, [string]$Ref, [int]$X, [int]$Y, [int]$W, [int]$H, $Config = @{}) { @{ gridData = @{ x=$X; y=$Y; w=$W; h=$H; i=$Index }; panelIndex=$Index; version="7.10.0"; panelRefName=$Ref; embeddableConfig=$Config } }
 $panels += Panel "scope" "p_scope" 0 0 48 5
-$panels += Panel "total" "p_total" 0 5 10 7; $panels += Panel "warning" "p_warning" 10 5 9 7; $panels += Panel "error" "p_error" 19 5 9 7; $panels += Panel "k8s" "p_k8s" 28 5 10 7; $panels += Panel "delivery" "p_delivery" 38 5 10 7
-$panels += Panel "volume" "p_volume" 0 12 32 10; $panels += Panel "levels" "p_levels" 32 12 16 10
-$panels += Panel "ns" "p_ns" 0 22 24 10; $panels += Panel "errapp" "p_errapp" 24 22 24 10
-$panels += Panel "recent" "p_recent" 0 32 48 12 @{ columns=@("collector_platform","namespace","app","level","message"); sort=@("@timestamp","desc") }
-$panels += Panel "platform" "p_platform" 0 44 24 10; $panels += Panel "producer" "p_producer" 24 44 24 10
-$panels += Panel "reasons" "p_reasons" 0 54 24 10; $panels += Panel "scaling" "p_scaling" 24 54 24 10
-$panels += Panel "argocd" "p_argocd" 0 64 14 8; $panels += Panel "harbor" "p_harbor" 14 64 16 8; $panels += Panel "core" "p_core" 30 64 18 8
-$panels += Panel "delivery2" "p_delivery" 0 72 12 7; $panels += Panel "logerr" "p_logerr" 12 72 12 7; $panels += Panel "daily" "p_daily" 24 72 12 7 @{ timeRange=@{from="now-24h";to="now"} }; $panels += Panel "ingest" "p_ingest" 36 72 12 7
-$panels += Panel "usage" "p_usage" 0 79 48 12
-$panels += Panel "unknown" "p_unknown" 0 91 48 10
+$panels += Panel "group-current" "p_group_current" 0 5 48 3 @{ hidePanelTitles=$true }
+$panels += Panel "total" "p_total" 0 8 10 7; $panels += Panel "warning" "p_warning" 10 8 9 7; $panels += Panel "error" "p_error" 19 8 9 7; $panels += Panel "k8s" "p_k8s" 28 8 10 7; $panels += Panel "delivery" "p_delivery" 38 8 10 7
+$panels += Panel "volume" "p_volume" 0 15 32 10; $panels += Panel "levels" "p_levels" 32 15 16 10
+$panels += Panel "group-incident" "p_group_incident" 0 25 48 3 @{ hidePanelTitles=$true }
+$panels += Panel "ns" "p_ns" 0 28 24 10; $panels += Panel "errapp" "p_errapp" 24 28 24 10
+$panels += Panel "recent" "p_recent" 0 38 48 12 @{ columns=@("collector_platform","namespace","app","level","message"); sort=@("@timestamp","desc") }
+$panels += Panel "platform" "p_platform" 0 50 24 10; $panels += Panel "producer" "p_producer" 24 50 24 10
+$panels += Panel "group-cluster" "p_group_cluster" 0 60 48 3 @{ hidePanelTitles=$true }
+$panels += Panel "reasons" "p_reasons" 0 63 24 10; $panels += Panel "scaling" "p_scaling" 24 63 24 10
+$panels += Panel "argocd" "p_argocd" 0 73 14 8; $panels += Panel "harbor" "p_harbor" 14 73 16 8; $panels += Panel "core" "p_core" 30 73 18 8
+$panels += Panel "group-health" "p_group_health" 0 81 48 3 @{ hidePanelTitles=$true }
+$panels += Panel "delivery2" "p_delivery" 0 84 12 7; $panels += Panel "logerr" "p_logerr" 12 84 12 7; $panels += Panel "daily" "p_daily" 24 84 12 7 @{ timeRange=@{from="now-24h";to="now"} }; $panels += Panel "ingest" "p_ingest" 36 84 12 7
+$panels += Panel "usage" "p_usage" 0 91 48 12
+$panels += Panel "unknown" "p_unknown" 0 103 48 10
 
 $refs = @(
-  @{name="p_scope";id="platform-ops-scope-v2";type="visualization"}, @{name="p_total";id="platform-ops-total";type="visualization"}, @{name="p_warning";id="platform-ops-warning";type="visualization"}, @{name="p_error";id="platform-ops-error";type="visualization"}, @{name="p_k8s";id="platform-ops-k8s-warning";type="visualization"}, @{name="p_delivery";id="platform-ops-delivery-fail";type="visualization"},
+  @{name="p_scope";id="platform-ops-scope-v2";type="visualization"}, @{name="p_group_current";id="platform-ops-group-current";type="visualization"}, @{name="p_group_incident";id="platform-ops-group-incident";type="visualization"}, @{name="p_group_cluster";id="platform-ops-group-cluster";type="visualization"}, @{name="p_group_health";id="platform-ops-group-health";type="visualization"},
+  @{name="p_total";id="platform-ops-total";type="visualization"}, @{name="p_warning";id="platform-ops-warning";type="visualization"}, @{name="p_error";id="platform-ops-error";type="visualization"}, @{name="p_k8s";id="platform-ops-k8s-warning";type="visualization"}, @{name="p_delivery";id="platform-ops-delivery-fail";type="visualization"},
   @{name="p_volume";id="platform-ops-volume-trend";type="visualization"}, @{name="p_levels";id="platform-ops-levels";type="visualization"}, @{name="p_ns";id="platform-ops-errors-by-namespace";type="visualization"}, @{name="p_errapp";id="platform-ops-top-error-workloads";type="visualization"}, @{name="p_recent";id="platform-ops-recent-warning-error";type="search"}, @{name="p_platform";id="platform-ops-by-platform";type="visualization"}, @{name="p_producer";id="platform-ops-top-producers";type="visualization"},
   @{name="p_reasons";id="platform-ops-k8s-reasons";type="visualization"}, @{name="p_scaling";id="platform-ops-scaling-events";type="search"}, @{name="p_argocd";id="platform-ops-argocd";type="visualization"}, @{name="p_harbor";id="platform-ops-harbor";type="visualization"}, @{name="p_core";id="platform-ops-core-components";type="visualization"},
   @{name="p_logerr";id="platform-ops-logging-error";type="visualization"}, @{name="p_daily";id="platform-ops-daily-ingest";type="visualization"}, @{name="p_ingest";id="platform-ops-ingest-trend";type="visualization"}, @{name="p_usage";id="platform-ops-usage-by-namespace";type="visualization"}, @{name="p_unknown";id="platform-ops-unknown-apps";type="visualization"}
 )
 Save-Object "dashboard" "platform-logging-operations-v2" @{
-  title="Platform Logging Operations v2"; description="Operational flow: current health, incident location, cluster changes, and logging platform health."; version=1; hits=0
+  title="플랫폼 로그 운영 v2"; description="운영 현황, 장애 위치, 클러스터 변경, 로그 플랫폼 상태 순서의 운영 로그 대시보드입니다."; version=1; hits=0
   panelsJSON=Json $panels; optionsJSON='{ "useMargins": true, "hidePanelTitles": false }'; timeRestore=$true; timeFrom="now-24h"; timeTo="now"; refreshInterval=@{pause=$false;value=30000}
   kibanaSavedObjectMeta=@{searchSourceJSON=Json @{query=@{query="";language="kuery"};filter=@()}}
 } $refs @{dashboard="7.9.3"}
