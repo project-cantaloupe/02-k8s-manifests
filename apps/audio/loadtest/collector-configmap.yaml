@@ -7,6 +7,7 @@ data:
   collector.py: |
     import datetime as dt
     import json
+    import math
     import os
     import ssl
     import urllib.parse
@@ -18,6 +19,8 @@ data:
     PROM = "http://monitoring-prometheus.monitoring.svc:9090/prometheus"
     PUSH = "http://cantaloupe-finops-pushgateway.monitoring.svc:9091"
     END_DATE = os.getenv("EXPERIMENT_END_DATE", "2026-08-14")
+    COLLECTION_DELAY_SECONDS = int(os.getenv("COLLECTION_DELAY_SECONDS", "300"))
+    QUEUE_NAME = "cntlp-aws-queue-transcode"
 
     def kube_get(path):
         with open(SA + "/token", encoding="utf-8") as handle:
@@ -32,78 +35,312 @@ data:
         with urllib.request.urlopen(url, timeout=20) as response:
             payload = json.load(response)
         values = payload.get("data", {}).get("result", [])
-        return float(values[0]["value"][1]) if values else None
+        if not values:
+            return None
+        value = float(values[0]["value"][1])
+        return value if math.isfinite(value) else None
+
+    def prom_range(query, start, finish, step=60):
+        url = PROM + "/api/v1/query_range?" + urllib.parse.urlencode(
+            {"query": query, "start": start, "end": finish, "step": step}
+        )
+        with urllib.request.urlopen(url, timeout=20) as response:
+            payload = json.load(response)
+        values = payload.get("data", {}).get("result", [])
+        if not values:
+            return []
+        result = []
+        for timestamp, value in values[0]["values"]:
+            parsed = float(value)
+            if math.isfinite(parsed):
+                result.append((float(timestamp), parsed))
+        return result
+
+    def parse_time(value):
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
 
     def esc(value):
         return str(value).replace("\\", "\\\\").replace('"', '\\"')
 
-    def push(result, metrics):
-        labels = f'profile="{esc(result["profile"])}",phase="{esc(result["phase"])}"'
+    def result_samples(result, metrics):
         ready = result.get("status_counts", {}).get("READY", 0)
-        failed = result.get("upload_errors", 0) + sum(value for key, value in result.get("status_counts", {}).items() if key != "READY")
-        valid = 1 if failed == 0 and metrics.get("deployment_changed") == 0 else 0
+        failed = result.get("upload_errors", 0) + sum(
+            value for key, value in result.get("status_counts", {}).items() if key != "READY"
+        )
+        functional_success = int(
+            failed == 0
+            and result.get("submitted") == result.get("requested")
+            and ready == result.get("requested")
+        )
+        critical = (
+            "processing_p95_seconds",
+            "transcode_completed",
+            "transcode_failed",
+            "transcode_retried",
+            "queue_visible_max",
+            "queue_inflight_max",
+            "queue_drained",
+        )
+        # Steady처럼 즉시 소비되는 Run은 Queue가 계속 0일 수 있다. 반면 Burst
+        # replica가 실제로 1 이상이었는데 Queue 활동이 0이면 CloudWatch가 짧은
+        # Spike를 놓친 것이므로 Queue 측정만 불완전하다.
+        queue_measurement_complete = int(
+            not (
+                metrics.get("queue_activity_missing") == 1
+                and (metrics.get("burst_replicas_max") or 0) > 0
+            )
+        )
+        metrics_complete = int(
+            all(metrics.get(name) is not None for name in critical)
+            and metrics.get("counter_mismatch") == 0
+            and metrics.get("queue_drained") == 1
+            and queue_measurement_complete == 1
+        )
+        valid = int(
+            functional_success == 1
+            and metrics_complete == 1
+            and metrics.get("deployment_changed") == 0
+            and metrics.get("job_failed") == 0
+        )
         samples = {
             "cantaloupe_audio_finops_run_info": valid,
+            "cantaloupe_audio_finops_run_functional_success": functional_success,
+            "cantaloupe_audio_finops_run_metrics_complete": metrics_complete,
+            "cantaloupe_audio_finops_run_queue_measurement_complete": queue_measurement_complete,
             "cantaloupe_audio_finops_run_requested": result["requested"],
             "cantaloupe_audio_finops_run_submitted": result["submitted"],
             "cantaloupe_audio_finops_run_ready": ready,
             "cantaloupe_audio_finops_run_failed": failed,
         }
-        samples.update({"cantaloupe_audio_finops_run_" + key: value for key, value in metrics.items() if value is not None})
+        samples.update(
+            {
+                "cantaloupe_audio_finops_run_" + key: value
+                for key, value in metrics.items()
+                if value is not None
+            }
+        )
+        return samples
+
+    def push(result, metrics):
+        labels = f'profile="{esc(result["profile"])}",phase="{esc(result["phase"])}"'
+        samples = result_samples(result, metrics)
         body = "\n".join(f'{name}{{{labels}}} {value}' for name, value in samples.items()) + "\n"
-        path = "/metrics/job/audio_finops_experiment/run_id/" + urllib.parse.quote(result["run_id"], safe="")
-        request = urllib.request.Request(PUSH + path, data=body.encode(), method="PUT", headers={"Content-Type": "text/plain; version=0.0.4"})
+        path = "/metrics/job/audio_finops_experiment/run_id/" + urllib.parse.quote(
+            result["run_id"], safe=""
+        )
+        request = urllib.request.Request(
+            PUSH + path,
+            data=body.encode(),
+            method="PUT",
+            headers={"Content-Type": "text/plain; version=0.0.4"},
+        )
         with urllib.request.urlopen(request, timeout=20) as response:
             if response.status // 100 != 2:
                 raise RuntimeError(f"Pushgateway HTTP {response.status}")
 
-    def collect(result):
-        start = dt.datetime.fromisoformat(result["started_at"])
-        finish = dt.datetime.fromisoformat(result["finished_at"])
-        evaluate = finish + dt.timedelta(seconds=90)
-        window = max(180, int((finish - start).total_seconds()) + 180)
-        step_range = f"[{window}s:30s]"
-        generation_query = 'sum(kube_deployment_status_observed_generation{namespace="apps",deployment=~"audio-api|audio-transcode|audio-transcode-burst"})'
-        before = prom(generation_query, start.timestamp())
-        after = prom(generation_query, evaluate.timestamp())
+    def queue_metrics(start, finish):
+        evaluate = finish + dt.timedelta(seconds=COLLECTION_DELAY_SECONDS)
+        visible = prom_range(
+            f'max(cantaloupe:aws_sqs_messages_visible{{queue_name="{QUEUE_NAME}"}})',
+            start.timestamp(),
+            evaluate.timestamp(),
+        )
+        inflight = prom_range(
+            f'max(cantaloupe:aws_sqs_messages_not_visible{{queue_name="{QUEUE_NAME}"}})',
+            start.timestamp(),
+            evaluate.timestamp(),
+        )
+        if not visible or not inflight:
+            return {
+                "queue_visible_max": None,
+                "queue_inflight_max": None,
+                "queue_backlog_max": None,
+                "queue_drained": None,
+                "queue_drain_observed_seconds": None,
+                "queue_activity_missing": 1,
+            }
+
+        points = {}
+        for timestamp, value in visible:
+            points.setdefault(timestamp, [0.0, 0.0])[0] = value
+        for timestamp, value in inflight:
+            points.setdefault(timestamp, [0.0, 0.0])[1] = value
+        backlog = [(timestamp, sum(values)) for timestamp, values in sorted(points.items())]
+        last_positive = max((timestamp for timestamp, value in backlog if value > 0), default=None)
+        drained_at = next(
+            (timestamp for timestamp, value in backlog if last_positive and timestamp > last_positive and value == 0),
+            None,
+        )
+        visible_max = max(value for _, value in visible)
+        inflight_max = max(value for _, value in inflight)
+        backlog_max = max(value for _, value in backlog)
         return {
-            "cpu_p95_cores": prom('quantile_over_time(0.95, (sum(rate(container_cpu_usage_seconds_total{namespace="apps",container="transcode"}[1m])))' + step_range + ')', evaluate.timestamp()),
-            "memory_p95_bytes": prom('quantile_over_time(0.95, (sum(container_memory_working_set_bytes{namespace="apps",container="transcode"}))' + step_range + ')', evaluate.timestamp()),
-            "queue_max": prom('max_over_time((max(cantaloupe:aws_sqs_messages_visible{queue_name="cntlp-aws-queue-transcode"}))' + step_range + ')', evaluate.timestamp()),
-            "transcode_completed": prom(f'sum(increase(audio_transcode_completed_total{{namespace="apps"}}[{window}s]))', evaluate.timestamp()),
-            "transcode_failed": prom(f'sum(increase(audio_transcode_failed_total{{namespace="apps"}}[{window}s]))', evaluate.timestamp()),
-            "worker_cost_usd": prom(f'sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{{namespace="apps",container="transcode"}}[{window}s:1m])) / 60', evaluate.timestamp()),
-            "worker_request_cpu_cores": prom('max(kube_pod_container_resource_requests{namespace="apps",container="transcode",resource="cpu",unit="core"})', evaluate.timestamp()),
-            "worker_request_memory_bytes": prom('max(kube_pod_container_resource_requests{namespace="apps",container="transcode",resource="memory",unit="byte"})', evaluate.timestamp()),
-            "elapsed_seconds": (finish - start).total_seconds(),
-            "deployment_generation_before": before,
-            "deployment_generation_after": after,
-            "deployment_changed": 1 if before is None or after is None or before != after else 0,
+            "queue_visible_max": visible_max,
+            "queue_inflight_max": inflight_max,
+            "queue_backlog_max": backlog_max,
+            "queue_drained": int(backlog[-1][1] == 0),
+            # CloudWatch가 120초 지연되므로 실제 drain이 아니라 관측된 상한이다.
+            "queue_drain_observed_seconds": (
+                max(0.0, drained_at - start.timestamp()) if drained_at is not None else None
+            ),
+            "queue_activity_missing": int(backlog_max == 0),
         }
 
+    def counter_delta(metric, start, finish):
+        query = f'sum({metric}{{namespace="apps"}})'
+        before = prom(query, start.timestamp())
+        after = prom(query, finish.timestamp())
+        if before is None or after is None:
+            return None
+        return max(0, round(after - before))
+
+    def collect(result, job_failed=0):
+        start = parse_time(result["started_at"])
+        finish = parse_time(result["finished_at"])
+        worker_evaluate = finish + dt.timedelta(seconds=90)
+        elapsed = (finish - start).total_seconds()
+        # 종료 후 90초 Scrape 여유를 포함하되 Run 시작 전 혼입은 약 30초로 제한한다.
+        window = max(120, int(elapsed) + 120)
+        step_range = f"[{window}s:30s]"
+        # KEDA가 관리하는 burst Deployment의 replica 변경은 rollout이 아니다.
+        generation_query = (
+            'sum(kube_deployment_status_observed_generation{namespace="apps",'
+            'deployment=~"audio-api|audio-transcode"})'
+        )
+        before = prom(generation_query, start.timestamp())
+        after = prom(generation_query, worker_evaluate.timestamp())
+        completed = counter_delta("audio_transcode_completed_total", start, worker_evaluate)
+        failed = counter_delta("audio_transcode_failed_total", start, worker_evaluate)
+        retried = counter_delta("audio_transcode_retried_total", start, worker_evaluate)
+        ready = result.get("status_counts", {}).get("READY", 0)
+        metrics = {
+            "cpu_p95_cores": prom(
+                'quantile_over_time(0.95, (sum(rate(container_cpu_usage_seconds_total{namespace="apps",container="transcode"}[1m])))'
+                + step_range
+                + ")",
+                worker_evaluate.timestamp(),
+            ),
+            "memory_p95_bytes": prom(
+                'quantile_over_time(0.95, (sum(container_memory_working_set_bytes{namespace="apps",container="transcode"}))'
+                + step_range
+                + ")",
+                worker_evaluate.timestamp(),
+            ),
+            "processing_p95_seconds": prom(
+                f'histogram_quantile(0.95, sum by (le) (increase(audio_transcode_duration_seconds_bucket{{namespace="apps"}}[{window}s])))',
+                worker_evaluate.timestamp(),
+            ),
+            "transcode_completed": completed,
+            "transcode_failed": failed,
+            "transcode_retried": retried,
+            "counter_mismatch": int(completed is None or completed != ready),
+            "burst_replicas_max": prom(
+                'max_over_time(kube_deployment_spec_replicas{namespace="apps",deployment="audio-transcode-burst"}'
+                + step_range
+                + ")",
+                worker_evaluate.timestamp(),
+            ),
+            "worker_cost_usd": prom(
+                f'sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{{namespace="apps",container="transcode"}}[{window}s:1m])) / 60',
+                worker_evaluate.timestamp(),
+            ),
+            "worker_request_cpu_cores": prom(
+                'max(kube_pod_container_resource_requests{namespace="apps",container="transcode",resource="cpu",unit="core"})',
+                worker_evaluate.timestamp(),
+            ),
+            "worker_request_memory_bytes": prom(
+                'max(kube_pod_container_resource_requests{namespace="apps",container="transcode",resource="memory",unit="byte"})',
+                worker_evaluate.timestamp(),
+            ),
+            "elapsed_seconds": elapsed,
+            "deployment_generation_before": before,
+            "deployment_generation_after": after,
+            "deployment_changed": int(before is None or after is None or before != after),
+            "job_failed": int(job_failed),
+        }
+        metrics.update(queue_metrics(start, finish))
+        return metrics
+
+    def job_env(job, name, default=""):
+        containers = job.get("spec", {}).get("template", {}).get("spec", {}).get("containers", [])
+        for item in containers[0].get("env", []) if containers else []:
+            if item.get("name") == name:
+                return item.get("value", default)
+        return default
+
+    def failed_job_result(job, now):
+        requested = int(job_env(job, "LOAD_COUNT", "1"))
+        conditions = job.get("status", {}).get("conditions", [])
+        finished = next(
+            (item.get("lastTransitionTime") for item in conditions if item.get("type") == "Failed"),
+            None,
+        ) or now.isoformat()
+        return {
+            "schema_version": 1,
+            "run_id": job_env(job, "RUN_ID", job["metadata"]["name"]),
+            "profile": job_env(job, "LOAD_PROFILE", "unknown"),
+            "phase": job_env(job, "EXPERIMENT_PHASE", "unknown"),
+            "started_at": job.get("status", {}).get("startTime", finished),
+            "finished_at": finished,
+            "requested": requested,
+            "submitted": 0,
+            "upload_errors": 0,
+            "status_counts": {"JOB_FAILED": requested},
+        }
+
+    def result_from_log(log):
+        lines = [line for line in log.splitlines() if line.startswith("FINOPS_RUN_RESULT=")]
+        return json.loads(lines[-1].split("=", 1)[1]) if lines else None
+
+    def is_due(result, now):
+        finish = parse_time(result["finished_at"])
+        return now >= finish + dt.timedelta(seconds=COLLECTION_DELAY_SECONDS)
+
     def main():
-        today = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).date().isoformat()
+        now = dt.datetime.now(dt.timezone.utc)
+        today = now.astimezone(dt.timezone(dt.timedelta(hours=9))).date().isoformat()
         if today > END_DATE:
             print("Experiment ended; no collection required")
             return
-        jobs = json.loads(kube_get("/apis/batch/v1/namespaces/apps/jobs?labelSelector=experiment%3Daudio-finops")).get("items", [])
+        jobs = json.loads(
+            kube_get("/apis/batch/v1/namespaces/apps/jobs?labelSelector=experiment%3Daudio-finops")
+        ).get("items", [])
         pushed = 0
+        delayed = 0
+        missing_logs = 0
         for job in jobs:
-            if job.get("status", {}).get("succeeded") != 1:
+            status = job.get("status", {})
+            terminal_failed = status.get("failed", 0) > 0
+            if status.get("succeeded", 0) < 1 and not terminal_failed:
                 continue
             name = job["metadata"]["name"]
-            pods = json.loads(kube_get("/api/v1/namespaces/apps/pods?labelSelector=" + urllib.parse.quote("job-name=" + name))).get("items", [])
-            if not pods:
+            pods = json.loads(
+                kube_get(
+                    "/api/v1/namespaces/apps/pods?labelSelector="
+                    + urllib.parse.quote("job-name=" + name)
+                )
+            ).get("items", [])
+            log = ""
+            if pods:
+                newest = max(pods, key=lambda item: item["metadata"].get("creationTimestamp", ""))
+                log = kube_get(f'/api/v1/namespaces/apps/pods/{newest["metadata"]["name"]}/log')
+            result = result_from_log(log)
+            synthetic_failure = result is None
+            if synthetic_failure:
+                if not terminal_failed:
+                    missing_logs += 1
+                    continue
+                result = failed_job_result(job, now)
+            if not is_due(result, now):
+                delayed += 1
                 continue
-            log = kube_get(f'/api/v1/namespaces/apps/pods/{pods[0]["metadata"]["name"]}/log')
-            lines = [line for line in log.splitlines() if line.startswith("FINOPS_RUN_RESULT=")]
-            if not lines:
-                continue
-            result = json.loads(lines[-1].split("=", 1)[1])
-            push(result, collect(result))
+            push(result, collect(result, job_failed=terminal_failed or synthetic_failure))
             pushed += 1
-        print(f"Collected {pushed} completed audio FinOps run(s)")
+        print(
+            f"Collected {pushed} terminal audio FinOps run(s); "
+            f"delayed {delayed}; missing logs {missing_logs}"
+        )
 
     if __name__ == "__main__":
         main()
-

@@ -16,6 +16,16 @@ patches:
       kind: CronJob
       labelSelector: app=audio-finops-load-runner
     patch: |
+      # CronJob Controller와 `kubectl create job --from=cronjob` 양쪽에서 Job
+      # 최상위 Label을 보존해야 Collector의 Job Selector가 결과를 찾을 수 있다.
+      - op: add
+        path: /spec/jobTemplate/metadata
+        value:
+          labels:
+            app: audio-finops-load-runner
+            area: apps
+            platform: aws
+            experiment: audio-finops
       - op: add
         path: /spec/jobTemplate/spec/template/spec/containers/0/envFrom
         value:
