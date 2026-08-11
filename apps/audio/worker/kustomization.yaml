@@ -14,4 +14,4 @@ resources:
 images:
   - name: audio-worker
     newName: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/app-audio-worker
-    newTag: 61b5820d9f2b7ca9abc7fdb346b8ac003abbc19f
+    newTag: fa3644117a85a6078431b31501a72e9406109865
