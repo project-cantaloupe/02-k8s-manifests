@@ -48,9 +48,6 @@ serviceMonitor:
   # sample is found within about 12 hours while avoiding unnecessary API calls.
   interval: 12h
   timeout: 60s
-  # Preserve timestamps supplied by the exporter. S3 trend and freshness
-  # panels must use the CloudWatch source time, not the Prometheus scrape time.
-  honorTimestamps: true
   labels:
     release: monitoring
 
@@ -95,9 +92,11 @@ config: |-
       period_seconds: 86400
       range_seconds: 604800
       delay_seconds: 0
-      # Keep the daily CloudWatch datapoint timestamp. Repeated polls may see
-      # the same sample, but Prometheus will retain its actual source date.
-      set_timestamp: true
+      # The upstream exporter explicitly recommends disabling CloudWatch
+      # timestamps for infrequently updated S3 metrics. Otherwise Prometheus
+      # may reject stale samples and CloudWatch's aggregated period boundary
+      # can be mistaken for the original S3 observation time.
+      set_timestamp: false
 
     - aws_namespace: AWS/S3
       aws_metric_name: NumberOfObjects
@@ -112,4 +111,4 @@ config: |-
       period_seconds: 86400
       range_seconds: 604800
       delay_seconds: 0
-      set_timestamp: true
+      set_timestamp: false
