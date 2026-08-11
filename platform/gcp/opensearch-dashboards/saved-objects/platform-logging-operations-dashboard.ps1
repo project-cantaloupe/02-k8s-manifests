@@ -33,7 +33,7 @@ function Ensure-OperationalFields {
     @{name="ingest_bytes";type="number";esTypes=@("long")}, @{name="event_count";type="number";esTypes=@("long")},
     @{name="event_reason";type="string";esTypes=@("keyword")}, @{name="event_kind";type="string";esTypes=@("keyword")},
     @{name="event_name";type="string";esTypes=@("keyword")}, @{name="event_action";type="string";esTypes=@("keyword")},
-    @{name="event_source";type="string";esTypes=@("keyword")}
+    @{name="event_source";type="string";esTypes=@("keyword")}, @{name="level_source";type="string";esTypes=@("keyword")}
   )
   foreach ($field in $required) {
     if (-not ($fields | Where-Object { $_.name -eq $field.name })) {
@@ -103,6 +103,7 @@ $levels = @{ title = "Log Level Distribution"; type = "pie"; aggs = @(
   @{ id = "2"; enabled = $true; type = "terms"; schema = "segment"; params = @{ field = "level"; size = 5; order = "desc"; orderBy = "1"; missingBucket = $true; otherBucket = $false } }
 ); params = @{ type = "pie"; addTooltip = $true; addLegend = $true; legendPosition = "right"; isDonut = $true; labels = @{ show = $true; values = $true; last_level = $true; truncate = 100 }; colors = @{ info = "#00A69C"; warning = "#F9AB00"; error = "#D36086"; unknown = "#5274C7" } } }
 Save-Visualization "platform-ops-levels" "Log Level Distribution" "Normalized levels; unknown indicates missing source severity after parser fallbacks." $levels
+Save-Terms "platform-ops-unknown-apps" "Top Apps Producing Unknown Log Level" 'level : unknown' "app" "Temporary data-quality diagnostic. Unknown is now reserved for empty or unparseable records." 15
 
 # 2. Incident location
 Save-Terms "platform-ops-errors-by-namespace" "Warning / Error by Namespace" 'level : (warning or error)' "namespace" "Where warning/error logs are concentrated." 15
@@ -157,12 +158,13 @@ $panels += Panel "reasons" "p_reasons" 0 54 24 10; $panels += Panel "scaling" "p
 $panels += Panel "argocd" "p_argocd" 0 64 14 8; $panels += Panel "harbor" "p_harbor" 14 64 16 8; $panels += Panel "core" "p_core" 30 64 18 8
 $panels += Panel "delivery2" "p_delivery" 0 72 12 7; $panels += Panel "logerr" "p_logerr" 12 72 12 7; $panels += Panel "daily" "p_daily" 24 72 12 7 @{ timeRange=@{from="now-24h";to="now"} }; $panels += Panel "ingest" "p_ingest" 36 72 12 7
 $panels += Panel "usage" "p_usage" 0 79 48 12
+$panels += Panel "unknown" "p_unknown" 0 91 48 10
 
 $refs = @(
   @{name="p_scope";id="platform-ops-scope-v2";type="visualization"}, @{name="p_total";id="platform-ops-total";type="visualization"}, @{name="p_warning";id="platform-ops-warning";type="visualization"}, @{name="p_error";id="platform-ops-error";type="visualization"}, @{name="p_k8s";id="platform-ops-k8s-warning";type="visualization"}, @{name="p_delivery";id="platform-ops-delivery-fail";type="visualization"},
   @{name="p_volume";id="platform-ops-volume-trend";type="visualization"}, @{name="p_levels";id="platform-ops-levels";type="visualization"}, @{name="p_ns";id="platform-ops-errors-by-namespace";type="visualization"}, @{name="p_errapp";id="platform-ops-top-error-workloads";type="visualization"}, @{name="p_recent";id="platform-ops-recent-warning-error";type="search"}, @{name="p_platform";id="platform-ops-by-platform";type="visualization"}, @{name="p_producer";id="platform-ops-top-producers";type="visualization"},
   @{name="p_reasons";id="platform-ops-k8s-reasons";type="visualization"}, @{name="p_scaling";id="platform-ops-scaling-events";type="search"}, @{name="p_argocd";id="platform-ops-argocd";type="visualization"}, @{name="p_harbor";id="platform-ops-harbor";type="visualization"}, @{name="p_core";id="platform-ops-core-components";type="visualization"},
-  @{name="p_logerr";id="platform-ops-logging-error";type="visualization"}, @{name="p_daily";id="platform-ops-daily-ingest";type="visualization"}, @{name="p_ingest";id="platform-ops-ingest-trend";type="visualization"}, @{name="p_usage";id="platform-ops-usage-by-namespace";type="visualization"}
+  @{name="p_logerr";id="platform-ops-logging-error";type="visualization"}, @{name="p_daily";id="platform-ops-daily-ingest";type="visualization"}, @{name="p_ingest";id="platform-ops-ingest-trend";type="visualization"}, @{name="p_usage";id="platform-ops-usage-by-namespace";type="visualization"}, @{name="p_unknown";id="platform-ops-unknown-apps";type="visualization"}
 )
 Save-Object "dashboard" "platform-logging-operations-v2" @{
   title="Platform Logging Operations v2"; description="Operational flow: current health, incident location, cluster changes, and logging platform health."; version=1; hits=0

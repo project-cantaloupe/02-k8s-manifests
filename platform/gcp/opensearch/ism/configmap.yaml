@@ -64,6 +64,7 @@ data:
             "pod": { "type": "keyword" },
             "container": { "type": "keyword" },
             "level": { "type": "keyword" },
+            "level_source": { "type": "keyword" },
             "message": { "type": "text" },
             "ingest_bytes": { "type": "long" },
             "event_reason": { "type": "keyword" },
@@ -92,6 +93,7 @@ data:
     {
       "properties": {
         "ingest_bytes": { "type": "long" },
+        "level_source": { "type": "keyword" },
         "event_reason": { "type": "keyword" },
         "event_kind": { "type": "keyword" },
         "event_name": { "type": "keyword" },

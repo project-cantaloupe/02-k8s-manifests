@@ -362,6 +362,11 @@ data:
       parse_kyverno_security(normalized, raw_message)
 
       local http_status = tonumber(record["http_status"] or normalized["http_status"])
+      if http_status == nil then
+        -- Generic NGINX/HTTP access fallback. Dedicated parsers remain the
+        -- source of structured route/method fields; this only derives level.
+        http_status = tonumber(string.match(raw_message, '"%s+(%d%d%d)%s+%d+'))
+      end
       if http_status ~= nil then
         normalized["http_status_class"] = tostring(math.floor(http_status / 100)) .. "xx"
         if http_status >= 500 then
@@ -371,20 +376,56 @@ data:
         else
           normalized["level"] = "info"
         end
+        normalized["level_source"] = "http_status"
       else
-        local declared_level = string.lower(record["level"] or "")
+        local nested_log = type(record["log"]) == "table" and record["log"] or {}
+        local declared_level = string.lower(tostring(
+          record["level"] or record["log.level"] or nested_log["level"]
+          or record["severity"] or record["severity_text"] or ""))
+        declared_level = string.match(declared_level, "^%s*(.-)%s*$")
         local message_lower = string.lower(normalized["message"])
+        local klog_level = string.match(raw_message, "^([IWEF])%d%d%d%d%s")
+        local text_level = string.match(message_lower, "[%s%p]level[=:][%s\"]*([%a]+)")
+          or string.match(message_lower, "^%S+%s+([%a]+)%s")
+        local accepted_text_levels = {
+          debug=true, trace=true, info=true, notice=true, warn=true,
+          warning=true, error=true, err=true, fatal=true, critical=true
+        }
+        if text_level ~= nil and not accepted_text_levels[text_level] then
+          text_level = nil
+        end
         if declared_level ~= "" then
+          if declared_level == "warn" then declared_level = "warning" end
+          if declared_level == "err" or declared_level == "fatal" or declared_level == "critical" then declared_level = "error" end
           normalized["level"] = declared_level
+          normalized["level_source"] = "declared"
+        elseif klog_level ~= nil then
+          normalized["level"] = ({ I="info", W="warning", E="error", F="error" })[klog_level]
+          normalized["level_source"] = "klog_prefix"
+        elseif text_level ~= nil then
+          if text_level == "warn" then text_level = "warning" end
+          if text_level == "err" or text_level == "fatal" or text_level == "critical" then text_level = "error" end
+          if text_level == "debug" or text_level == "trace" or text_level == "notice" then text_level = "info" end
+          normalized["level"] = text_level
+          normalized["level_source"] = "message_level"
         elseif string.find(message_lower, "error", 1, true)
           or string.find(message_lower, "fatal", 1, true)
           or string.find(message_lower, "exception", 1, true)
           or string.find(message_lower, "failed", 1, true) then
           normalized["level"] = "error"
+          normalized["level_source"] = "message_signal"
         elseif string.find(message_lower, "warn", 1, true) then
           normalized["level"] = "warning"
+          normalized["level_source"] = "message_signal"
+        elseif raw_message ~= "" then
+          -- A non-empty stdout record without severity or risk indicators is
+          -- normal operational output. Keep the inference explicit so it can
+          -- be audited separately from a declared info level.
+          normalized["level"] = "info"
+          normalized["level_source"] = "default_info"
         else
           normalized["level"] = "unknown"
+          normalized["level_source"] = "parser_failure"
         end
       end
 
