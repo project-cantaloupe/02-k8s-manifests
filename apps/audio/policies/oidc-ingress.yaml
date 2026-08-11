@@ -1,0 +1,44 @@
+# Gateway는 공개 조회를 익명으로 유지하고 쓰기 요청에는 유효한 Keycloak
+# Access Token을 요구한다. API도 같은 Issuer와 Audience를 다시 검증하므로
+# Gateway 우회 경로가 생겨도 JWT 검증 경계가 사라지지 않는다.
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: audio-keycloak
+  namespace: audio-ingress
+spec:
+  selector:
+    matchLabels:
+      app: audio-ingress
+  jwtRules:
+    - issuer: https://auth.echoprism.cloud/realms/cantaloupe
+      jwksUri: https://auth.echoprism.cloud/realms/cantaloupe/protocol/openid-connect/certs
+      audiences:
+        - audio-api
+      # API가 JWT를 독립적으로 검증하므로 원본 Authorization 헤더를 유지한다.
+      forwardOriginalToken: true
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: audio-keycloak
+  namespace: audio-ingress
+spec:
+  selector:
+    matchLabels:
+      app: audio-ingress
+  action: ALLOW
+  rules:
+    # 공개 카탈로그·재생·Health 조회와 CORS Preflight는 익명으로 허용한다.
+    # API가 비공개 Track 접근 시 소유권을 별도로 검사한다.
+    - to:
+        - operation:
+            methods:
+              - GET
+              - HEAD
+              - OPTIONS
+    # 쓰기 메서드는 RequestAuthentication을 통과한 JWT에만 허용한다.
+    - from:
+        - source:
+            requestPrincipals:
+              - "*"
