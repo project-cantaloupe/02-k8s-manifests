@@ -72,8 +72,19 @@ spec:
       #
       # 그래서 tailscale serve 를 여는 노드와 게이트 파드가 같은 노드여야
       # 하고, Dashboards 도 여기 있으므로 홉이 하나 준다.
+      #
+      # ⚠️ **`kubernetes.io/hostname` 을 쓰지 않는다.** Karpenter 가 거부한다 —
+      # *"using label kubernetes.io/hostname is not allowed as it might
+      # interfere with the internal provisioning logic"*. 스케줄링은 되더라도
+      # Karpenter 가 이 파드를 위해 노드를 못 띄운다.
+      #
+      # `platform` + `role` 이 이 프로젝트의 노드 라벨 규약이고
+      # (decisions/20260729_k8s-labeling-convention.md), 둘의 조합이
+      # cntlp-gcp-wk-02 를 유일하게 지목한다 — gcp 의 다른 노드는
+      # `role: monitoring` 이다.
       nodeSelector:
-        kubernetes.io/hostname: cntlp-gcp-wk-02
+        platform: gcp
+        role: logging
       containers:
         - name: oauth2-proxy
           image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
