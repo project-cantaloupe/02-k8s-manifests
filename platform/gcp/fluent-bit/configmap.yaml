@@ -283,6 +283,13 @@ data:
         is_security_event = true
       end
 
+      if is_security_event then
+        -- This OAuth2 Proxy deployment is dedicated to the OpenSearch
+        -- Dashboards OIDC client, so access-log events can be attributed to
+        -- the configured client even though the client ID is not printed.
+        normalized["client_id"] = "opensearch-dashboards"
+      end
+
       local email = string.match(message, "([%w%.%_%+%-]+@[%w%.%-]+%.[%a]+)")
       normalized["principal_masked"] = mask_principal(email)
       local source_ip = string.match(message, "^(%d+%.%d+%.%d+%.%d+)")

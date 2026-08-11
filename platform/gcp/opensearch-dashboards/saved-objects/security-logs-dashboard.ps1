@@ -49,7 +49,19 @@ $indexReference = @(@{
 })
 
 function Save-Metric {
-  param([string]$Id, [string]$Title, [string]$Query, [string]$Description)
+  param(
+    [string]$Id,
+    [string]$Title,
+    [string]$Query,
+    [string]$Description,
+    [bool]$AlertOnNonZero = $false
+  )
+  $metricColorMode = if ($AlertOnNonZero) { "Background" } else { "None" }
+  $colorRanges = if ($AlertOnNonZero) {
+    @(@{ from = 0; to = 1 }, @{ from = 1; to = 10000 })
+  } else {
+    @(@{ from = 0; to = 10000 })
+  }
   $visState = @{
     title = $Title
     type = "metric"
@@ -57,9 +69,9 @@ function Save-Metric {
     params = @{
       type = "metric"; addTooltip = $true; addLegend = $false
       metric = @{
-        percentageMode = $false; useRanges = $false; colorSchema = "Green to Red"
-        metricColorMode = "None"; invertColors = $false
-        colorsRange = @(@{ from = 0; to = 10000 })
+        percentageMode = $false; useRanges = $AlertOnNonZero; colorSchema = "Green to Red"
+        metricColorMode = $metricColorMode; invertColors = $false
+        colorsRange = $colorRanges
         labels = @{ show = $true }
         style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 52; subText = "" }
       }
@@ -135,7 +147,7 @@ function Save-TermsBar {
     title = $Title; type = "horizontal_bar"
     aggs = @(
       @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
-      @{ id = "2"; enabled = $true; type = "terms"; schema = "group"; params = @{ field = $Field; size = $Size; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $false } }
+      @{ id = "2"; enabled = $true; type = "terms"; schema = "segment"; params = @{ field = $Field; size = $Size; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $false } }
     )
     params = @{
       type = "histogram"; addTooltip = $true; addLegend = $false; legendPosition = "right"
@@ -174,11 +186,11 @@ Save-Object -Type visualization -Id "security-logs-scope-filters" -Attributes @{
   @{ name = "control_2_index_pattern"; id = $indexPatternId; type = "index-pattern" }
 ) -MigrationVersion @{ visualization = "7.10.0" }
 
-Save-Metric -Id "security-logs-auth-failures" -Title "Authentication Failures" -Query 'auth_result : failure' -Description "Failed, rejected, or invalid authentication attempts parsed by Fluent Bit."
+Save-Metric -Id "security-logs-auth-failures" -Title "Authentication Failures" -Query 'auth_result : failure' -Description "Failed, rejected, or invalid authentication attempts parsed by Fluent Bit." -AlertOnNonZero $true
 Save-Metric -Id "security-logs-auth-success" -Title "Authentication Successes" -Query 'auth_result : success' -Description "Successful Keycloak and OAuth2 Proxy authentication events."
-Save-Metric -Id "security-logs-callback-errors" -Title "OAuth Callback Errors" -Query 'security_event_type : oauth_callback and auth_result : failure' -Description "OAuth authorization-code redemption and callback failures."
-Save-Metric -Id "security-logs-logout-errors" -Title "Logout Errors" -Query 'security_event_type : keycloak_logout_error and auth_result : failure' -Description "Failed Keycloak logout events; use this to investigate sessions that were not terminated cleanly."
-Save-Metric -Id "security-logs-kyverno-violations" -Title "Kyverno Policy Violations" -Query 'security_event_type : kyverno_policy_violation' -Description "Explicitly failed, denied, blocked, or errored Kyverno policy decisions."
+Save-Metric -Id "security-logs-callback-errors" -Title "OAuth Callback Errors" -Query 'security_event_type : oauth_callback and auth_result : failure' -Description "OAuth authorization-code redemption and callback failures." -AlertOnNonZero $true
+Save-Metric -Id "security-logs-logout-errors" -Title "Logout Errors" -Query 'security_event_type : keycloak_logout_error and auth_result : failure' -Description "Failed Keycloak logout events; use this to investigate sessions that were not terminated cleanly." -AlertOnNonZero $true
+Save-Metric -Id "security-logs-kyverno-violations" -Title "Kyverno Policy Violations" -Query 'security_event_type : kyverno_policy_violation' -Description "Explicitly failed, denied, blocked, or errored Kyverno policy decisions." -AlertOnNonZero $true
 
 $timelineState = @{
   title = "Authentication Outcomes Over Time"; type = "line"
@@ -191,7 +203,7 @@ $timelineState = @{
       @{ label = "OAuth callback error"; input = @{ query = 'security_event_type : oauth_callback'; language = "kuery" } }
     ) } }
   )
-  params = @{ type = "line"; addTooltip = $true; addLegend = $true; legendPosition = "right"; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "Authentication events" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; lineWidth = 2; interpolation = "linear" }) }
+  params = @{ type = "line"; addTooltip = $true; addLegend = $true; legendPosition = "right"; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "Authentication events" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $false; lineWidth = 3; interpolation = "linear" }) }
 }
 Save-Object -Type visualization -Id "security-logs-events-over-time" -Attributes @{
   title = "Authentication Outcomes Over Time"; description = "Successes, failures, and callback errors over time. Compare rates within the same component before treating a rise as suspicious."; version = 1; uiStateJSON = "{}"
@@ -203,7 +215,7 @@ $componentState = @{
   title = "Security Events by Component"; type = "horizontal_bar"
   aggs = @(
     @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
-    @{ id = "2"; enabled = $true; type = "terms"; schema = "group"; params = @{ field = "app"; size = 10; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $false } }
+    @{ id = "2"; enabled = $true; type = "terms"; schema = "segment"; params = @{ field = "app"; size = 10; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $false } }
   )
   params = @{ type = "histogram"; addTooltip = $true; addLegend = $false; legendPosition = "right"; seriesParams = @(@{ data = @{ id = "1"; label = "Count" }; type = "histogram"; mode = "normal"; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; barWidth = 0.18 }) }
 }

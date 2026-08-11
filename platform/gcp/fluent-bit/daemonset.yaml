@@ -13,7 +13,7 @@ spec:
     metadata:
       annotations:
         fluentbit.io/exclude: "true"
-        checksum/fluent-bit-config: "security-callback-v3"
+        checksum/fluent-bit-config: "security-client-v4"
       labels:
         app: fluent-bit
         area: logging
