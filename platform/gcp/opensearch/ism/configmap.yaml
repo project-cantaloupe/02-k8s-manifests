@@ -65,6 +65,13 @@ data:
             "container": { "type": "keyword" },
             "level": { "type": "keyword" },
             "message": { "type": "text" },
+            "ingest_bytes": { "type": "long" },
+            "event_reason": { "type": "keyword" },
+            "event_kind": { "type": "keyword" },
+            "event_name": { "type": "keyword" },
+            "event_action": { "type": "keyword" },
+            "event_count": { "type": "long" },
+            "event_source": { "type": "keyword" },
             "http_status": { "type": "integer" },
             "http_status_class": { "type": "keyword" },
             "http_method": { "type": "keyword" },
@@ -84,6 +91,13 @@ data:
   platform-current-mapping.json: |
     {
       "properties": {
+        "ingest_bytes": { "type": "long" },
+        "event_reason": { "type": "keyword" },
+        "event_kind": { "type": "keyword" },
+        "event_name": { "type": "keyword" },
+        "event_action": { "type": "keyword" },
+        "event_count": { "type": "long" },
+        "event_source": { "type": "keyword" },
         "security_event_type": { "type": "keyword" },
         "auth_result": { "type": "keyword" },
         "realm": { "type": "keyword" },

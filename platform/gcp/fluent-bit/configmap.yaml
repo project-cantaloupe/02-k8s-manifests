@@ -354,6 +354,9 @@ data:
       -- are not platform failures; 5xx is a server-side error.
       local raw_message = record["msg"] or record["message"] or record["log"] or ""
       normalized["message"] = raw_message
+      -- Approximate bytes accepted from the source record. This is an ingest
+      -- volume measure for ownership/trend analysis, not Lucene disk usage.
+      normalized["ingest_bytes"] = string.len(raw_message)
       parse_keycloak_security(normalized, raw_message)
       parse_oauth2_security(normalized, raw_message)
       parse_kyverno_security(normalized, raw_message)

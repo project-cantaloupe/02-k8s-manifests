@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fluent-bit-events
+  labels:
+    app: fluent-bit-events
+    area: logging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fluent-bit-events
+  template:
+    metadata:
+      labels:
+        app: fluent-bit-events
+        area: logging
+    spec:
+      serviceAccountName: fluent-bit
+      nodeSelector:
+        platform: gcp
+        role: logging
+      containers:
+        - name: fluent-bit-events
+          image: cr.fluentbit.io/fluent/fluent-bit:3.1.9
+          args: ["-c", "/fluent-bit/etc/fluent-bit.conf"]
+          ports:
+            - name: metrics
+              containerPort: 2020
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 96Mi
+          volumeMounts:
+            - name: config
+              mountPath: /fluent-bit/etc
+            - name: state
+              mountPath: /fluent-bit/state
+      volumes:
+        - name: config
+          configMap:
+            name: fluent-bit-events-config
+        - name: state
+          emptyDir: {}
