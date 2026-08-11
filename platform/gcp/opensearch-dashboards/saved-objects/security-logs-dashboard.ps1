@@ -72,6 +72,33 @@ function Save-Metric {
   } -References $indexReference -MigrationVersion @{ visualization = "7.10.0" }
 }
 
+function Save-TermsBar {
+  param(
+    [string]$Id,
+    [string]$Title,
+    [string]$Query,
+    [string]$Field,
+    [string]$Description,
+    [int]$Size = 10
+  )
+  $visState = @{
+    title = $Title; type = "horizontal_bar"
+    aggs = @(
+      @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
+      @{ id = "2"; enabled = $true; type = "terms"; schema = "group"; params = @{ field = $Field; size = $Size; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $false } }
+    )
+    params = @{
+      type = "histogram"; addTooltip = $true; addLegend = $false; legendPosition = "right"
+      seriesParams = @(@{ data = @{ id = "1"; label = "Count" }; type = "histogram"; mode = "normal"; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; barWidth = 0.18 })
+    }
+  }
+  Save-Object -Type visualization -Id $Id -Attributes @{
+    title = $Title; description = $Description; version = 1; uiStateJSON = "{}"
+    visState = ConvertTo-CompactJson $visState
+    kibanaSavedObjectMeta = @{ searchSourceJSON = New-SearchSource $Query }
+  } -References $indexReference -MigrationVersion @{ visualization = "7.10.0" }
+}
+
 $controlsState = @{
   title = "Security Scope Filters"
   type = "input_control_vis"
@@ -95,22 +122,27 @@ Save-Object -Type visualization -Id "security-logs-scope-filters" -Attributes @{
   @{ name = "control_2_index_pattern"; id = $indexPatternId; type = "index-pattern" }
 ) -MigrationVersion @{ visualization = "7.10.0" }
 
-Save-Metric -Id "security-logs-total-events" -Title "Security Events" -Query $securityQuery -Description "Authentication events and Kyverno policy activity in the selected time range."
 Save-Metric -Id "security-logs-auth-failures" -Title "Authentication Failures" -Query 'auth_result : failure' -Description "Failed, rejected, or invalid authentication attempts parsed by Fluent Bit."
 Save-Metric -Id "security-logs-auth-success" -Title "Authentication Successes" -Query 'auth_result : success' -Description "Successful Keycloak and OAuth2 Proxy authentication events."
-Save-Metric -Id "security-logs-session-errors" -Title "Session / Callback Errors" -Query 'auth_result : failure and security_event_type : (keycloak_logout_error or oauth_callback)' -Description "Keycloak logout errors and OAuth callback redemption errors."
-Save-Metric -Id "security-logs-kyverno-activity" -Title "Kyverno Policy Activity" -Query 'security_event_type : kyverno_policy_activity' -Description "Policy processing activity found in Kyverno logs; this is not a policy violation count."
+Save-Metric -Id "security-logs-callback-errors" -Title "OAuth Callback Errors" -Query 'security_event_type : oauth_callback and auth_result : failure' -Description "OAuth authorization-code redemption and callback failures."
+Save-Metric -Id "security-logs-logout-errors" -Title "Logout Errors" -Query 'security_event_type : keycloak_logout_error and auth_result : failure' -Description "Failed Keycloak logout events; use this to investigate sessions that were not terminated cleanly."
+Save-Metric -Id "security-logs-kyverno-violations" -Title "Kyverno Policy Violations" -Query 'security_event_type : kyverno_policy_violation' -Description "Explicitly failed, denied, blocked, or errored Kyverno policy decisions."
 
 $timelineState = @{
-  title = "Security Events Over Time"; type = "line"
+  title = "Authentication Outcomes Over Time"; type = "line"
   aggs = @(
     @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
-    @{ id = "2"; enabled = $true; type = "date_histogram"; schema = "segment"; params = @{ field = "@timestamp"; interval = "auto"; min_doc_count = 1; extended_bounds = @{ min = ""; max = "" } } }
+    @{ id = "2"; enabled = $true; type = "date_histogram"; schema = "segment"; params = @{ field = "@timestamp"; interval = "auto"; min_doc_count = 1; extended_bounds = @{ min = ""; max = "" } } },
+    @{ id = "3"; enabled = $true; type = "filters"; schema = "group"; params = @{ filters = @(
+      @{ label = "Authentication failure"; input = @{ query = 'auth_result : failure'; language = "kuery" } },
+      @{ label = "Authentication success"; input = @{ query = 'auth_result : success'; language = "kuery" } },
+      @{ label = "OAuth callback error"; input = @{ query = 'security_event_type : oauth_callback'; language = "kuery" } }
+    ) } }
   )
-  params = @{ type = "line"; addTooltip = $true; addLegend = $false; legendPosition = "right"; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "Security events" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; lineWidth = 2; interpolation = "linear" }) }
+  params = @{ type = "line"; addTooltip = $true; addLegend = $true; legendPosition = "right"; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "Authentication events" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; lineWidth = 2; interpolation = "linear" }) }
 }
 Save-Object -Type visualization -Id "security-logs-events-over-time" -Attributes @{
-  title = "Security Events Over Time"; description = "Security event volume trend in the selected time range."; version = 1; uiStateJSON = "{}"
+  title = "Authentication Outcomes Over Time"; description = "Successes, failures, and callback errors over time. Compare rates within the same component before treating a rise as suspicious."; version = 1; uiStateJSON = "{}"
   visState = ConvertTo-CompactJson $timelineState
   kibanaSavedObjectMeta = @{ searchSourceJSON = New-SearchSource $securityQuery }
 } -References $indexReference -MigrationVersion @{ visualization = "7.10.0" }
@@ -119,15 +151,25 @@ $componentState = @{
   title = "Security Events by Component"; type = "horizontal_bar"
   aggs = @(
     @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
-    @{ id = "2"; enabled = $true; type = "terms"; schema = "group"; params = @{ field = "app"; size = 10; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $true } }
+    @{ id = "2"; enabled = $true; type = "terms"; schema = "group"; params = @{ field = "app"; size = 10; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $false } }
   )
-  params = @{ type = "histogram"; addTooltip = $true; addLegend = $false; legendPosition = "right"; seriesParams = @(@{ data = @{ id = "1"; label = "Count" }; type = "histogram"; mode = "normal"; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; barWidth = 0.35 }) }
+  params = @{ type = "histogram"; addTooltip = $true; addLegend = $false; legendPosition = "right"; seriesParams = @(@{ data = @{ id = "1"; label = "Count" }; type = "histogram"; mode = "normal"; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; barWidth = 0.18 }) }
 }
 Save-Object -Type visualization -Id "security-logs-events-by-component" -Attributes @{
   title = "Security Events by Component"; description = "Security events grouped by the emitting component."; version = 1; uiStateJSON = "{}"
   visState = ConvertTo-CompactJson $componentState
   kibanaSavedObjectMeta = @{ searchSourceJSON = New-SearchSource $securityQuery }
 } -References $indexReference -MigrationVersion @{ visualization = "7.10.0" }
+
+Save-TermsBar -Id "security-logs-failure-reasons" -Title "Authentication Failure Reasons" `
+  -Query 'auth_result : failure and error_code : *' -Field "error_code" `
+  -Description "Authentication failures grouped by normalized reason. Investigate sudden changes rather than blocking from this count alone."
+Save-TermsBar -Id "security-logs-failures-by-client" -Title "Repeated Failures by Client" `
+  -Query 'auth_result : failure and client_id : *' -Field "client_id" `
+  -Description "Clients producing repeated authentication failures. Compare with failure reason and time trend before taking action."
+Save-TermsBar -Id "security-logs-failures-by-network" -Title "Repeated Failures by Masked Network" `
+  -Query 'auth_result : failure and source_network : *' -Field "source_network" `
+  -Description "Repeated failures grouped by the masked source network; raw source IP addresses are not indexed."
 
 $classificationState = @{
   title = "Security Event Classification"; type = "pie"
@@ -138,7 +180,7 @@ $classificationState = @{
       @{ label = "OAuth rejection"; input = @{ query = 'app : oauth2-proxy and auth_result : failure'; language = "kuery" } },
       @{ label = "Authentication success"; input = @{ query = 'auth_result : success'; language = "kuery" } },
       @{ label = "Logout / callback error"; input = @{ query = 'security_event_type : (keycloak_logout_error or oauth_callback)'; language = "kuery" } },
-      @{ label = "Kyverno policy activity"; input = @{ query = 'security_event_type : kyverno_policy_activity'; language = "kuery" } }
+      @{ label = "Kyverno policy violation"; input = @{ query = 'security_event_type : kyverno_policy_violation'; language = "kuery" } }
     ) } }
   )
   params = @{ type = "pie"; addTooltip = $true; addLegend = $true; legendPosition = "right"; isDonut = $true; labels = @{ show = $true; values = $true; last_level = $true; truncate = 100 } }
@@ -159,26 +201,30 @@ Save-Object -Type search -Id "security-logs-recent-evidence" -Attributes @{
 
 $panels = @(
   @{ gridData = @{ x = 0; y = 0; w = 48; h = 5; i = "scope" }; panelIndex = "scope"; version = "7.10.0"; panelRefName = "panel_scope"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 0; y = 5; w = 10; h = 7; i = "total" }; panelIndex = "total"; version = "7.10.0"; panelRefName = "panel_total"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 10; y = 5; w = 10; h = 7; i = "failures" }; panelIndex = "failures"; version = "7.10.0"; panelRefName = "panel_failures"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 20; y = 5; w = 10; h = 7; i = "success" }; panelIndex = "success"; version = "7.10.0"; panelRefName = "panel_success"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 30; y = 5; w = 10; h = 7; i = "session" }; panelIndex = "session"; version = "7.10.0"; panelRefName = "panel_session"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 40; y = 5; w = 8; h = 7; i = "kyverno" }; panelIndex = "kyverno"; version = "7.10.0"; panelRefName = "panel_kyverno"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 0; y = 12; w = 30; h = 11; i = "timeline" }; panelIndex = "timeline"; version = "7.10.0"; panelRefName = "panel_timeline"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 30; y = 12; w = 18; h = 11; i = "component" }; panelIndex = "component"; version = "7.10.0"; panelRefName = "panel_component"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 0; y = 23; w = 18; h = 12; i = "classification" }; panelIndex = "classification"; version = "7.10.0"; panelRefName = "panel_classification"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 18; y = 23; w = 30; h = 12; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{ columns = @("collector_platform", "namespace", "app", "security_event_type", "auth_result", "client_id", "principal_masked", "source_network", "error_code", "policy_name", "message"); sort = @("@timestamp", "desc") } }
+  @{ gridData = @{ x = 0; y = 5; w = 10; h = 7; i = "failures" }; panelIndex = "failures"; version = "7.10.0"; panelRefName = "panel_failures"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 10; y = 5; w = 10; h = 7; i = "success" }; panelIndex = "success"; version = "7.10.0"; panelRefName = "panel_success"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 20; y = 5; w = 10; h = 7; i = "callback" }; panelIndex = "callback"; version = "7.10.0"; panelRefName = "panel_callback"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 30; y = 5; w = 9; h = 7; i = "logout" }; panelIndex = "logout"; version = "7.10.0"; panelRefName = "panel_logout"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 39; y = 5; w = 9; h = 7; i = "kyverno" }; panelIndex = "kyverno"; version = "7.10.0"; panelRefName = "panel_kyverno"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 0; y = 12; w = 34; h = 11; i = "timeline" }; panelIndex = "timeline"; version = "7.10.0"; panelRefName = "panel_timeline"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 34; y = 12; w = 14; h = 11; i = "component" }; panelIndex = "component"; version = "7.10.0"; panelRefName = "panel_component"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 0; y = 23; w = 16; h = 11; i = "reasons" }; panelIndex = "reasons"; version = "7.10.0"; panelRefName = "panel_reasons"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 16; y = 23; w = 16; h = 11; i = "clients" }; panelIndex = "clients"; version = "7.10.0"; panelRefName = "panel_clients"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 32; y = 23; w = 16; h = 11; i = "networks" }; panelIndex = "networks"; version = "7.10.0"; panelRefName = "panel_networks"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 0; y = 34; w = 48; h = 13; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{ columns = @("collector_platform", "namespace", "app", "security_event_type", "auth_result", "client_id", "principal_masked", "source_network", "error_code", "policy_name", "message"); sort = @("@timestamp", "desc") } }
 )
 $dashboardReferences = @(
   @{ name = "panel_scope"; id = "security-logs-scope-filters"; type = "visualization" },
-  @{ name = "panel_total"; id = "security-logs-total-events"; type = "visualization" },
   @{ name = "panel_failures"; id = "security-logs-auth-failures"; type = "visualization" },
   @{ name = "panel_success"; id = "security-logs-auth-success"; type = "visualization" },
-  @{ name = "panel_session"; id = "security-logs-session-errors"; type = "visualization" },
-  @{ name = "panel_kyverno"; id = "security-logs-kyverno-activity"; type = "visualization" },
+  @{ name = "panel_callback"; id = "security-logs-callback-errors"; type = "visualization" },
+  @{ name = "panel_logout"; id = "security-logs-logout-errors"; type = "visualization" },
+  @{ name = "panel_kyverno"; id = "security-logs-kyverno-violations"; type = "visualization" },
   @{ name = "panel_timeline"; id = "security-logs-events-over-time"; type = "visualization" },
   @{ name = "panel_component"; id = "security-logs-events-by-component"; type = "visualization" },
-  @{ name = "panel_classification"; id = "security-logs-event-classification"; type = "visualization" },
+  @{ name = "panel_reasons"; id = "security-logs-failure-reasons"; type = "visualization" },
+  @{ name = "panel_clients"; id = "security-logs-failures-by-client"; type = "visualization" },
+  @{ name = "panel_networks"; id = "security-logs-failures-by-network"; type = "visualization" },
   @{ name = "panel_evidence"; id = "security-logs-recent-evidence"; type = "search" }
 )
 Save-Object -Type dashboard -Id "security-logs-overview-v1" -Attributes @{

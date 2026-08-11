@@ -7,7 +7,8 @@ The dashboard intentionally contains log-derived security events only:
 
 - Keycloak authentication and logout events
 - OAuth2 Proxy authentication success, rejection, and callback errors
-- Kyverno policy processing activity (not presented as a violation count)
+- explicit Kyverno policy violations (failed, denied, blocked, or errored decisions)
+- authentication failure reasons and repeated failures by client and masked network
 - raw security-event evidence for investigation
 
 Pod health, availability, certificate state, and controller health remain in

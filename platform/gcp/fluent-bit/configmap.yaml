@@ -302,9 +302,22 @@ data:
         return false
       end
 
-      normalized["security_event_type"] = "kyverno_policy_activity"
       normalized["policy_name"] = policy
-      return true
+      normalized["policy_result"] = string.lower(string.match(message, "result=([^%s]+)") or "unknown")
+      normalized["rule_name"] = string.match(message, "rule=([^%s]+)")
+
+      -- Successful policy evaluation is operational telemetry, not a security
+      -- event. Only retain an event type when the log explicitly reports a
+      -- failed, denied, blocked, or errored policy decision.
+      local result = normalized["policy_result"]
+      if result == "fail" or result == "failed" or result == "deny"
+        or result == "denied" or result == "block" or result == "blocked"
+        or result == "error" then
+        normalized["security_event_type"] = "kyverno_policy_violation"
+        return true
+      end
+
+      return false
     end
 
     function normalize(tag, timestamp, record)
