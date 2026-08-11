@@ -43,10 +43,14 @@ containerSecurityContext:
 serviceMonitor:
   enabled: true
   namespace: monitoring
-  # S3 storage metrics are published once per day. Scraping more frequently
-  # only repeats paid CloudWatch API requests without producing new data.
-  interval: 24h
+  # S3 storage metrics are published once per day, but AWS does not guarantee
+  # an exact publication hour. Poll twice per day so a newly published daily
+  # sample is found within about 12 hours while avoiding unnecessary API calls.
+  interval: 12h
   timeout: 60s
+  # Preserve timestamps supplied by the exporter. S3 trend and freshness
+  # panels must use the CloudWatch source time, not the Prometheus scrape time.
+  honorTimestamps: true
   labels:
     release: monitoring
 
@@ -60,11 +64,11 @@ prometheusRule:
     release: monitoring
   rules:
     - record: cantaloupe:aws_s3_bucket_size_bytes
-      expr: last_over_time(aws_s3_bucket_size_bytes_average[48h])
+      expr: last_over_time(aws_s3_bucket_size_bytes_average[72h])
     - record: cantaloupe:aws_s3_number_of_objects
-      expr: last_over_time(aws_s3_number_of_objects_average[48h])
+      expr: last_over_time(aws_s3_number_of_objects_average[72h])
     - record: cantaloupe:cloudwatch_exporter_scrape_error
-      expr: last_over_time(cloudwatch_exporter_scrape_error[48h])
+      expr: last_over_time(cloudwatch_exporter_scrape_error[24h])
 
 # The pod runs only on an AWS service Worker and obtains temporary credentials
 # from the existing cntlp-aws-worker-node EC2 Instance Profile. No access key is
@@ -91,7 +95,9 @@ config: |-
       period_seconds: 86400
       range_seconds: 604800
       delay_seconds: 0
-      set_timestamp: false
+      # Keep the daily CloudWatch datapoint timestamp. Repeated polls may see
+      # the same sample, but Prometheus will retain its actual source date.
+      set_timestamp: true
 
     - aws_namespace: AWS/S3
       aws_metric_name: NumberOfObjects
@@ -106,4 +112,4 @@ config: |-
       period_seconds: 86400
       range_seconds: 604800
       delay_seconds: 0
-      set_timestamp: false
+      set_timestamp: true
