@@ -45,10 +45,11 @@ spec:
                 existingClaim: harbor-v2-database
               redis:
                 existingClaim: harbor-v2-redis
-              trivy:
-                existingClaim: harbor-v2-trivy
           trivy:
             enabled: true
+            persistence:
+              enabled: true
+              existingClaim: harbor-v2-trivy
             nodeSelector: &onpNode
               platform: onp
               role: devops
