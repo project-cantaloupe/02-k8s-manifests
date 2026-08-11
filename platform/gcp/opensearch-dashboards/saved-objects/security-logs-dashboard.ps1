@@ -238,6 +238,7 @@ $evidenceVegaSpec = @{
   '$schema' = "https://vega.github.io/schema/vega/v5.json"
   autosize = @{ type = "fit"; contains = "padding" }
   padding = 4
+  config = @{ text = @{ fontSize = 14 } }
   data = @(@{
     name = "events"
     url = @{
@@ -261,18 +262,18 @@ $evidenceVegaSpec = @{
     @{ type = "rule"; encode = @{ enter = @{ x = @{ value = 0 }; x2 = @{ signal = "width" }; y = @{ value = 25 }; stroke = @{ value = "#d3dae6" } } } },
     @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.00" }; y = @{ value = 16 }; text = @{ value = "Time" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
     @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.13" }; y = @{ value = 16 }; text = @{ value = "Platform" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.20" }; y = @{ value = 16 }; text = @{ value = "Namespace" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.28" }; y = @{ value = 16 }; text = @{ value = "App" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.37" }; y = @{ value = 16 }; text = @{ value = "Message" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.82" }; y = @{ value = 16 }; text = @{ value = "Event" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.92" }; y = @{ value = 16 }; text = @{ value = "Error" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.18" }; y = @{ value = 16 }; text = @{ value = "Namespace" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.24" }; y = @{ value = 16 }; text = @{ value = "App" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.30" }; y = @{ value = 16 }; text = @{ value = "Message" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.85" }; y = @{ value = 16 }; text = @{ value = "Event" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.94" }; y = @{ value = 16 }; text = @{ value = "Error" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
     @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.00" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "timeFormat(toDate(datum._source['@timestamp']), '%m-%d %H:%M:%S')" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.12" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source['@timestamp']" } } } },
-    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.13" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.collector_platform || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.06" }; ellipsis = @{ value = "..." } } } },
-    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.20" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.namespace || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.07" }; ellipsis = @{ value = "..." } } } },
-    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.28" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.app || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.08" }; ellipsis = @{ value = "..." } } } },
-    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.37" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.message || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.44" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.message" } } } },
-    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.82" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.security_event_type || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.09" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.security_event_type" } } } },
-    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.92" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.error_code || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.08" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.error_code" } } } }
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.13" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.collector_platform || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.04" }; ellipsis = @{ value = "..." } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.18" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.namespace || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.05" }; ellipsis = @{ value = "..." } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.24" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.app || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.05" }; ellipsis = @{ value = "..." } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.30" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.message || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.54" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.message" } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.85" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.security_event_type || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.08" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.security_event_type" } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.94" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.error_code || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.06" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.error_code" } } } }
   )
 }
 $evidenceVegaState = @{
