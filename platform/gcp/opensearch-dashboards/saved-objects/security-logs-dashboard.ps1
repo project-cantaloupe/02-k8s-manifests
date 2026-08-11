@@ -57,7 +57,7 @@ function Save-Metric {
     [int]$AlertThreshold = 0
   )
   $hasAlertThreshold = $AlertThreshold -gt 0
-  $metricColorMode = if ($hasAlertThreshold) { "Background" } else { "None" }
+  $metricColorMode = if ($hasAlertThreshold) { "Labels" } else { "None" }
   $colorRanges = if ($hasAlertThreshold) {
     @(@{ from = 0; to = $AlertThreshold }, @{ from = $AlertThreshold; to = 10000 })
   } else {
@@ -187,7 +187,7 @@ Save-Object -Type visualization -Id "security-logs-scope-filters" -Attributes @{
   @{ name = "control_2_index_pattern"; id = $indexPatternId; type = "index-pattern" }
 ) -MigrationVersion @{ visualization = "7.10.0" }
 
-Save-Metric -Id "security-logs-failure-spike" -Title "Authentication Failures / Last 5 Minutes" -Query 'auth_result : failure' -Description "Authentication failures during the panel's fixed five-minute window. The background changes at 50 events." -AlertThreshold 50
+Save-Metric -Id "security-logs-failure-spike" -Title "5m Failure Spike" -Query 'auth_result : failure' -Description "Authentication failures during the panel's fixed five-minute window. The number changes color at 50 events." -AlertThreshold 50
 Save-Metric -Id "security-logs-auth-failures" -Title "Authentication Failures" -Query 'auth_result : failure' -Description "Failed, rejected, or invalid authentication attempts parsed by Fluent Bit." -AlertThreshold 1
 Save-Metric -Id "security-logs-auth-success" -Title "Authentication Successes" -Query 'auth_result : success' -Description "Successful Keycloak and OAuth2 Proxy authentication events."
 Save-Metric -Id "security-logs-callback-errors" -Title "OAuth Callback Errors" -Query 'security_event_type : oauth_callback and auth_result : failure' -Description "OAuth authorization-code redemption and callback failures." -AlertThreshold 1
@@ -230,15 +230,9 @@ Save-Object -Type visualization -Id "security-logs-events-by-component" -Attribu
 Save-TermsBar -Id "security-logs-failure-reasons" -Title "Authentication Failure Reasons" `
   -Query 'auth_result : failure and error_code : *' -Field "error_code" `
   -Description "Authentication failures grouped by normalized reason. Investigate sudden changes rather than blocking from this count alone."
-Save-TermsBar -Id "security-logs-failures-by-client" -Title "Repeated Failures by Client" `
-  -Query 'auth_result : failure and client_id : *' -Field "client_id" `
-  -Description "Clients producing repeated authentication failures. Compare with failure reason and time trend before taking action."
 Save-TermsBar -Id "security-logs-failures-by-network" -Title "Repeated Failures by Masked Network" `
   -Query 'auth_result : failure and source_network : *' -Field "source_network" `
   -Description "Repeated failures grouped by the masked source network; raw source IP addresses are not indexed."
-Save-TermsBar -Id "security-logs-targeted-accounts" -Title "Top Targeted Accounts" `
-  -Query 'auth_result : failure and principal_masked : *' -Field "principal_masked" -Size 5 `
-  -Description "Masked accounts receiving the most authentication failures. Use with source network and failure reason before locking an account."
 
 $classificationState = @{
   title = "Security Event Classification"; type = "pie"
@@ -263,7 +257,7 @@ Save-Object -Type visualization -Id "security-logs-event-classification" -Attrib
 Save-Object -Type search -Id "security-logs-recent-evidence" -Attributes @{
   title = "Recent Security Event Evidence"
   description = "Structured security evidence. Principal and source IP values are masked by Fluent Bit before indexing."
-  columns = @("collector_platform", "namespace", "app", "security_event_type", "auth_result", "client_id", "principal_masked", "source_network", "error_code", "policy_name", "message")
+  columns = @("collector_platform", "namespace", "app", "message", "security_event_type", "error_code")
   sort = @("@timestamp", "desc"); hits = 0
   kibanaSavedObjectMeta = @{ searchSourceJSON = New-SearchSource $securityQuery }
 } -References $indexReference -MigrationVersion @{ search = "7.9.3" }
@@ -278,11 +272,9 @@ $panels = @(
   @{ gridData = @{ x = 40; y = 5; w = 8; h = 7; i = "kyverno" }; panelIndex = "kyverno"; version = "7.10.0"; panelRefName = "panel_kyverno"; embeddableConfig = @{} },
   @{ gridData = @{ x = 0; y = 12; w = 34; h = 11; i = "timeline" }; panelIndex = "timeline"; version = "7.10.0"; panelRefName = "panel_timeline"; embeddableConfig = @{} },
   @{ gridData = @{ x = 34; y = 12; w = 14; h = 11; i = "component" }; panelIndex = "component"; version = "7.10.0"; panelRefName = "panel_component"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 0; y = 23; w = 12; h = 11; i = "reasons" }; panelIndex = "reasons"; version = "7.10.0"; panelRefName = "panel_reasons"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 12; y = 23; w = 12; h = 11; i = "clients" }; panelIndex = "clients"; version = "7.10.0"; panelRefName = "panel_clients"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 24; y = 23; w = 12; h = 11; i = "networks" }; panelIndex = "networks"; version = "7.10.0"; panelRefName = "panel_networks"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 36; y = 23; w = 12; h = 11; i = "accounts" }; panelIndex = "accounts"; version = "7.10.0"; panelRefName = "panel_accounts"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 0; y = 34; w = 48; h = 13; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{ columns = @("collector_platform", "namespace", "app", "security_event_type", "auth_result", "client_id", "principal_masked", "source_network", "error_code", "policy_name", "message"); sort = @("@timestamp", "desc") } }
+  @{ gridData = @{ x = 0; y = 23; w = 24; h = 11; i = "reasons" }; panelIndex = "reasons"; version = "7.10.0"; panelRefName = "panel_reasons"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 24; y = 23; w = 24; h = 11; i = "networks" }; panelIndex = "networks"; version = "7.10.0"; panelRefName = "panel_networks"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 0; y = 34; w = 48; h = 13; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{ columns = @("collector_platform", "namespace", "app", "message", "security_event_type", "error_code"); sort = @("@timestamp", "desc") } }
 )
 $dashboardReferences = @(
   @{ name = "panel_scope"; id = "security-logs-scope-filters"; type = "visualization" },
@@ -295,9 +287,7 @@ $dashboardReferences = @(
   @{ name = "panel_timeline"; id = "security-logs-events-over-time"; type = "visualization" },
   @{ name = "panel_component"; id = "security-logs-events-by-component"; type = "visualization" },
   @{ name = "panel_reasons"; id = "security-logs-failure-reasons"; type = "visualization" },
-  @{ name = "panel_clients"; id = "security-logs-failures-by-client"; type = "visualization" },
   @{ name = "panel_networks"; id = "security-logs-failures-by-network"; type = "visualization" },
-  @{ name = "panel_accounts"; id = "security-logs-targeted-accounts"; type = "visualization" },
   @{ name = "panel_evidence"; id = "security-logs-recent-evidence"; type = "search" }
 )
 Save-Object -Type dashboard -Id "security-logs-overview-v1" -Attributes @{
