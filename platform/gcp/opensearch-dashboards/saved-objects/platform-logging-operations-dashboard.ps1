@@ -67,27 +67,33 @@ function Save-Visualization([string]$Id, [string]$Title, [string]$Description, $
     kibanaSavedObjectMeta = @{ searchSourceJSON = SearchSource $Query }
   } $indexReference @{ visualization = "7.10.0" }
 }
-function Save-Count([string]$Id, [string]$Title, [string]$Query, [string]$Description) {
+function Save-Count([string]$Id, [string]$Title, [string]$Query, [string]$Description, [switch]$Risk) {
+  $metricColorMode = if ($Risk) { "Labels" } else { "None" }
+  $useRanges = [bool]$Risk
+  $ranges = if ($Risk) { @(@{ from = 0; to = 1 }, @{ from = 1; to = 10000000 }) } else { @(@{ from = 0; to = 10000000 }) }
   Save-Visualization $Id $Title $Description @{
     title = $Title; type = "metric"
     aggs = @(@{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} })
-    params = @{ type = "metric"; addTooltip = $true; addLegend = $false; metric = @{ percentageMode = $false; useRanges = $false; colorSchema = "Green to Red"; metricColorMode = "None"; invertColors = $false; colorsRange = @(@{ from = 0; to = 10000 }); labels = @{ show = $true }; style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 48; subText = "" } } }
+    params = @{ type = "metric"; addTooltip = $true; addLegend = $false; metric = @{ percentageMode = $false; useRanges = $useRanges; colorSchema = "Green to Red"; metricColorMode = $metricColorMode; invertColors = $false; colorsRange = $ranges; labels = @{ show = $true }; style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 48; subText = "" } } }
   } $Query
 }
-function Save-Terms([string]$Id, [string]$Title, [string]$Query, [string]$Field, [string]$Description, [int]$Size = 10) {
+function Save-Terms([string]$Id, [string]$Title, [string]$Query, [string]$Field, [string]$Description, [int]$Size = 10, [string]$SeriesColor = "", [switch]$CategoryPalette, [hashtable]$Colors = @{}) {
+  $bucketSchema = if ($CategoryPalette) { "group" } else { "segment" }
+  $series = @{ data = @{ id = "1"; label = "Count" }; type = "histogram"; mode = "normal"; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; barWidth = 0.2 }
+  if ($SeriesColor) { $series.color = $SeriesColor }
   Save-Visualization $Id $Title $Description @{
     title = $Title; type = "horizontal_bar"
     aggs = @(
       @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
-      @{ id = "2"; enabled = $true; type = "terms"; schema = "segment"; params = @{ field = $Field; size = $Size; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $false } }
+      @{ id = "2"; enabled = $true; type = "terms"; schema = $bucketSchema; params = @{ field = $Field; size = $Size; order = "desc"; orderBy = "1"; otherBucket = $false; missingBucket = $false } }
     )
-    params = @{ type = "histogram"; addTooltip = $true; addLegend = $false; legendPosition = "right"; seriesParams = @(@{ data = @{ id = "1"; label = "Count" }; type = "histogram"; mode = "normal"; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; barWidth = 0.2 }) }
+    params = @{ type = "histogram"; addTooltip = $true; addLegend = [bool]$CategoryPalette; legendPosition = "right"; seriesParams = @($series); colors = $Colors }
   } $Query
 }
 function Save-GroupHeader([string]$Id, [string]$Title) {
   Save-Visualization $Id $Title $Title @{
     title = $Title; type = "markdown"; aggs = @()
-    params = @{ markdown = "## $Title"; openLinksInNewTab = $false; fontSize = 16 }
+    params = @{ markdown = "### $Title"; openLinksInNewTab = $false }
   }
 }
 
@@ -106,17 +112,17 @@ $controls = @{
 $controlRefs = 0..3 | ForEach-Object { @{ name = "control_$($_)_index_pattern"; id = $indexPatternId; type = "index-pattern" } }
 Save-Object "visualization" "platform-ops-scope-v2" @{ title = "조회 범위"; description = "플랫폼, 네임스페이스, 영역, 워크로드 순서의 단계별 필터입니다."; version = 1; uiStateJSON = "{}"; visState = Json $controls; kibanaSavedObjectMeta = @{ searchSourceJSON = Json @{ query = @{ query = ""; language = "kuery" }; filter = @() } } } $controlRefs @{ visualization = "7.10.0" }
 
-Save-GroupHeader "platform-ops-group-current" "① 운영 현황"
-Save-GroupHeader "platform-ops-group-incident" "② 장애 발생 위치 분석"
-Save-GroupHeader "platform-ops-group-cluster" "③ 클러스터 변경 및 이벤트"
-Save-GroupHeader "platform-ops-group-health" "④ 로그 플랫폼 상태"
+Save-GroupHeader "platform-ops-group-current" "1. 운영 현황"
+Save-GroupHeader "platform-ops-group-incident" "2. 장애 발생 위치 분석"
+Save-GroupHeader "platform-ops-group-cluster" "3. 클러스터 변경 및 이벤트"
+Save-GroupHeader "platform-ops-group-health" "4. 로그 플랫폼 상태"
 
 # 1. Current health
 Save-Count "platform-ops-total" "전체 로그" "" "선택한 시간 범위의 전체 플랫폼 로그입니다."
 Save-Count "platform-ops-warning" "경고 로그" 'level : warning' "정규화된 경고 로그입니다."
 Save-Count "platform-ops-error" "오류 로그" 'level : error' "정규화된 오류 로그입니다."
 Save-Count "platform-ops-k8s-warning" "K8s 경고" 'app : kubernetes-events and level : warning' "Kubernetes API에서 수집한 경고 이벤트입니다."
-Save-Count "platform-ops-delivery-fail" "전송 실패" 'namespace : logging and app : fluent-bit and level : error and message : (flush or retry or delivery or opensearch)' "Fluent Bit의 OpenSearch 전송 실패 이벤트입니다."
+Save-Count "platform-ops-delivery-fail" "전송 실패" 'namespace : logging and app : fluent-bit and level : error and message : (flush or retry or delivery or opensearch)' "Fluent Bit의 OpenSearch 전송 실패 이벤트입니다." -Risk
 
 $volume = @{ title = "시간대별 로그 발생량"; type = "line"; aggs = @(
   @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} },
@@ -132,10 +138,11 @@ Save-Visualization "platform-ops-levels" "로그 레벨 분포" "정규화된 �
 Save-Terms "platform-ops-unknown-apps" "Unknown 레벨 발생 상위 앱" 'level : unknown' "app" "빈 메시지 또는 파싱 실패가 발생한 앱을 확인하는 임시 진단 패널입니다." 15
 
 # 2. Incident location
-Save-Terms "platform-ops-errors-by-namespace" "네임스페이스별 경고/오류" 'level : (warning or error)' "namespace" "경고와 오류가 집중된 네임스페이스를 확인합니다." 15
-Save-Terms "platform-ops-top-error-workloads" "오류 발생 상위 워크로드" 'level : error' "app" "오류 로그를 가장 많이 발생시킨 워크로드입니다." 10
-Save-Terms "platform-ops-by-platform" "플랫폼별 로그 발생량" "" "collector_platform" "AWS, GCP, 온프레미스의 로그 발생량을 비교합니다." 10
-Save-Terms "platform-ops-top-producers" "로그 발생량 상위 소스" "" "app" "로그를 가장 많이 발생시킨 워크로드/앱입니다." 15
+$platformColors = @{ aws = "#00A69C"; gcp = "#5274C7"; onp = "#8E5EA2"; unknown = "#8A8A8A" }
+Save-Terms "platform-ops-errors-by-namespace" "네임스페이스별 경고/오류" 'level : (warning or error)' "namespace" "경고와 오류가 집중된 네임스페이스를 확인합니다." 15 "#D36086"
+Save-Terms "platform-ops-top-error-workloads" "오류 발생 상위 워크로드" 'level : error' "app" "오류 로그를 가장 많이 발생시킨 워크로드입니다." 10 "" -CategoryPalette
+Save-Terms "platform-ops-by-platform" "플랫폼별 로그 발생량" "" "collector_platform" "AWS, GCP, 온프레미스의 로그 발생량을 비교합니다." 10 "" -CategoryPalette -Colors $platformColors
+Save-Terms "platform-ops-top-producers" "로그 발생량 상위 소스" "" "app" "로그를 가장 많이 발생시킨 워크로드/앱입니다." 15 "" -CategoryPalette
 
 Save-Object "search" "platform-ops-recent-warning-error" @{
   title = "최근 경고/오류 로그"; description = "선택한 범위의 최신 경고 및 오류 로그입니다."; hits = 0
@@ -145,7 +152,7 @@ Save-Object "search" "platform-ops-recent-warning-error" @{
 } $indexReference @{ search = "7.9.3" }
 
 # 3. Cluster changes
-Save-Terms "platform-ops-k8s-reasons" "Kubernetes 경고 이벤트 주요 발생 원인" 'app : kubernetes-events and level : warning' "event_reason" "Kubernetes 경고 이벤트를 발생 원인별로 표시합니다." 12
+Save-Terms "platform-ops-k8s-reasons" "Kubernetes 경고 이벤트 주요 발생 원인" 'app : kubernetes-events and level : warning' "event_reason" "Kubernetes 경고 이벤트를 발생 원인별로 표시합니다." 12 "#F9AB00"
 Save-Object "search" "platform-ops-scaling-events" @{
   title = "스케일링 이벤트 타임라인"; description = "HPA, Karpenter, Node 및 스케줄링 이벤트를 시간순으로 확인합니다."; hits = 0
   columns = @("collector_platform", "namespace", "event_kind", "event_name", "event_reason", "message")
@@ -153,48 +160,100 @@ Save-Object "search" "platform-ops-scaling-events" @{
   kibanaSavedObjectMeta = @{ searchSourceJSON = SearchSource 'app : kubernetes-events and (event_reason : SuccessfulRescale or event_kind : NodeClaim or event_reason : (DisruptionBlocked or Disrupted or Registered or NodeReady or Scheduled))' }
 } $indexReference @{ search = "7.9.3" }
 Save-Count "platform-ops-argocd" "Argo CD 경고/오류" 'app : argocd* and level : (warning or error)' "Argo CD의 경고 및 오류 로그입니다."
-Save-Terms "platform-ops-harbor" "Harbor HTTP 상태" 'app : harbor* and http_status_class : (4xx or 5xx)' "http_status_class" "Harbor의 4xx 및 5xx 응답입니다." 4
 Save-Terms "platform-ops-core-components" "핵심 컴포넌트 경고/오류" 'level : (warning or error) and app : (jenkins or keycloak or oauth2-proxy or opensearch or opensearch-dashboards or cert-manager or external-secrets)' "app" "핵심 플랫폼 컴포넌트의 경고 및 오류입니다." 12
 
 # 4. Logging platform health and approximate source ingest
-Save-Count "platform-ops-logging-error" "로깅 스택 오류" 'namespace : logging and level : error' "로깅 스택에서 발생한 오류 로그입니다."
-$dailyIngest = @{ title = "일일 원본 로그 용량"; type = "metric"; aggs = @(@{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "용량" } }); params = @{ type = "metric"; addTooltip = $true; addLegend = $false; metric = @{ percentageMode = $false; useRanges = $false; metricColorMode = "None"; labels = @{ show = $true }; style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 42; subText = "원본 메시지 기준" } } } }
-Save-Visualization "platform-ops-daily-ingest" "일일 원본 로그 용량" "최근 24시간 동안 수집한 원본 메시지 용량의 근사치이며 MB/GB 단위로 표시합니다." $dailyIngest
-$ingestTrend = @{ title = "시간대별 원본 로그 용량"; type = "line"; aggs = @(
+Save-Count "platform-ops-logging-error" "로깅 스택 오류" 'namespace : logging and level : error' "로깅 스택에서 발생한 오류 로그입니다." -Risk
+$dailyIngest = @{ title = "최근 24시간 원본 로그 용량 (근사치)"; type = "metric"; aggs = @(@{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "용량" } }); params = @{ type = "metric"; addTooltip = $true; addLegend = $false; metric = @{ percentageMode = $false; useRanges = $false; metricColorMode = "None"; labels = @{ show = $true }; style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 42; subText = "원본 메시지 기준" } } } }
+Save-Visualization "platform-ops-daily-ingest" "최근 24시간 원본 로그 용량 (근사치)" "최근 24시간 SUM(ingest_bytes)이며 크기에 따라 B/KB/MB/GB로 표시합니다." $dailyIngest
+$ingestTrend = @{ title = "시간대별 원본 로그 용량 (근사치)"; type = "line"; aggs = @(
   @{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "용량" } },
   @{ id = "2"; enabled = $true; type = "date_histogram"; schema = "segment"; params = @{ field = "@timestamp"; interval = "auto"; min_doc_count = 1; extended_bounds = @{ min = ""; max = "" } } }
 ); params = @{ type = "line"; addTooltip = $true; addLegend = $false; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "용량" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $false; lineWidth = 2; interpolation = "linear" }) } }
-Save-Visualization "platform-ops-ingest-trend" "시간대별 원본 로그 용량" "시간대별 원본 메시지 용량의 근사치이며 MB/GB 단위로 표시합니다." $ingestTrend
-$usage = @{ title = "네임스페이스별 원본 로그 용량"; type = "table"; aggs = @(
-  @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{ customLabel = "문서 수" } },
-  @{ id = "2"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "원본 로그 용량" } },
-  @{ id = "3"; enabled = $true; type = "terms"; schema = "bucket"; params = @{ field = "namespace"; size = 30; order = "desc"; orderBy = "2"; otherBucket = $false; missingBucket = $false } }
-); params = @{ type = "table"; perPage = 15; showPartialRows = $false; showMetricsAtAllLevels = $false; sort = @{ columnIndex = 2; direction = "desc" }; showTotal = $false; totalFunc = "sum" } }
-Save-Visualization "platform-ops-usage-by-namespace" "네임스페이스별 원본 로그 용량" "네임스페이스별 문서 수와 원본 메시지 용량의 근사치입니다." $usage
+Save-Visualization "platform-ops-ingest-trend" "시간대별 원본 로그 용량 (근사치)" "시간대별 SUM(ingest_bytes)이며 크기에 따라 B/KB/MB/GB로 표시합니다." $ingestTrend
+$usageSpec = @{
+  '$schema' = "https://vega.github.io/schema/vega/v5.json"
+  autosize = @{ type = "fit"; contains = "padding" }
+  padding = 4
+  data = @(
+  @{
+    name = "totals"
+    url = @{
+      index = "cantaloupe-platform-logs-v2*"
+      body = @{
+        size = 0
+        query = @{ bool = @{ must = @("%dashboard_context-must_clause%"); filter = @("%dashboard_context-filter_clause%", @{ range = @{ "@timestamp" = @{ "%timefilter%" = $true } } }); must_not = @("%dashboard_context-must_not_clause%") } }
+        aggs = @{ total_bytes = @{ sum = @{ field = "ingest_bytes" } } }
+      }
+    }
+    format = @{ property = "aggregations" }
+    transform = @(
+      @{ type = "formula"; as = "constant"; expr = "1" },
+      @{ type = "formula"; as = "source_bytes"; expr = "datum.total_bytes.value" }
+    )
+  },
+  @{
+    name = "rows"
+    url = @{
+      index = "cantaloupe-platform-logs-v2*"
+      body = @{
+        size = 0
+        query = @{ bool = @{ must = @("%dashboard_context-must_clause%"); filter = @("%dashboard_context-filter_clause%", @{ range = @{ "@timestamp" = @{ "%timefilter%" = $true } } }); must_not = @("%dashboard_context-must_not_clause%") } }
+        aggs = @{ namespaces = @{ terms = @{ field = "namespace"; size = 1000; order = @{ bytes = "desc" } }; aggs = @{ bytes = @{ sum = @{ field = "ingest_bytes" } } } } }
+      }
+    }
+    format = @{ property = "aggregations.namespaces.buckets" }
+    transform = @(
+      @{ type = "formula"; as = "source_bytes"; expr = "datum.bytes.value" },
+      @{ type = "formula"; as = "constant"; expr = "1" },
+      @{ type = "lookup"; from = "totals"; key = "constant"; fields = @("constant"); values = @("source_bytes"); as = @("total_bytes") },
+      @{ type = "formula"; as = "ratio"; expr = "datum.total_bytes > 0 ? datum.source_bytes / datum.total_bytes * 100 : 0" },
+      @{ type = "window"; ops = @("row_number"); as = @("row_number") }
+    )
+  })
+  scales = @(
+    @{ name = "rowY"; type = "band"; domain = @{ data = "rows"; field = "row_number" }; range = @(@{ signal = "28" }, @{ signal = "height" }); padding = 0.12 },
+    @{ name = "namespaceColor"; type = "ordinal"; domain = @{ data = "rows"; field = "key" }; range = @{ scheme = "category10" } }
+  )
+  marks = @(
+    @{ type = "rule"; encode = @{ enter = @{ x = @{ value = 0 }; x2 = @{ signal = "width" }; y = @{ value = 24 }; stroke = @{ value = "#d3dae6" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.01" }; y = @{ value = 17 }; text = @{ value = "네임스페이스" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.34" }; y = @{ value = 17 }; text = @{ value = "로그 수" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.52" }; y = @{ value = 17 }; text = @{ value = "원본 로그 용량(근사치)" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.80" }; y = @{ value = 17 }; text = @{ value = "원본 로그 용량 비율" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
+    @{ type = "symbol"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.01" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.55 }; size = @{ value = 45 }; fill = @{ scale = "namespaceColor"; field = "key" } } } },
+    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.025" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ field = "key" }; fontSize = @{ value = 13 }; limit = @{ signal = "width*0.29" }; ellipsis = @{ value = "..." } } } },
+    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.34" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "format(datum.doc_count, ',')" }; fontSize = @{ value = 13 } } } },
+    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.52" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum.source_bytes >= 1073741824 ? format(datum.source_bytes/1073741824, '.2f') + ' GB' : datum.source_bytes >= 1048576 ? format(datum.source_bytes/1048576, '.1f') + ' MB' : datum.source_bytes >= 1024 ? format(datum.source_bytes/1024, '.1f') + ' KB' : format(datum.source_bytes, ',') + ' B'" }; fontSize = @{ value = 13 } } } },
+    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.80" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "format(datum.ratio, '.1f') + '%'" }; fontSize = @{ value = 13 } } } }
+  )
+}
+$usageState = @{ title = "네임스페이스별 원본 로그 용량"; type = "vega"; aggs = @(); params = @{ spec = Json $usageSpec; enableExternalUrls = $false } }
+Save-Visualization "platform-ops-usage-by-namespace" "네임스페이스별 원본 로그 용량" "네임스페이스별 로그 수, SUM(ingest_bytes), 전체 SUM 대비 비율입니다." $usageState
 
 $panels = @()
 function Panel([string]$Index, [string]$Ref, [int]$X, [int]$Y, [int]$W, [int]$H, $Config = @{}) { @{ gridData = @{ x=$X; y=$Y; w=$W; h=$H; i=$Index }; panelIndex=$Index; version="7.10.0"; panelRefName=$Ref; embeddableConfig=$Config } }
 $panels += Panel "scope" "p_scope" 0 0 48 5
-$panels += Panel "group-current" "p_group_current" 0 5 48 3 @{ hidePanelTitles=$true }
-$panels += Panel "total" "p_total" 0 8 10 7; $panels += Panel "warning" "p_warning" 10 8 9 7; $panels += Panel "error" "p_error" 19 8 9 7; $panels += Panel "k8s" "p_k8s" 28 8 10 7; $panels += Panel "delivery" "p_delivery" 38 8 10 7
-$panels += Panel "volume" "p_volume" 0 15 32 10; $panels += Panel "levels" "p_levels" 32 15 16 10
-$panels += Panel "group-incident" "p_group_incident" 0 25 48 3 @{ hidePanelTitles=$true }
-$panels += Panel "ns" "p_ns" 0 28 24 10; $panels += Panel "errapp" "p_errapp" 24 28 24 10
-$panels += Panel "recent" "p_recent" 0 38 48 12 @{ columns=@("collector_platform","namespace","app","level","message"); sort=@("@timestamp","desc") }
-$panels += Panel "platform" "p_platform" 0 50 24 10; $panels += Panel "producer" "p_producer" 24 50 24 10
-$panels += Panel "group-cluster" "p_group_cluster" 0 60 48 3 @{ hidePanelTitles=$true }
-$panels += Panel "reasons" "p_reasons" 0 63 24 10; $panels += Panel "scaling" "p_scaling" 24 63 24 10
-$panels += Panel "argocd" "p_argocd" 0 73 14 8; $panels += Panel "harbor" "p_harbor" 14 73 16 8; $panels += Panel "core" "p_core" 30 73 18 8
-$panels += Panel "group-health" "p_group_health" 0 81 48 3 @{ hidePanelTitles=$true }
-$panels += Panel "delivery2" "p_delivery" 0 84 12 7; $panels += Panel "logerr" "p_logerr" 12 84 12 7; $panels += Panel "daily" "p_daily" 24 84 12 7 @{ timeRange=@{from="now-24h";to="now"} }; $panels += Panel "ingest" "p_ingest" 36 84 12 7
-$panels += Panel "usage" "p_usage" 0 91 48 12
-$panels += Panel "unknown" "p_unknown" 0 103 48 10
+$panels += Panel "group-current" "p_group_current" 0 5 48 2 @{ hidePanelTitles=$true }
+$panels += Panel "total" "p_total" 0 7 10 7; $panels += Panel "warning" "p_warning" 10 7 9 7; $panels += Panel "error" "p_error" 19 7 9 7; $panels += Panel "k8s" "p_k8s" 28 7 10 7; $panels += Panel "delivery" "p_delivery" 38 7 10 7
+$panels += Panel "volume" "p_volume" 0 14 32 10; $panels += Panel "levels" "p_levels" 32 14 16 10
+$panels += Panel "group-incident" "p_group_incident" 0 24 48 2 @{ hidePanelTitles=$true }
+$panels += Panel "ns" "p_ns" 0 26 24 10; $panels += Panel "errapp" "p_errapp" 24 26 24 10
+$panels += Panel "recent" "p_recent" 0 36 48 12 @{ columns=@("collector_platform","namespace","app","level","message"); sort=@("@timestamp","desc") }
+$panels += Panel "platform" "p_platform" 0 48 24 10; $panels += Panel "producer" "p_producer" 24 48 24 10
+$panels += Panel "group-cluster" "p_group_cluster" 0 58 48 2 @{ hidePanelTitles=$true }
+$panels += Panel "reasons" "p_reasons" 0 60 24 10; $panels += Panel "scaling" "p_scaling" 24 60 24 10
+$panels += Panel "argocd" "p_argocd" 0 70 24 8; $panels += Panel "core" "p_core" 24 70 24 8
+$panels += Panel "group-health" "p_group_health" 0 78 48 2 @{ hidePanelTitles=$true }
+$panels += Panel "delivery2" "p_delivery" 0 80 12 7; $panels += Panel "logerr" "p_logerr" 12 80 12 7; $panels += Panel "daily" "p_daily" 24 80 12 7 @{ timeRange=@{from="now-24h";to="now"} }; $panels += Panel "ingest" "p_ingest" 36 80 12 7
+$panels += Panel "usage" "p_usage" 0 87 48 12
+$panels += Panel "unknown" "p_unknown" 0 99 48 10
 
 $refs = @(
   @{name="p_scope";id="platform-ops-scope-v2";type="visualization"}, @{name="p_group_current";id="platform-ops-group-current";type="visualization"}, @{name="p_group_incident";id="platform-ops-group-incident";type="visualization"}, @{name="p_group_cluster";id="platform-ops-group-cluster";type="visualization"}, @{name="p_group_health";id="platform-ops-group-health";type="visualization"},
   @{name="p_total";id="platform-ops-total";type="visualization"}, @{name="p_warning";id="platform-ops-warning";type="visualization"}, @{name="p_error";id="platform-ops-error";type="visualization"}, @{name="p_k8s";id="platform-ops-k8s-warning";type="visualization"}, @{name="p_delivery";id="platform-ops-delivery-fail";type="visualization"},
   @{name="p_volume";id="platform-ops-volume-trend";type="visualization"}, @{name="p_levels";id="platform-ops-levels";type="visualization"}, @{name="p_ns";id="platform-ops-errors-by-namespace";type="visualization"}, @{name="p_errapp";id="platform-ops-top-error-workloads";type="visualization"}, @{name="p_recent";id="platform-ops-recent-warning-error";type="search"}, @{name="p_platform";id="platform-ops-by-platform";type="visualization"}, @{name="p_producer";id="platform-ops-top-producers";type="visualization"},
-  @{name="p_reasons";id="platform-ops-k8s-reasons";type="visualization"}, @{name="p_scaling";id="platform-ops-scaling-events";type="search"}, @{name="p_argocd";id="platform-ops-argocd";type="visualization"}, @{name="p_harbor";id="platform-ops-harbor";type="visualization"}, @{name="p_core";id="platform-ops-core-components";type="visualization"},
+  @{name="p_reasons";id="platform-ops-k8s-reasons";type="visualization"}, @{name="p_scaling";id="platform-ops-scaling-events";type="search"}, @{name="p_argocd";id="platform-ops-argocd";type="visualization"}, @{name="p_core";id="platform-ops-core-components";type="visualization"},
   @{name="p_logerr";id="platform-ops-logging-error";type="visualization"}, @{name="p_daily";id="platform-ops-daily-ingest";type="visualization"}, @{name="p_ingest";id="platform-ops-ingest-trend";type="visualization"}, @{name="p_usage";id="platform-ops-usage-by-namespace";type="visualization"}, @{name="p_unknown";id="platform-ops-unknown-apps";type="visualization"}
 )
 Save-Object "dashboard" "platform-logging-operations-v2" @{
