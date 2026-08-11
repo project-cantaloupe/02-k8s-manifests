@@ -61,11 +61,13 @@ prometheusRule:
     release: monitoring
   rules:
     - record: cantaloupe:aws_s3_bucket_size_bytes
-      expr: last_over_time(aws_s3_bucket_size_bytes_average[72h])
+      # Drop exporter topology labels so a Pod rollout cannot duplicate a
+      # bucket's value while the previous series remains in the lookback.
+      expr: max by (bucket_name, storage_type) (last_over_time(aws_s3_bucket_size_bytes_average[72h]))
     - record: cantaloupe:aws_s3_number_of_objects
-      expr: last_over_time(aws_s3_number_of_objects_average[72h])
+      expr: max by (bucket_name, storage_type) (last_over_time(aws_s3_number_of_objects_average[72h]))
     - record: cantaloupe:cloudwatch_exporter_scrape_error
-      expr: last_over_time(cloudwatch_exporter_scrape_error[24h])
+      expr: max(last_over_time(cloudwatch_exporter_scrape_error{job="cloudwatch-exporter-prometheus-cloudwatch-exporter"}[24h])) or vector(1)
 
 # The pod runs only on an AWS service Worker and obtains temporary credentials
 # from the existing cntlp-aws-worker-node EC2 Instance Profile. No access key is
