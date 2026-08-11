@@ -35,6 +35,29 @@ The KEDA cron prewarm is disabled while every load CronJob is suspended. Burst
 capacity is activated only by real transcode Queue backlog until scheduled-peak
 is deliberately resumed.
 
+The `steady`, `scheduled-peak`, and `unexpected-burst` profiles create private
+audio records. They are intentionally absent from the public `/discover` page.
+Only the one-item `web-validation` profile uses `AUDIO_VISIBILITY=public` and is
+expected to appear in the Web UI.
+
+## Result validity
+
+The Collector waits five minutes after each Run so delayed CloudWatch SQS
+samples can arrive, then retries collection every ten minutes during the
+experiment window. A manually cloned Job must retain the top-level
+`experiment=audio-finops` label; the rendered CronJob templates include it.
+
+- `run_functional_success=1` means every requested audio was submitted and READY.
+- `run_metrics_complete=1` means Worker counters, processing P95, Queue and drain
+  evidence were all present and internally consistent.
+- `run_info=1` requires both conditions, no real API/Base Worker rollout, and no
+  terminal Job failure.
+
+KEDA replica changes are expected experiment behavior and do not invalidate a
+Run. If KEDA scales the Burst Worker but CloudWatch misses a sub-minute Queue
+spike, functional success remains visible while Queue measurement completeness
+is zero. Such a Run is useful as a smoke test but not as a formal FinOps sample.
+
 ## Candidate decision
 
 The candidate is not predetermined. After valid baseline runs, choose it from:
