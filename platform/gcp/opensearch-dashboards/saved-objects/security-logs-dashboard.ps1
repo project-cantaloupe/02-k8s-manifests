@@ -72,6 +72,56 @@ function Save-Metric {
   } -References $indexReference -MigrationVersion @{ visualization = "7.10.0" }
 }
 
+function Ensure-SecurityIndexPatternFields {
+  $endpoint = "$($DashboardsUrl.TrimEnd('/'))/api/saved_objects/index-pattern/$indexPatternId"
+  $existingJson = curl.exe -k -sS --fail-with-body -H "osd-xsrf: true" $endpoint
+  if ($LASTEXITCODE -ne 0) { throw "Failed to read index pattern $indexPatternId`: $existingJson" }
+
+  $existing = $existingJson | ConvertFrom-Json
+  $parsedFields = ConvertFrom-Json -InputObject $existing.attributes.fields
+  # Windows PowerShell 5.1 can preserve a previously wrapped array as a
+  # single object with a `value` property. Unwrap it so Dashboards receives
+  # the flat field-definition array it expects.
+  $fields = @()
+  foreach ($item in @($parsedFields)) {
+    if ($item.PSObject.Properties.Name -contains "value") {
+      $fields += @($item.value)
+    } elseif ($item.PSObject.Properties.Name -contains "name") {
+      $fields += $item
+    }
+  }
+  $securityFields = @(
+    @{ name = "security_event_type"; type = "string"; esTypes = @("keyword") },
+    @{ name = "auth_result"; type = "string"; esTypes = @("keyword") },
+    @{ name = "realm"; type = "string"; esTypes = @("keyword") },
+    @{ name = "client_id"; type = "string"; esTypes = @("keyword") },
+    @{ name = "error_code"; type = "string"; esTypes = @("keyword") },
+    @{ name = "principal_masked"; type = "string"; esTypes = @("keyword") },
+    @{ name = "source_network"; type = "string"; esTypes = @("keyword") },
+    @{ name = "policy_name"; type = "string"; esTypes = @("keyword") },
+    @{ name = "policy_result"; type = "string"; esTypes = @("keyword") },
+    @{ name = "rule_name"; type = "string"; esTypes = @("keyword") }
+  )
+
+  foreach ($field in $securityFields) {
+    if (-not ($fields | Where-Object { $_.name -eq $field.name })) {
+      $fields += [pscustomobject]@{
+        name = $field.name; type = $field.type; esTypes = $field.esTypes
+        scripted = $false; searchable = $true; aggregatable = $true
+        readFromDocValues = $true
+      }
+    }
+  }
+
+  $attributes = @{}
+  foreach ($property in $existing.attributes.PSObject.Properties) {
+    $attributes[$property.Name] = $property.Value
+  }
+  $attributes["fields"] = ConvertTo-Json -InputObject $fields -Depth 20 -Compress
+  Save-Object -Type "index-pattern" -Id $indexPatternId -Attributes $attributes `
+    -References @($existing.references) -MigrationVersion @{ "index-pattern" = "7.6.0" }
+}
+
 function Save-TermsBar {
   param(
     [string]$Id,
@@ -98,6 +148,8 @@ function Save-TermsBar {
     kibanaSavedObjectMeta = @{ searchSourceJSON = New-SearchSource $Query }
   } -References $indexReference -MigrationVersion @{ visualization = "7.10.0" }
 }
+
+Ensure-SecurityIndexPatternFields
 
 $controlsState = @{
   title = "Security Scope Filters"
