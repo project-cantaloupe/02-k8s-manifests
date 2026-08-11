@@ -1,0 +1,159 @@
+# Prometheus 와 OpenCost 앞의 인증 게이트.
+#
+# **둘 다 로그인 화면이라는 것이 없다.** NodePort 로 열려 있던 동안
+# tailnet 참여자 누구나 메트릭과 비용 데이터를 읽을 수 있었다
+# → tasks/.../015_sso-loose-ends.md A1
+#
+# ── 왜 루트(`/`)에 마운트하나 ───────────────────────────────────
+#
+# `tailscale serve --set-path <접두사>` 는 백엔드에 넘기기 **전에 접두사를
+# 뗀다.** 서브패스에 건 프록시는 자기가 어느 접두사 아래 있는지 모르고,
+# 로그인 뒤 돌려보낼 때 그 접두사를 잃는다.
+#
+#   브라우저 /logs/api/status → 로그인 → /api/status 로 착지 → 404
+#
+# 로깅 게이트에서 실제로 난 버그다. 접두사가 없으면 안팎의 좌표계가
+# 같아져 이 문제가 성립하지 않는다. 그래서 이 게이트는 루트에 살고
+# **경로 분기를 프록시가 직접 한다.**
+# → findings/20260811_group-mapping-verified-and-two-corrections.md
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: monitoring-gateway
+  namespace: monitoring
+spec:
+  refreshInterval: 1h
+  # SecretStore 는 grafana-oidc-secret.yaml 이 이미 만들어 둔 것을 쓴다.
+  # 네임스페이스 범위라 monitoring 밖의 시크릿은 못 꺼낸다.
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: SecretStore
+  target:
+    name: monitoring-gateway
+    creationPolicy: Owner
+  data:
+    - secretKey: client-id
+      remoteRef: { key: cntlp/oidc/monitoring-gateway, property: client_id }
+    - secretKey: client-secret
+      remoteRef: { key: cntlp/oidc/monitoring-gateway, property: client_secret }
+    - secretKey: cookie-secret
+      remoteRef: { key: cntlp/oidc/monitoring-gateway, property: cookie_secret }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-gateway
+  namespace: monitoring
+  labels: &lbl
+    app: monitoring-gateway
+    area: monitoring
+    platform: gcp
+    cost-allocation: shared
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-gateway
+  template:
+    metadata:
+      labels: *lbl
+    spec:
+      # ⚠️ **tailscale serve 가 있는 노드에 고정한다.** serve 는
+      # `127.0.0.1:<nodePort>` 로 보내는데, Service 가 `Local` 정책이면
+      # 파드가 없는 노드에서는 조용히 아무 응답이 없다. 아래 Service 를
+      # `Cluster` 로 두었으므로 필수는 아니지만 홉이 하나 준다.
+      nodeSelector:
+        kubernetes.io/hostname: cntlp-gcp-wk-01
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
+          args:
+            - --provider=keycloak-oidc
+            - --oidc-issuer-url=https://auth.echoprism.cloud/realms/cantaloupe
+            # 루트 마운트라 접두사가 없다. `--proxy-prefix` 기본값
+            # (`/oauth2`)과 그대로 맞는다 — 로깅 게이트에서 이 둘이
+            # 어긋나 무한 루프가 났다.
+            - --redirect-url=https://cntlp-gcp-wk-01.tail270b85.ts.net/oauth2/callback
+            - --proxy-prefix=/oauth2
+
+            # ── 경로 분기 ─────────────────────────────────────────
+            #
+            # 업스트림 URL 의 경로가 **마운트 지점**이다. 요청 경로는
+            # 그대로 전달되므로, Prometheus 는 자기가 `/prometheus` 아래
+            # 있다는 것을 알아야 한다 → kube-prometheus-stack values 의
+            # `routePrefix: /prometheus`.
+            #
+            # ⚠️ **순서가 중요하다.** `/` 는 나머지 전부를 받으므로
+            # 더 긴 경로를 먼저 둔다.
+            - --upstream=http://monitoring-prometheus.monitoring.svc.cluster.local:9090/prometheus/
+            - --upstream=http://opencost.monitoring.svc.cluster.local:9090/
+
+            - --http-address=0.0.0.0:4180
+            - --scope=openid profile email groups
+            # C2 에서 정했다 — 셋 다 읽기 전용 관측 표면이고 `finops` 는
+            # OpenCost 가 존재하는 이유다. `apps` 만 막는다
+            # → decisions/20260811_oidc-group-role-mapping.md
+            - --oidc-groups-claim=groups
+            - --allowed-group=platform-admin
+            - --allowed-group=devops
+            - --allowed-group=secops
+            - --allowed-group=finops
+            - --set-xauthrequest=true
+            - --pass-access-token=false
+            - --code-challenge-method=S256
+            # TLS 종료는 tailscale serve 가 한다. 프록시는 평문으로 받는다.
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --email-domain=*
+            - --skip-provider-button=true
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom: { secretKeyRef: { name: monitoring-gateway, key: client-id } }
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: monitoring-gateway, key: client-secret } }
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom: { secretKeyRef: { name: monitoring-gateway, key: cookie-secret } }
+          ports:
+            - containerPort: 4180
+              name: http
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet: { path: /ping, port: 4180 }
+            initialDelaySeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-gateway
+  namespace: monitoring
+  labels:
+    app: monitoring-gateway
+    area: monitoring
+    platform: gcp
+    cost-allocation: shared
+spec:
+  type: NodePort
+  # 파드가 옮겨가도 안 깨지도록 `Cluster` 로 둔다. `Local` 이면 파드가
+  # 없는 노드에서 **거절이 아니라 무응답**이 되어 진단이 어렵다.
+  externalTrafficPolicy: Cluster
+  selector:
+    app: monitoring-gateway
+  ports:
+    - port: 4180
+      targetPort: 4180
+      nodePort: 30919
+      name: http
