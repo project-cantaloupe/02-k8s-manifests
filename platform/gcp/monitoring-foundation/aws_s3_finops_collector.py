@@ -328,17 +328,21 @@ def policy_metrics(now):
             if rule.get("Status") != "Enabled":
                 continue
             for transition in rule.get("Transitions") or []:
-                labels = {**base, "storage_type": STORAGE_TYPES.get(transition.get("StorageClass", ""), transition.get("StorageClass", "unknown"))}
-                lines.append(sample("cantaloupe_s3_bucket_lifecycle_transition_days", transition.get("Days", 0), labels))
+                days = transition.get("Days", 0)
+                labels = {**base, "days": str(days), "storage_type": STORAGE_TYPES.get(transition.get("StorageClass", ""), transition.get("StorageClass", "unknown"))}
+                lines.append(sample("cantaloupe_s3_bucket_lifecycle_transition_days", days, labels))
             current_expiration = rule.get("Expiration") or {}
             if "Days" in current_expiration:
-                lines.append(sample("cantaloupe_s3_bucket_current_expiration_days", current_expiration["Days"], base))
+                labels = {**base, "days": str(current_expiration["Days"])}
+                lines.append(sample("cantaloupe_s3_bucket_current_expiration_days", current_expiration["Days"], labels))
             for transition in rule.get("NoncurrentVersionTransitions") or []:
-                labels = {**base, "storage_type": STORAGE_TYPES.get(transition.get("StorageClass", ""), transition.get("StorageClass", "unknown"))}
-                lines.append(sample("cantaloupe_s3_bucket_noncurrent_transition_days", transition.get("NoncurrentDays", 0), labels))
+                days = transition.get("NoncurrentDays", 0)
+                labels = {**base, "days": str(days), "storage_type": STORAGE_TYPES.get(transition.get("StorageClass", ""), transition.get("StorageClass", "unknown"))}
+                lines.append(sample("cantaloupe_s3_bucket_noncurrent_transition_days", days, labels))
             noncurrent_expiration = rule.get("NoncurrentVersionExpiration", {})
             if "NoncurrentDays" in noncurrent_expiration:
-                lines.append(sample("cantaloupe_s3_bucket_noncurrent_expiration_days", noncurrent_expiration["NoncurrentDays"], base))
+                labels = {**base, "days": str(noncurrent_expiration["NoncurrentDays"])}
+                lines.append(sample("cantaloupe_s3_bucket_noncurrent_expiration_days", noncurrent_expiration["NoncurrentDays"], labels))
 
     lines.extend([
         sample("cantaloupe_s3_policy_collection_timestamp_seconds", int(now.timestamp())),
