@@ -48,9 +48,7 @@ data:
   AUDIO_MAXIMUM_DURATION_SECONDS: "7200"
   METRICS_PORT: "9090"
 
-  # 브라우저는 Keycloak Authorization Code + PKCE로 로그인하고 Access Token을
-  # 전달한다. API는 Discovery와 JWKS를 사용해 서명·발급자·대상·만료를 검증한
-  # 뒤 JWT의 sub를 소유자 식별자로 사용한다.
-  AUTH_MODE: oidc
-  OIDC_ISSUER_URL: https://auth.echoprism.cloud/realms/cantaloupe
-  OIDC_AUDIENCE: audio-api
+  # Public Audio 사용자를 내부 운영자 Realm과 분리할 때까지 인증을 닫는다.
+  # disabled 모드는 Bearer Token과 개발용 Subject Header를 모두 무시한다.
+  # 공개 Gateway도 조회 메서드만 허용하므로 Upload·변경 요청은 이중으로 막힌다.
+  AUTH_MODE: disabled
