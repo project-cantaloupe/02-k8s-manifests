@@ -17,6 +17,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: apps
+  # KEDA owns the burst worker's replica count (0-1). Argo CD must reconcile
+  # the workload definition without fighting KEDA's runtime scaling decisions.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: audio-transcode-burst
+      namespace: apps
+      jsonPointers:
+        - /spec/replicas
   syncPolicy:
     automated:
       prune: true
@@ -33,5 +42,7 @@ spec:
       # → governance/namespaces/apps.yaml
       - CreateNamespace=false
       - ServerSideApply=true
+      # Do not overwrite the replica count owned by the KEDA ScaledObject.
+      - RespectIgnoreDifferences=true
       # Istio CRD가 아직 없는 상태에서도 첫 동기화가 실패하지 않게 한다.
       - SkipDryRunOnMissingResource=true
