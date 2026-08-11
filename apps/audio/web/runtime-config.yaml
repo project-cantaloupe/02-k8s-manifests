@@ -1,6 +1,6 @@
-# OIDC Issuer와 Client ID는 브라우저에 전달되는 공개 설정이다. API의 인증
-# 모드와 같은 GitOps 변경으로 전환해 Web 이미지와 API 설정의 시점 차이를 없앤다.
-# 비밀번호, Client Secret, Token은 이 파일에 넣지 않는다.
+# Public Audio 사용자용 인증 경계가 준비되기 전까지 로그인과 업로드를 닫는다.
+# API의 AUTH_MODE와 같은 GitOps 변경으로 전환해 Web이 존재하지 않는 로그인
+# 경로를 노출하거나 개발용 Subject를 만드는 상태를 막는다.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,10 +9,5 @@ metadata:
 data:
   runtime-config.js: |
     window.__CNTLP_RUNTIME_CONFIG__ = Object.freeze({
-      authMode: "oidc",
-      oidcIssuerUrl: "https://auth.echoprism.cloud/realms/cantaloupe",
-      oidcClientId: "audio-web",
-      oidcRedirectUri: "https://audio.echoprism.cloud/auth/callback",
-      oidcPostLogoutRedirectUri: "https://audio.echoprism.cloud/",
-      oidcScope: "openid profile email",
+      authMode: "disabled",
     });

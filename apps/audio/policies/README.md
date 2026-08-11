@@ -1,13 +1,14 @@
 # Audio Security Policies
 
-## Keycloak OIDC
+## Public Read-only Boundary
 
-`oidc-ingress.yaml`은 `audio-ingress` Gateway에서 Keycloak Access Token의 Issuer,
-JWKS 서명과 `audio-api` Audience를 검증한다. 공개 `GET`·`HEAD`와 Preflight
-`OPTIONS`는 익명으로 허용하고, 쓰기 요청은 인증된 Principal만 허용한다.
+`public-readonly-ingress.yaml`은 `audio-ingress` Gateway에서 공개 `GET`·`HEAD`와
+Preflight `OPTIONS`만 허용한다. Public Audio Identity가 내부 운영자 Realm에서
+분리될 때까지 로그인·가입·업로드는 노출하지 않는다.
 
-원본 Token은 API로 전달하며 API가 동일한 값을 다시 검증한다. Gateway 정책은 공개
-진입점의 1차 경계이고 API 검증은 우회 경로에도 유지되는 최종 인증 경계다.
+API도 `AUTH_MODE=disabled`에서 Bearer Token과 개발용 Subject Header를 모두 무시해
+인증 필수 Endpoint를 `401`로 닫는다. Gateway 정책은 공개 진입점의 1차 경계이고
+API의 Disabled Authenticator는 우회 경로에도 유지되는 최종 인증 경계다.
 
 ## IMDS Egress
 

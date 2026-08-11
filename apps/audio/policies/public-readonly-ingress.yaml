@@ -1,0 +1,22 @@
+# Public Audio identity is intentionally disabled until it is separated from
+# the internal operator realm. The public gateway therefore exposes read-only
+# methods and CORS preflight only. Internal Service traffic does not cross this
+# gateway, and the API independently rejects protected requests in disabled
+# authentication mode.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: audio-public-readonly
+  namespace: audio-ingress
+spec:
+  selector:
+    matchLabels:
+      app: audio-ingress
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            methods:
+              - GET
+              - HEAD
+              - OPTIONS
