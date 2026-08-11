@@ -11,6 +11,7 @@ metadata:
 spec:
   schedule: "0 14 * * 2-4"
   timeZone: Asia/Seoul
+  suspend: true
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 4
   failedJobsHistoryLimit: 4
@@ -86,6 +87,7 @@ metadata:
 spec:
   schedule: "0 21 * * 2-4"
   timeZone: Asia/Seoul
+  suspend: true
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 4
   failedJobsHistoryLimit: 4
@@ -239,6 +241,7 @@ metadata:
 spec:
   schedule: "30 18 * * 2-4"
   timeZone: Asia/Seoul
+  suspend: true
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 4
   failedJobsHistoryLimit: 4
