@@ -134,10 +134,10 @@ spec:
     requests:
       storage: 2Gi
 ---
----
 apiVersion: v1
 kind: PersistentVolume
-name: harbor-v2-trivy-pv
+metadata:
+  name: harbor-v2-trivy-pv
 spec:
   capacity:
     storage: 10Gi
