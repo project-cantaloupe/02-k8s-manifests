@@ -70,7 +70,13 @@ function Save-Visualization([string]$Id, [string]$Title, [string]$Description, $
 function Save-Count([string]$Id, [string]$Title, [string]$Query, [string]$Description, [switch]$Risk) {
   $metricColorMode = if ($Risk) { "Labels" } else { "None" }
   $useRanges = [bool]$Risk
-  $ranges = if ($Risk) { @(@{ from = 0; to = 1 }, @{ from = 1; to = 10000000 }) } else { @(@{ from = 0; to = 10000000 }) }
+  $ranges = @()
+  if ($Risk) {
+    $ranges += @{ from = 0; to = 1 }
+    $ranges += @{ from = 1; to = 10000000 }
+  } else {
+    $ranges += @{ from = 0; to = 10000000 }
+  }
   Save-Visualization $Id $Title $Description @{
     title = $Title; type = "metric"
     aggs = @(@{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{} })
@@ -80,7 +86,7 @@ function Save-Count([string]$Id, [string]$Title, [string]$Query, [string]$Descri
 function Save-Terms([string]$Id, [string]$Title, [string]$Query, [string]$Field, [string]$Description, [int]$Size = 10, [string]$SeriesColor = "", [switch]$CategoryPalette, [hashtable]$Colors = @{}) {
   $bucketSchema = if ($CategoryPalette) { "group" } else { "segment" }
   $series = @{ data = @{ id = "1"; label = "Count" }; type = "histogram"; mode = "normal"; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $true; barWidth = 0.2 }
-  if ($SeriesColor) { $series.color = $SeriesColor }
+  if ($SeriesColor) { $series.color = $SeriesColor } elseif (-not $CategoryPalette) { $series.color = "#5274C7" }
   Save-Visualization $Id $Title $Description @{
     title = $Title; type = "horizontal_bar"
     aggs = @(
@@ -140,9 +146,9 @@ Save-Terms "platform-ops-unknown-apps" "Unknown 레벨 발생 상위 앱" 'level
 # 2. Incident location
 $platformColors = @{ aws = "#00A69C"; gcp = "#5274C7"; onp = "#8E5EA2"; unknown = "#8A8A8A" }
 Save-Terms "platform-ops-errors-by-namespace" "네임스페이스별 경고/오류" 'level : (warning or error)' "namespace" "경고와 오류가 집중된 네임스페이스를 확인합니다." 15 "#D36086"
-Save-Terms "platform-ops-top-error-workloads" "오류 발생 상위 워크로드" 'level : error' "app" "오류 로그를 가장 많이 발생시킨 워크로드입니다." 10 "" -CategoryPalette
+Save-Terms "platform-ops-top-error-workloads" "오류 발생 상위 워크로드" 'level : error' "app" "오류 로그를 가장 많이 발생시킨 워크로드입니다." 10
 Save-Terms "platform-ops-by-platform" "플랫폼별 로그 발생량" "" "collector_platform" "AWS, GCP, 온프레미스의 로그 발생량을 비교합니다." 10 "" -CategoryPalette -Colors $platformColors
-Save-Terms "platform-ops-top-producers" "로그 발생량 상위 소스" "" "app" "로그를 가장 많이 발생시킨 워크로드/앱입니다." 15 "" -CategoryPalette
+Save-Terms "platform-ops-top-producers" "로그 발생량 상위 소스" "" "app" "로그를 가장 많이 발생시킨 워크로드/앱입니다." 15
 
 Save-Object "search" "platform-ops-recent-warning-error" @{
   title = "최근 경고/오류 로그"; description = "선택한 범위의 최신 경고 및 오류 로그입니다."; hits = 0
@@ -164,13 +170,13 @@ Save-Terms "platform-ops-core-components" "핵심 컴포넌트 경고/오류" 'l
 
 # 4. Logging platform health and approximate source ingest
 Save-Count "platform-ops-logging-error" "로깅 스택 오류" 'namespace : logging and level : error' "로깅 스택에서 발생한 오류 로그입니다." -Risk
-$dailyIngest = @{ title = "최근 24시간 원본 로그 용량 (근사치)"; type = "metric"; aggs = @(@{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "용량" } }); params = @{ type = "metric"; addTooltip = $true; addLegend = $false; metric = @{ percentageMode = $false; useRanges = $false; metricColorMode = "None"; labels = @{ show = $true }; style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 42; subText = "원본 메시지 기준" } } } }
-Save-Visualization "platform-ops-daily-ingest" "최근 24시간 원본 로그 용량 (근사치)" "최근 24시간 SUM(ingest_bytes)이며 크기에 따라 B/KB/MB/GB로 표시합니다." $dailyIngest
-$ingestTrend = @{ title = "시간대별 원본 로그 용량 (근사치)"; type = "line"; aggs = @(
+$dailyIngest = @{ title = "최근 24시간 원본 로그 용량(근사치)"; type = "metric"; aggs = @(@{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "용량" } }); params = @{ type = "metric"; addTooltip = $true; addLegend = $false; metric = @{ percentageMode = $false; useRanges = $false; colorSchema = "Green to Red"; metricColorMode = "None"; invertColors = $false; colorsRange = @(@{ from = 0; to = 1000000000000 }); labels = @{ show = $true }; style = @{ bgFill = "#000"; bgColor = $false; labelColor = $false; fontSize = 42; subText = "원본 메시지 기준" } } } }
+Save-Visualization "platform-ops-daily-ingest" "최근 24시간 원본 로그 용량(근사치)" "최근 24시간 SUM(ingest_bytes)이며 크기에 따라 B/KB/MB/GB로 표시합니다." $dailyIngest
+$ingestTrend = @{ title = "시간대별 원본 로그 용량(근사치)"; type = "line"; aggs = @(
   @{ id = "1"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "용량" } },
   @{ id = "2"; enabled = $true; type = "date_histogram"; schema = "segment"; params = @{ field = "@timestamp"; interval = "auto"; min_doc_count = 1; extended_bounds = @{ min = ""; max = "" } } }
 ); params = @{ type = "line"; addTooltip = $true; addLegend = $false; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "용량" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $false; lineWidth = 2; interpolation = "linear" }) } }
-Save-Visualization "platform-ops-ingest-trend" "시간대별 원본 로그 용량 (근사치)" "시간대별 SUM(ingest_bytes)이며 크기에 따라 B/KB/MB/GB로 표시합니다." $ingestTrend
+Save-Visualization "platform-ops-ingest-trend" "시간대별 원본 로그 용량(근사치)" "시간대별 SUM(ingest_bytes)이며 크기에 따라 B/KB/MB/GB로 표시합니다." $ingestTrend
 $usageSpec = @{
   '$schema' = "https://vega.github.io/schema/vega/v5.json"
   autosize = @{ type = "fit"; contains = "padding" }
@@ -211,18 +217,14 @@ $usageSpec = @{
       @{ type = "window"; ops = @("row_number"); as = @("row_number") }
     )
   })
-  scales = @(
-    @{ name = "rowY"; type = "band"; domain = @{ data = "rows"; field = "row_number" }; range = @(@{ signal = "28" }, @{ signal = "height" }); padding = 0.12 },
-    @{ name = "namespaceColor"; type = "ordinal"; domain = @{ data = "rows"; field = "key" }; range = @{ scheme = "category10" } }
-  )
+  scales = @(@{ name = "rowY"; type = "band"; domain = @{ data = "rows"; field = "row_number" }; range = @(@{ signal = "28" }, @{ signal = "height" }); padding = 0.12 })
   marks = @(
     @{ type = "rule"; encode = @{ enter = @{ x = @{ value = 0 }; x2 = @{ signal = "width" }; y = @{ value = 24 }; stroke = @{ value = "#d3dae6" } } } },
     @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.01" }; y = @{ value = 17 }; text = @{ value = "네임스페이스" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
     @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.34" }; y = @{ value = 17 }; text = @{ value = "로그 수" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
     @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.52" }; y = @{ value = 17 }; text = @{ value = "원본 로그 용량(근사치)" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
     @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.80" }; y = @{ value = 17 }; text = @{ value = "원본 로그 용량 비율" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
-    @{ type = "symbol"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.01" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.55 }; size = @{ value = 45 }; fill = @{ scale = "namespaceColor"; field = "key" } } } },
-    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.025" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ field = "key" }; fontSize = @{ value = 13 }; limit = @{ signal = "width*0.29" }; ellipsis = @{ value = "..." } } } },
+    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.01" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ field = "key" }; fontSize = @{ value = 13 }; limit = @{ signal = "width*0.31" }; ellipsis = @{ value = "..." } } } },
     @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.34" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "format(datum.doc_count, ',')" }; fontSize = @{ value = 13 } } } },
     @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.52" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum.source_bytes >= 1073741824 ? format(datum.source_bytes/1073741824, '.2f') + ' GB' : datum.source_bytes >= 1048576 ? format(datum.source_bytes/1048576, '.1f') + ' MB' : datum.source_bytes >= 1024 ? format(datum.source_bytes/1024, '.1f') + ' KB' : format(datum.source_bytes, ',') + ' B'" }; fontSize = @{ value = 13 } } } },
     @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.80" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "format(datum.ratio, '.1f') + '%'" }; fontSize = @{ value = 13 } } } }
@@ -245,9 +247,10 @@ $panels += Panel "group-cluster" "p_group_cluster" 0 58 48 2 @{ hidePanelTitles=
 $panels += Panel "reasons" "p_reasons" 0 60 24 10; $panels += Panel "scaling" "p_scaling" 24 60 24 10
 $panels += Panel "argocd" "p_argocd" 0 70 24 8; $panels += Panel "core" "p_core" 24 70 24 8
 $panels += Panel "group-health" "p_group_health" 0 78 48 2 @{ hidePanelTitles=$true }
-$panels += Panel "delivery2" "p_delivery" 0 80 12 7; $panels += Panel "logerr" "p_logerr" 12 80 12 7; $panels += Panel "daily" "p_daily" 24 80 12 7 @{ timeRange=@{from="now-24h";to="now"} }; $panels += Panel "ingest" "p_ingest" 36 80 12 7
-$panels += Panel "usage" "p_usage" 0 87 48 12
-$panels += Panel "unknown" "p_unknown" 0 99 48 10
+$panels += Panel "delivery2" "p_delivery" 0 80 24 7; $panels += Panel "logerr" "p_logerr" 24 80 24 7
+$panels += Panel "daily" "p_daily" 0 87 24 11 @{ timeRange=@{from="now-24h";to="now"} }; $panels += Panel "ingest" "p_ingest" 24 87 24 11
+$panels += Panel "usage" "p_usage" 0 98 48 12
+$panels += Panel "unknown" "p_unknown" 0 110 48 10
 
 $refs = @(
   @{name="p_scope";id="platform-ops-scope-v2";type="visualization"}, @{name="p_group_current";id="platform-ops-group-current";type="visualization"}, @{name="p_group_incident";id="platform-ops-group-incident";type="visualization"}, @{name="p_group_cluster";id="platform-ops-group-cluster";type="visualization"}, @{name="p_group_health";id="platform-ops-group-health";type="visualization"},
