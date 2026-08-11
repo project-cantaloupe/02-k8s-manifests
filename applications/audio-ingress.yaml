@@ -19,19 +19,20 @@ spec:
         # 게이트웨이 가용성이자 곧 **WAF 대수**다
         # → platform/aws/audio-waf/wasm-plugin.yaml
         #
-        # ⚠️ 2 로 올렸다가 1 로 되돌렸다. 2026-08-11 에 wk-02 를 죽였다.
+        # ⚠️ 2 로 올렸다가 1 로 되돌렸다. 2026-08-11 에 wk-02 가 17 분간
+        # NotReady 였다. **원인은 미확정이다** → findings/20260811_wk-02-io-stall.md
         #
-        # WAF 를 얹으면 파드가 44Mi → 270Mi 가 된다(실측). NLB 타겟 노드는
-        # wk-01·wk-02 둘뿐이고 wk-02 는 Keycloak·CloudWatch exporter 2 개가
-        # 올라간 79% 노드였다. 거기에 270Mi 를 더하니 kubelet 이 굶어
-        # 노드가 NotReady 로 떨어졌다.
+        # 처음에 메모리라고 적었으나 **틀렸다.** 커널 OOM 기록이 없고, 지금
+        # 같은 노드가 WAF 파드를 올린 채 898MB 여유로 돈다. 실제 신호는 I/O 다 —
+        # EBS 큐 길이가 0.08 → 2.4 로 30 배 튀었다.
         #
-        # **CONSTRAINTS.md 를 어긴 것이다** — "인터넷 노출 게이트웨이는
-        # Keycloak 워커에 합치지 않는다" → decisions/20260806_aws-node-placement.md
-        # podAntiAffinity 로 흩으면 후보가 그 두 대뿐이라 자동으로 위반된다.
+        # 창 안에 후보가 둘이라 가릴 수 없었다: 이 파드의 기동과, 다른
+        # 세션의 fluent-bit 파서 변경. 옛 fluent-bit 파드는 노드와 함께 죽어
+        # 로그가 없다.
         #
-        # 2 로 되돌리려면 **NLB 타겟이면서 Keycloak 이 없는 노드**가 한 대
-        # 더 있어야 한다 → findings/20260811_waf-memory-killed-wk-02.md
+        # **원인이 확정될 때까지 1 로 둔다.** 되돌리는 조건과 절차는 021 이
+        # 갖는다. 참고로 WAF 는 파드 메모리를 44Mi → 270Mi 로 올린다(실측) —
+        # 이번 사고의 원인은 아니지만 노드 여유 계산에는 넣어야 하는 값이다.
         replicaCount: 1
         autoscaling:
           enabled: false
@@ -132,19 +133,19 @@ spec:
                     app: audio-ingress
                 topologyKey: kubernetes.io/hostname
 
-              # ⚠️ **Keycloak 과 같은 노드에 뜨지 않는다.** 규약을 주석이
-              # 아니라 스케줄러가 강제하게 한다 — 2026-08-11 에 이걸 주석으로만
-              # 알고 있다가 wk-02 를 죽였다.
+              # ⚠️ **Keycloak 과 같은 노드에 뜨지 않는다.**
               #
               # "인터넷 노출 게이트웨이는 Keycloak 워커에 합치지 않는다"
               # → decisions/20260806_aws-node-placement.md, CONSTRAINTS.md
               #
-              # 이유는 배치 취향이 아니라 메모리다. Keycloak(JVM)+CloudWatch
-              # exporter 2 개가 올라간 t3.small 은 79% 다. WAF 를 얹은
-              # 게이트웨이는 270Mi 를 쓴다(실측). 합치면 kubelet 이 굶는다.
+              # 이 규약은 원래 주석에도 없어서 2026-08-11 에 replicas 2 +
+              # podAntiAffinity 로 흩는 순간 조용히 깨졌다. NLB 타겟 노드가
+              # wk-01·wk-02 둘뿐이라 흩으면 자동으로 Keycloak 워커에 얹힌다.
+              # **규약을 문서가 아니라 스케줄러가 강제하게 한다.**
               #
-              # 라벨로 거는 것이 노드 이름으로 거는 것보다 낫다 — Keycloak 이
-              # 옮겨가면 게이트웨이의 후보 노드도 따라서 바뀐다
+              # 노드 라벨(platform=aws, role=service)은 세 노드가 동일해서
+              # Keycloak 워커를 구분해주지 않는다 — 그래서 노드가 아니라
+              # 파드 라벨로 건다. Keycloak 이 옮겨가면 후보 노드도 따라 바뀐다
               - labelSelector:
                   matchLabels:
                     app: keycloak
