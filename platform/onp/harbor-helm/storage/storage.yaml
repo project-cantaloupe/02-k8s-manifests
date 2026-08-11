@@ -134,6 +134,40 @@ spec:
     requests:
       storage: 2Gi
 ---
+---
+apiVersion: v1
+kind: PersistentVolume
+name: harbor-v2-trivy-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /data/harbor-v2/trivy
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [cntlp-onp-wk-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harbor-v2-trivy
+  namespace: harbor-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: harbor-v2-trivy-pv
+  resources:
+    requests:
+      storage: 10Gi
+---
 # hostPath DirectoryOrCreate makes directories root-owned. Harbor components run
 # unprivileged, so initialize ownership once before the Helm Application starts.
 apiVersion: batch/v1
@@ -163,7 +197,7 @@ spec:
             - |
               # Only the volume roots need initialization. Recursing through a
               # live database/registry can race with files created by Harbor.
-              chown 10000:10000 /storage/registry /storage/jobservice
+              chown 10000:10000 /storage/registry /storage/jobservice /storage/trivy
               chown 999:999 /storage/database /storage/redis
           securityContext:
             runAsUser: 0
@@ -183,6 +217,8 @@ spec:
               mountPath: /storage/database
             - name: redis
               mountPath: /storage/redis
+            - name: trivy
+              mountPath: /storage/trivy
       volumes:
         - name: registry
           persistentVolumeClaim:
@@ -196,3 +232,7 @@ spec:
         - name: redis
           persistentVolumeClaim:
             claimName: harbor-v2-redis
+        - name: trivy
+          persistentVolumeClaim:
+            claimName: harbor-v2-trivy
+
