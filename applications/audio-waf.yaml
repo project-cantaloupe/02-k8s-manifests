@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: audio-waf
+  namespace: devops
+  annotations:
+    # wave -9. audio-ingress(-10) 가 게이트웨이를 세운 **뒤**,
+    # app-audio(0) 가 워크로드를 올리기 **전**이다.
+    # WasmPlugin CRD 자체는 istio-base(-30) 가 설치한다.
+    argocd.argoproj.io/sync-wave: "-9"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
+    targetRevision: main
+    path: platform/aws/audio-waf
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: audio-ingress
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      # 네임스페이스는 governance/namespaces/audio-ingress.yaml 이 만든다
+      - CreateNamespace=false
+      - ServerSideApply=true
