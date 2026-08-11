@@ -1,4 +1,15 @@
-# Audio IMDS Egress Policy
+# Audio Security Policies
+
+## Keycloak OIDC
+
+`oidc-ingress.yaml`은 `audio-ingress` Gateway에서 Keycloak Access Token의 Issuer,
+JWKS 서명과 `audio-api` Audience를 검증한다. 공개 `GET`·`HEAD`와 Preflight
+`OPTIONS`는 익명으로 허용하고, 쓰기 요청은 인증된 Principal만 허용한다.
+
+원본 Token은 API로 전달하며 API가 동일한 값을 다시 검증한다. Gateway 정책은 공개
+진입점의 1차 경계이고 API 검증은 우회 경로에도 유지되는 최종 인증 경계다.
+
+## IMDS Egress
 
 AWS Service Node에 Instance Profile을 연결하면 같은 Node의 Pod가 EC2 Metadata
 Service를 통해 Node Role 자격 증명을 요청할 수 있다. Pod별 IAM을 사용할 수 없는
@@ -12,8 +23,8 @@ API 통신을 별도로 제한하지 않는다.
 동안 이 정책의 선택 대상이 아니다. 이는 임시 운영 경계이며 Service Account OIDC와
 Pod별 IAM을 사용할 수 있게 되면 Node Role 의존성을 제거한다.
 
-현재 `apps/audio` Application과 Workload는 Root Application에 등록되지 않았다.
-따라서 이 파일의 병합만으로 실행 중인 클러스터 상태는 바뀌지 않는다.
+`app-audio` Application은 Root Application에 등록되어 있어 `main` 병합 뒤 Argo CD가
+자동으로 동기화한다.
 
 ## 검증
 

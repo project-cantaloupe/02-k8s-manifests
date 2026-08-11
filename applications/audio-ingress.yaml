@@ -18,25 +18,39 @@ spec:
         # WAF(WasmPlugin audio-waf)가 이 파드 안에서 돈다. 그래서 replicas 는
         # 게이트웨이 가용성이자 곧 **WAF 대수**다
         # → platform/aws/audio-waf/wasm-plugin.yaml
-        replicaCount: 2
+        #
+        # ⚠️ 2 로 올렸다가 1 로 되돌렸다. 2026-08-11 에 wk-02 를 죽였다.
+        #
+        # WAF 를 얹으면 파드가 44Mi → 270Mi 가 된다(실측). NLB 타겟 노드는
+        # wk-01·wk-02 둘뿐이고 wk-02 는 Keycloak·CloudWatch exporter 2 개가
+        # 올라간 79% 노드였다. 거기에 270Mi 를 더하니 kubelet 이 굶어
+        # 노드가 NotReady 로 떨어졌다.
+        #
+        # **CONSTRAINTS.md 를 어긴 것이다** — "인터넷 노출 게이트웨이는
+        # Keycloak 워커에 합치지 않는다" → decisions/20260806_aws-node-placement.md
+        # podAntiAffinity 로 흩으면 후보가 그 두 대뿐이라 자동으로 위반된다.
+        #
+        # 2 로 되돌리려면 **NLB 타겟이면서 Keycloak 이 없는 노드**가 한 대
+        # 더 있어야 한다 → findings/20260811_waf-memory-killed-wk-02.md
+        replicaCount: 1
         autoscaling:
           enabled: false
 
-        # ⚠️ maxSurge 0 이 필수다.
+        # replicas 1 에서는 새 파드를 먼저 띄우고 옛 파드를 지운다.
+        # 반대로 하면(maxSurge 0) 롤아웃마다 게이트웨이가 0 대가 되는 공백이
+        # 생긴다 — 지금은 대체할 파드가 없다.
         #
-        # 아래 podAntiAffinity 가 required 이고 nodeAffinity 가 후보 노드를
-        # wk-01·wk-02 두 대로 좁힌다. 기본 전략(maxSurge 25% → 1)은 롤아웃 때
-        # 세 번째 파드를 먼저 만들려 하는데 놓을 노드가 없어 **Pending 에
-        # 머물고 롤아웃이 영영 안 끝난다.** 먼저 지우고 나중에 만든다.
-        #
-        # 대가로 롤아웃 중에는 WAF 가 한 대다. 받아들인다 — 롤아웃은 짧고,
-        # 이 교착은 장애 대응 중에 발견하면 훨씬 비싸다.
+        # ⚠️ **replicas 를 2 로 되돌릴 때는 maxSurge 를 0 으로 바꿔야 한다.**
+        # required podAntiAffinity + 후보 노드 2 대 조합에서 maxSurge 1 은
+        # 세 번째 파드를 만들려다 Pending 에 머물고 롤아웃이 안 끝난다.
         strategy:
           type: RollingUpdate
           rollingUpdate:
-            maxSurge: 0
-            maxUnavailable: 1
+            maxSurge: 1
+            maxUnavailable: 0
 
+        # replicas 1 에서는 차트가 PDB 를 렌더링하지 않는다(replicaCount > 1
+        # 조건). 2 로 되돌리면 이 값이 다시 살아난다
         podDisruptionBudget:
           minAvailable: 1
 
@@ -109,13 +123,33 @@ spec:
                 - matchExpressions:
                     - key: karpenter.sh/nodepool
                       operator: DoesNotExist
-          # WAF 두 대를 서로 다른 노드에 흩는다. 한 노드에 몰리면
-          # replicas 2 가 노드 장애에 아무 소용이 없다
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
+              # WAF 를 서로 다른 노드에 흩는다. 한 노드에 몰리면 replicas 2 가
+              # 노드 장애에 아무 소용이 없다 (지금은 replicas 1 이라 무효)
               - labelSelector:
                   matchLabels:
                     app: audio-ingress
+                topologyKey: kubernetes.io/hostname
+
+              # ⚠️ **Keycloak 과 같은 노드에 뜨지 않는다.** 규약을 주석이
+              # 아니라 스케줄러가 강제하게 한다 — 2026-08-11 에 이걸 주석으로만
+              # 알고 있다가 wk-02 를 죽였다.
+              #
+              # "인터넷 노출 게이트웨이는 Keycloak 워커에 합치지 않는다"
+              # → decisions/20260806_aws-node-placement.md, CONSTRAINTS.md
+              #
+              # 이유는 배치 취향이 아니라 메모리다. Keycloak(JVM)+CloudWatch
+              # exporter 2 개가 올라간 t3.small 은 79% 다. WAF 를 얹은
+              # 게이트웨이는 270Mi 를 쓴다(실측). 합치면 kubelet 이 굶는다.
+              #
+              # 라벨로 거는 것이 노드 이름으로 거는 것보다 낫다 — Keycloak 이
+              # 옮겨가면 게이트웨이의 후보 노드도 따라서 바뀐다
+              - labelSelector:
+                  matchLabels:
+                    app: keycloak
+                namespaces:
+                  - secops
                 topologyKey: kubernetes.io/hostname
 
         containerSecurityContext:
