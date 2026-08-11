@@ -234,6 +234,59 @@ Save-TermsBar -Id "security-logs-failures-by-network" -Title "Repeated Failures 
   -Query 'auth_result : failure and source_network : *' -Field "source_network" `
   -Description "Repeated failures grouped by the masked source network; raw source IP addresses are not indexed."
 
+$evidenceVegaSpec = @{
+  '$schema' = "https://vega.github.io/schema/vega/v5.json"
+  autosize = @{ type = "fit"; contains = "padding" }
+  padding = 4
+  data = @(@{
+    name = "events"
+    url = @{
+      index = "cantaloupe-platform-logs-v2*"
+      body = @{
+        size = 20
+        _source = @("@timestamp", "collector_platform", "namespace", "app", "message", "security_event_type", "error_code")
+        sort = @(@{ "@timestamp" = @{ order = "desc" } })
+        query = @{ bool = @{
+          must = @("%dashboard_context-must_clause%", @{ exists = @{ field = "security_event_type" } })
+          filter = @("%dashboard_context-filter_clause%", @{ range = @{ "@timestamp" = @{ "%timefilter%" = $true } } })
+          must_not = @("%dashboard_context-must_not_clause%")
+        } }
+      }
+    }
+    format = @{ property = "hits.hits" }
+    transform = @(@{ type = "window"; ops = @("row_number"); as = @("row_number") })
+  })
+  scales = @(@{ name = "rowY"; type = "band"; domain = @{ data = "events"; field = "row_number" }; range = @(@{ signal = "28" }, @{ signal = "height" }); padding = 0.12 })
+  marks = @(
+    @{ type = "rule"; encode = @{ enter = @{ x = @{ value = 0 }; x2 = @{ signal = "width" }; y = @{ value = 25 }; stroke = @{ value = "#d3dae6" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.00" }; y = @{ value = 16 }; text = @{ value = "Time" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.13" }; y = @{ value = 16 }; text = @{ value = "Platform" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.20" }; y = @{ value = 16 }; text = @{ value = "Namespace" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.28" }; y = @{ value = 16 }; text = @{ value = "App" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.37" }; y = @{ value = 16 }; text = @{ value = "Message" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.82" }; y = @{ value = 16 }; text = @{ value = "Event" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.92" }; y = @{ value = 16 }; text = @{ value = "Error" }; fontWeight = @{ value = "bold" }; fill = @{ value = "#343741" } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.00" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "timeFormat(toDate(datum._source['@timestamp']), '%m-%d %H:%M:%S')" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.12" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source['@timestamp']" } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.13" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.collector_platform || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.06" }; ellipsis = @{ value = "..." } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.20" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.namespace || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.07" }; ellipsis = @{ value = "..." } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.28" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.app || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.08" }; ellipsis = @{ value = "..." } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.37" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.message || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.44" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.message" } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.82" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.security_event_type || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.09" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.security_event_type" } } } },
+    @{ type = "text"; from = @{ data = "events" }; encode = @{ enter = @{ x = @{ signal = "width*0.92" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum._source.error_code || '-'" }; fill = @{ value = "#343741" }; limit = @{ signal = "width*0.08" }; ellipsis = @{ value = "..." }; tooltip = @{ signal = "datum._source.error_code" } } } }
+  )
+}
+$evidenceVegaState = @{
+  title = "Recent Security Event Evidence"
+  type = "vega"
+  aggs = @()
+  params = @{ spec = ConvertTo-CompactJson $evidenceVegaSpec; enableExternalUrls = $false }
+}
+Save-Object -Type visualization -Id "security-logs-recent-evidence-table" -Attributes @{
+  title = "Recent Security Event Evidence"; description = "Recent structured security evidence with a message-priority column layout."; version = 1; uiStateJSON = "{}"
+  visState = ConvertTo-CompactJson $evidenceVegaState
+  kibanaSavedObjectMeta = @{ searchSourceJSON = ConvertTo-CompactJson @{ query = @{ query = ""; language = "kuery" }; filter = @() } }
+} -MigrationVersion @{ visualization = "7.10.0" }
+
 $classificationState = @{
   title = "Security Event Classification"; type = "pie"
   aggs = @(
@@ -274,7 +327,7 @@ $panels = @(
   @{ gridData = @{ x = 34; y = 12; w = 14; h = 11; i = "component" }; panelIndex = "component"; version = "7.10.0"; panelRefName = "panel_component"; embeddableConfig = @{} },
   @{ gridData = @{ x = 0; y = 23; w = 24; h = 11; i = "reasons" }; panelIndex = "reasons"; version = "7.10.0"; panelRefName = "panel_reasons"; embeddableConfig = @{} },
   @{ gridData = @{ x = 24; y = 23; w = 24; h = 11; i = "networks" }; panelIndex = "networks"; version = "7.10.0"; panelRefName = "panel_networks"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 0; y = 34; w = 48; h = 13; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{ columns = @("collector_platform", "namespace", "app", "message", "security_event_type", "error_code"); sort = @("@timestamp", "desc") } }
+  @{ gridData = @{ x = 0; y = 34; w = 48; h = 13; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{} }
 )
 $dashboardReferences = @(
   @{ name = "panel_scope"; id = "security-logs-scope-filters"; type = "visualization" },
@@ -288,7 +341,7 @@ $dashboardReferences = @(
   @{ name = "panel_component"; id = "security-logs-events-by-component"; type = "visualization" },
   @{ name = "panel_reasons"; id = "security-logs-failure-reasons"; type = "visualization" },
   @{ name = "panel_networks"; id = "security-logs-failures-by-network"; type = "visualization" },
-  @{ name = "panel_evidence"; id = "security-logs-recent-evidence"; type = "search" }
+  @{ name = "panel_evidence"; id = "security-logs-recent-evidence-table"; type = "visualization" }
 )
 Save-Object -Type dashboard -Id "security-logs-overview-v1" -Attributes @{
   title = "Security Logs Overview v1"
