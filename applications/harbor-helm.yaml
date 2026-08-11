@@ -30,7 +30,6 @@ spec:
           externalURL: https://cntlp-onp-wk-01.tail270b85.ts.net
           existingSecretAdminPassword: harbor-v2-admin
           existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
-          existingSecretSecretKey: harbor-v2-secret-key
           updateStrategy:
             type: Recreate
           persistence:
@@ -47,11 +46,22 @@ spec:
               redis:
                 existingClaim: harbor-v2-redis
           trivy:
-            enabled: false
-          portal:
+            enabled: true
+            persistence:
+              enabled: true
+              existingClaim: data-harbor-v2-trivy-0
             nodeSelector: &onpNode
               platform: onp
               role: devops
+            resources:
+              limits:
+                cpu: "1000m"
+                memory: "2048Mi"
+              requests:
+                cpu: "200m"
+                memory: "512Mi"
+          portal:
+            nodeSelector: *onpNode
           core:
             nodeSelector: *onpNode
           jobservice:
