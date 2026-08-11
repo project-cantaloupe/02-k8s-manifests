@@ -30,7 +30,6 @@ spec:
           externalURL: https://cntlp-onp-wk-01.tail270b85.ts.net
           existingSecretAdminPassword: harbor-v2-admin
           existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
-          existingSecretSecretKey: harbor-v2-secret-key
           updateStrategy:
             type: Recreate
           persistence:
