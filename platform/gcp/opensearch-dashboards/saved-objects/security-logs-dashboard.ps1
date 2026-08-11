@@ -54,11 +54,12 @@ function Save-Metric {
     [string]$Title,
     [string]$Query,
     [string]$Description,
-    [bool]$AlertOnNonZero = $false
+    [int]$AlertThreshold = 0
   )
-  $metricColorMode = if ($AlertOnNonZero) { "Background" } else { "None" }
-  $colorRanges = if ($AlertOnNonZero) {
-    @(@{ from = 0; to = 1 }, @{ from = 1; to = 10000 })
+  $hasAlertThreshold = $AlertThreshold -gt 0
+  $metricColorMode = if ($hasAlertThreshold) { "Background" } else { "None" }
+  $colorRanges = if ($hasAlertThreshold) {
+    @(@{ from = 0; to = $AlertThreshold }, @{ from = $AlertThreshold; to = 10000 })
   } else {
     @(@{ from = 0; to = 10000 })
   }
@@ -69,7 +70,7 @@ function Save-Metric {
     params = @{
       type = "metric"; addTooltip = $true; addLegend = $false
       metric = @{
-        percentageMode = $false; useRanges = $AlertOnNonZero; colorSchema = "Green to Red"
+        percentageMode = $false; useRanges = $hasAlertThreshold; colorSchema = "Green to Red"
         metricColorMode = $metricColorMode; invertColors = $false
         colorsRange = $colorRanges
         labels = @{ show = $true }
@@ -186,11 +187,12 @@ Save-Object -Type visualization -Id "security-logs-scope-filters" -Attributes @{
   @{ name = "control_2_index_pattern"; id = $indexPatternId; type = "index-pattern" }
 ) -MigrationVersion @{ visualization = "7.10.0" }
 
-Save-Metric -Id "security-logs-auth-failures" -Title "Authentication Failures" -Query 'auth_result : failure' -Description "Failed, rejected, or invalid authentication attempts parsed by Fluent Bit." -AlertOnNonZero $true
+Save-Metric -Id "security-logs-failure-spike" -Title "Authentication Failures / Last 5 Minutes" -Query 'auth_result : failure' -Description "Authentication failures during the panel's fixed five-minute window. The background changes at 50 events." -AlertThreshold 50
+Save-Metric -Id "security-logs-auth-failures" -Title "Authentication Failures" -Query 'auth_result : failure' -Description "Failed, rejected, or invalid authentication attempts parsed by Fluent Bit." -AlertThreshold 1
 Save-Metric -Id "security-logs-auth-success" -Title "Authentication Successes" -Query 'auth_result : success' -Description "Successful Keycloak and OAuth2 Proxy authentication events."
-Save-Metric -Id "security-logs-callback-errors" -Title "OAuth Callback Errors" -Query 'security_event_type : oauth_callback and auth_result : failure' -Description "OAuth authorization-code redemption and callback failures." -AlertOnNonZero $true
-Save-Metric -Id "security-logs-logout-errors" -Title "Logout Errors" -Query 'security_event_type : keycloak_logout_error and auth_result : failure' -Description "Failed Keycloak logout events; use this to investigate sessions that were not terminated cleanly." -AlertOnNonZero $true
-Save-Metric -Id "security-logs-kyverno-violations" -Title "Kyverno Policy Violations" -Query 'security_event_type : kyverno_policy_violation' -Description "Explicitly failed, denied, blocked, or errored Kyverno policy decisions." -AlertOnNonZero $true
+Save-Metric -Id "security-logs-callback-errors" -Title "OAuth Callback Errors" -Query 'security_event_type : oauth_callback and auth_result : failure' -Description "OAuth authorization-code redemption and callback failures." -AlertThreshold 1
+Save-Metric -Id "security-logs-logout-errors" -Title "Logout Errors" -Query 'security_event_type : keycloak_logout_error and auth_result : failure' -Description "Failed Keycloak logout events; use this to investigate sessions that were not terminated cleanly." -AlertThreshold 1
+Save-Metric -Id "security-logs-kyverno-violations" -Title "Kyverno Policy Violations" -Query 'security_event_type : kyverno_policy_violation' -Description "Explicitly failed, denied, blocked, or errored Kyverno policy decisions." -AlertThreshold 1
 
 $timelineState = @{
   title = "Authentication Outcomes Over Time"; type = "line"
@@ -234,6 +236,9 @@ Save-TermsBar -Id "security-logs-failures-by-client" -Title "Repeated Failures b
 Save-TermsBar -Id "security-logs-failures-by-network" -Title "Repeated Failures by Masked Network" `
   -Query 'auth_result : failure and source_network : *' -Field "source_network" `
   -Description "Repeated failures grouped by the masked source network; raw source IP addresses are not indexed."
+Save-TermsBar -Id "security-logs-targeted-accounts" -Title "Top Targeted Accounts" `
+  -Query 'auth_result : failure and principal_masked : *' -Field "principal_masked" -Size 5 `
+  -Description "Masked accounts receiving the most authentication failures. Use with source network and failure reason before locking an account."
 
 $classificationState = @{
   title = "Security Event Classification"; type = "pie"
@@ -265,20 +270,23 @@ Save-Object -Type search -Id "security-logs-recent-evidence" -Attributes @{
 
 $panels = @(
   @{ gridData = @{ x = 0; y = 0; w = 48; h = 5; i = "scope" }; panelIndex = "scope"; version = "7.10.0"; panelRefName = "panel_scope"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 0; y = 5; w = 10; h = 7; i = "failures" }; panelIndex = "failures"; version = "7.10.0"; panelRefName = "panel_failures"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 10; y = 5; w = 10; h = 7; i = "success" }; panelIndex = "success"; version = "7.10.0"; panelRefName = "panel_success"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 20; y = 5; w = 10; h = 7; i = "callback" }; panelIndex = "callback"; version = "7.10.0"; panelRefName = "panel_callback"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 30; y = 5; w = 9; h = 7; i = "logout" }; panelIndex = "logout"; version = "7.10.0"; panelRefName = "panel_logout"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 39; y = 5; w = 9; h = 7; i = "kyverno" }; panelIndex = "kyverno"; version = "7.10.0"; panelRefName = "panel_kyverno"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 0; y = 5; w = 8; h = 7; i = "spike" }; panelIndex = "spike"; version = "7.10.0"; panelRefName = "panel_spike"; embeddableConfig = @{ timeRange = @{ from = "now-5m"; to = "now" } } },
+  @{ gridData = @{ x = 8; y = 5; w = 8; h = 7; i = "failures" }; panelIndex = "failures"; version = "7.10.0"; panelRefName = "panel_failures"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 16; y = 5; w = 8; h = 7; i = "success" }; panelIndex = "success"; version = "7.10.0"; panelRefName = "panel_success"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 24; y = 5; w = 8; h = 7; i = "callback" }; panelIndex = "callback"; version = "7.10.0"; panelRefName = "panel_callback"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 32; y = 5; w = 8; h = 7; i = "logout" }; panelIndex = "logout"; version = "7.10.0"; panelRefName = "panel_logout"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 40; y = 5; w = 8; h = 7; i = "kyverno" }; panelIndex = "kyverno"; version = "7.10.0"; panelRefName = "panel_kyverno"; embeddableConfig = @{} },
   @{ gridData = @{ x = 0; y = 12; w = 34; h = 11; i = "timeline" }; panelIndex = "timeline"; version = "7.10.0"; panelRefName = "panel_timeline"; embeddableConfig = @{} },
   @{ gridData = @{ x = 34; y = 12; w = 14; h = 11; i = "component" }; panelIndex = "component"; version = "7.10.0"; panelRefName = "panel_component"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 0; y = 23; w = 16; h = 11; i = "reasons" }; panelIndex = "reasons"; version = "7.10.0"; panelRefName = "panel_reasons"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 16; y = 23; w = 16; h = 11; i = "clients" }; panelIndex = "clients"; version = "7.10.0"; panelRefName = "panel_clients"; embeddableConfig = @{} },
-  @{ gridData = @{ x = 32; y = 23; w = 16; h = 11; i = "networks" }; panelIndex = "networks"; version = "7.10.0"; panelRefName = "panel_networks"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 0; y = 23; w = 12; h = 11; i = "reasons" }; panelIndex = "reasons"; version = "7.10.0"; panelRefName = "panel_reasons"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 12; y = 23; w = 12; h = 11; i = "clients" }; panelIndex = "clients"; version = "7.10.0"; panelRefName = "panel_clients"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 24; y = 23; w = 12; h = 11; i = "networks" }; panelIndex = "networks"; version = "7.10.0"; panelRefName = "panel_networks"; embeddableConfig = @{} },
+  @{ gridData = @{ x = 36; y = 23; w = 12; h = 11; i = "accounts" }; panelIndex = "accounts"; version = "7.10.0"; panelRefName = "panel_accounts"; embeddableConfig = @{} },
   @{ gridData = @{ x = 0; y = 34; w = 48; h = 13; i = "evidence" }; panelIndex = "evidence"; version = "7.10.0"; panelRefName = "panel_evidence"; embeddableConfig = @{ columns = @("collector_platform", "namespace", "app", "security_event_type", "auth_result", "client_id", "principal_masked", "source_network", "error_code", "policy_name", "message"); sort = @("@timestamp", "desc") } }
 )
 $dashboardReferences = @(
   @{ name = "panel_scope"; id = "security-logs-scope-filters"; type = "visualization" },
+  @{ name = "panel_spike"; id = "security-logs-failure-spike"; type = "visualization" },
   @{ name = "panel_failures"; id = "security-logs-auth-failures"; type = "visualization" },
   @{ name = "panel_success"; id = "security-logs-auth-success"; type = "visualization" },
   @{ name = "panel_callback"; id = "security-logs-callback-errors"; type = "visualization" },
@@ -289,6 +297,7 @@ $dashboardReferences = @(
   @{ name = "panel_reasons"; id = "security-logs-failure-reasons"; type = "visualization" },
   @{ name = "panel_clients"; id = "security-logs-failures-by-client"; type = "visualization" },
   @{ name = "panel_networks"; id = "security-logs-failures-by-network"; type = "visualization" },
+  @{ name = "panel_accounts"; id = "security-logs-targeted-accounts"; type = "visualization" },
   @{ name = "panel_evidence"; id = "security-logs-recent-evidence"; type = "search" }
 )
 Save-Object -Type dashboard -Id "security-logs-overview-v1" -Attributes @{
