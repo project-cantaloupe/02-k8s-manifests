@@ -41,9 +41,6 @@ resources:
   - metrics-server.yaml
   - vpa-recommender.yaml
   - monitoring-stack.yaml
-  # S3 API 수집기 실측이 끝날 때까지 일별 CloudWatch 지표를 비교 기준으로 유지한다.
-  # 제거는 별도 refactor/remove-s3-cloudwatch-exporter 변경에서 진행한다.
-  - cloudwatch-exporter.yaml
   - cloudwatch-exporter-sqs.yaml
   - opencost.yaml
   - audio-ingress.yaml
