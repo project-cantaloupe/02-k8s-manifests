@@ -1,0 +1,75 @@
+# 오디오 인그레스 게이트웨이의 WAF. Envoy 안에서 도는 proxy-wasm 필터다.
+#
+# WAF 를 별도 파드로 두지 않는 이유 — 게이트웨이가 이미 Envoy 라서 필터로
+# 들어가면 프록시 홉이 늘지 않는다. 대안(독립 Deployment·ext_authz·AWS WAF+ALB)
+# 과의 비교 → decisions/20260811_waf-coraza-at-gateway.md
+#
+# ⚠️ 이 파일이 사는 곳은 `audio-ingress` 네임스페이스다. `istio-system` 에 두면
+# 셀렉터와 무관하게 **클러스터 전체 프록시**에 붙는다.
+apiVersion: extensions.istio.io/v1alpha1
+kind: WasmPlugin
+metadata:
+  name: audio-waf
+  namespace: audio-ingress
+  labels:
+    app: audio-waf
+    area: apps
+    platform: aws
+spec:
+  # 게이트웨이 파드의 라벨이다. 안 맞으면 **에러 없이 조용히 무시된다** —
+  # 배포 성공과 구분이 안 되므로 istioctl proxy-config 로 확인해야 한다
+  # → tasks/*/020_waf-coraza-detection.md 「검증」
+  selector:
+    matchLabels:
+      app: audio-ingress
+
+  # CRS 4.14.0 이 바이너리에 내장돼 있다(별도 룰 주입 불필요).
+  # 단일 레이어 이미지이고 루트에 plugin.wasm 이 있는 Istio compat 형식이다.
+  #
+  # 이 URL 은 ECR 강제 정책의 대상이 아니다 —
+  # governance/secops/require-image-registry.yaml 은 `apps` 네임스페이스의
+  # **Pod** 에만 걸리고, 이건 Envoy 가 런타임에 당기는 OCI 아티팩트다.
+  url: oci://ghcr.io/corazawaf/coraza-proxy-wasm:0.6.0
+  imagePullPolicy: IfNotPresent
+
+  # AUTHN = Istio 인증 필터보다 앞. 인증을 통과하기 **전에** 공격을 거른다.
+  phase: AUTHN
+
+  # ⚠️ 탐지 단계에서는 FAIL_OPEN 을 유지한다.
+  # 기본값 FAIL_CLOSE 는 WASM 로드 실패 시 모든 요청을 5xx 로 만든다 —
+  # 아직 아무것도 막지 않는 단계에서 그 위험을 질 이유가 없다.
+  # 차단 전환(021)과 함께 FAIL_CLOSE 로 바꾼다.
+  failStrategy: FAIL_OPEN
+
+  pluginConfig:
+    default_directives: default
+    directives_map:
+      default:
+        # ModSecurity 권장 기준선. SecRuleEngine·바디 처리 기본값이 여기서 온다
+        - Include @recommended-conf
+        # CRS 초기화 — 파라노이아 레벨과 이상점수 임계값
+        - Include @crs-setup-conf
+
+        # ── 이 스택에 맞춘 재정의 ──────────────────────────────────
+        #
+        # 탐지 전용. 룰은 전부 평가하되 요청을 막지 않는다.
+        # 차단 전환은 이 한 줄을 `On` 으로 바꾸는 것이다 → 021
+        - SecRuleEngine DetectionOnly
+        #
+        # 기본값을 명시한다. CRS 기본이 PL1 이지만 6개월 뒤에 이 값을
+        # 파일 밖에서 추측하게 만들지 않는다
+        - 'SecAction "id:900000,phase:1,nolog,pass,t:none,setvar:tx.blocking_paranoia_level=1"'
+        #
+        # ⚠️ 바디 한도를 넘겨도 **거절하지 않고 앞부분만 검사**한다.
+        # 지금은 업로드가 presigned PUT 으로 S3 에 직행해서 큰 바디가
+        # 게이트웨이를 안 지나지만(services/web/src/services/uploadService.ts),
+        # 나중에 누가 스트리밍을 게이트웨이로 옮기면 Reject 가 업로드를 죽인다
+        - SecRequestBodyLimitAction ProcessPartial
+        #
+        # 응답 바디는 검사하지 않는다. 검사하려면 Envoy 가 응답을 버퍼링해야
+        # 하는데 재생 스트림이 이 경로로 오게 되면 메모리가 터진다.
+        # 지금 재생은 CloudFront→S3 라 여기 안 오지만 같은 이유로 미리 끈다
+        - SecResponseBodyAccess Off
+
+        # 내장 CRS 룰 전체. 위 설정이 먼저 와야 룰이 그 값을 읽는다
+        - Include @owasp_crs/*.conf

@@ -45,6 +45,10 @@ resources:
   - cloudwatch-exporter-sqs.yaml
   - opencost.yaml
   - audio-ingress.yaml
+  # wave -9. 게이트웨이 Envoy 안에서 도는 WAF(Coraza WasmPlugin).
+  # audio-ingress(-10) 뒤, app-audio(0) 앞이다
+  # → platform/aws/audio-waf/wasm-plugin.yaml
+  - audio-waf.yaml
   - secops.yaml
   - app-audio.yaml
   # `audio-edge-smoke.yaml` 은 일부러 등록하지 않는다. ambient 가 실제로
