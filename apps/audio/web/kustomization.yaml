@@ -9,5 +9,5 @@ resources:
 # 이 항목을 갱신한다. 이미지 이름 audio-web은 그 규약에 맞춘 자리표시자다.
 images:
   - name: audio-web
-    newName: cntlp-onp-wk-01.tail270b85.ts.net/library/web
-    newTag: 420af0590ae240bb3ea9e3638f862d655ca0dec2
+    newName: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/app-audio-web
+    newTag: b79d2a165e55c63a683616b1ed9b5af02ee5b7e9
