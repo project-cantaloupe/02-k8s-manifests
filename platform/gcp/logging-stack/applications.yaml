@@ -19,10 +19,10 @@ spec:
         valueFiles:
           - $values/platform/gcp/opensearch/values.yaml
     - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-      targetRevision: main
+      targetRevision: codex/security-log-parsing
       ref: values
     - repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-      targetRevision: main
+      targetRevision: codex/security-log-parsing
       path: platform/gcp/opensearch/ism
   destination:
     server: https://kubernetes.default.svc
@@ -45,7 +45,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-    targetRevision: main
+    targetRevision: codex/security-log-parsing
     path: platform/gcp/fluent-bit
   destination:
     server: https://kubernetes.default.svc
