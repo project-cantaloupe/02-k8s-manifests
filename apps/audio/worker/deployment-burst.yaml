@@ -6,6 +6,9 @@ kind: Deployment
 metadata:
   name: audio-transcode-burst
   namespace: apps
+  annotations:
+    cantaloupe.io/finops-baseline: "cpu=250m,memory=256Mi"
+    cantaloupe.io/finops-baseline-rationale: conservative-initial-sizing-before-controlled-load
   labels:
     app: audio-transcode-burst
     area: apps
@@ -59,8 +62,10 @@ spec:
               mountPath: /tmp
           resources:
             requests:
-              cpu: 100m
-              memory: 192Mi
+              # Base Worker와 동일한 Baseline을 사용해 Scheduled/Unexpected Run을
+              # 같은 기준으로 비교한다. Candidate도 두 Deployment에 함께 적용한다.
+              cpu: 250m
+              memory: 256Mi
             limits:
               memory: 512Mi
       volumes:

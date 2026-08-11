@@ -17,6 +17,9 @@ kind: Deployment
 metadata:
   name: audio-transcode
   namespace: apps
+  annotations:
+    cantaloupe.io/finops-baseline: "cpu=250m,memory=256Mi"
+    cantaloupe.io/finops-baseline-rationale: conservative-initial-sizing-before-controlled-load
   labels:
     app: audio-transcode
     area: apps
@@ -87,8 +90,11 @@ spec:
               mountPath: /tmp
           resources:
             requests:
-              cpu: 100m
-              memory: 192Mi
+              # 정식 FinOps 실험의 보수적 초기 용량이다. 사용량 이력이 없는
+              # FFmpeg Worker의 안정성을 먼저 확보하고, 동일 부하에서 수집한
+              # VPA·P95·최대값으로 Candidate를 결정한다.
+              cpu: 250m
+              memory: 256Mi
             limits:
               memory: 512Mi
       volumes:
