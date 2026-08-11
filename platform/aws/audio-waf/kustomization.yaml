@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 게이트웨이 자체(replicas·affinity·PDB·externalTrafficPolicy)는 여기가 아니라
+# applications/audio-ingress.yaml 의 Helm values 가 갖는다. 한 자원의 주인은
+# 하나여야 ArgoCD 두 Application 이 서로를 되돌리지 않는다.
+resources:
+  - wasm-plugin.yaml
