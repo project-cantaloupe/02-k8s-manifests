@@ -13,6 +13,12 @@ spec:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: aws-service
+      # 이 NodePool은 Audio burst 용량 전용이다. 일반 platform=aws 서비스가
+      # 남으면 Queue drain 뒤에도 Node가 비지 않아 WhenEmpty 축소가 막힌다.
+      taints:
+        - key: cantaloupe.io/audio-burst
+          value: "true"
+          effect: NoSchedule
       requirements:
         - key: kubernetes.io/arch
           operator: In
