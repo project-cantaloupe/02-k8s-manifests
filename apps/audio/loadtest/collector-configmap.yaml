@@ -14,7 +14,8 @@ data:
 
     KUBE = "https://kubernetes.default.svc"
     SA = "/var/run/secrets/kubernetes.io/serviceaccount"
-    PROM = "http://monitoring-prometheus.monitoring.svc:9090"
+    # Prometheus is served with --web.route-prefix=/prometheus.
+    PROM = "http://monitoring-prometheus.monitoring.svc:9090/prometheus"
     PUSH = "http://cantaloupe-finops-pushgateway.monitoring.svc:9091"
     END_DATE = os.getenv("EXPERIMENT_END_DATE", "2026-08-14")
 
