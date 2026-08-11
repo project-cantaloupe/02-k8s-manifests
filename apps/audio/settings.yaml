@@ -48,7 +48,9 @@ data:
   AUDIO_MAXIMUM_DURATION_SECONDS: "7200"
   METRICS_PORT: "9090"
 
-  # Public Audio 사용자를 내부 운영자 Realm과 분리할 때까지 인증을 닫는다.
-  # disabled 모드는 Bearer Token과 개발용 Subject Header를 모두 무시한다.
-  # 공개 Gateway도 조회 메서드만 허용하므로 Upload·변경 요청은 이중으로 막힌다.
-  AUTH_MODE: disabled
+  # 공개 Web의 사용자 계정 기능은 계속 꺼 둔다. API만 OIDC 검증을 켜서
+  # 클러스터 내부 FinOps Runner의 전용 Client-Credentials Token을 받는다.
+  # 공개 Gateway는 조회 메서드만 허용하므로 외부 Upload·변경 요청은 막힌다.
+  AUTH_MODE: oidc
+  OIDC_ISSUER_URL: https://auth.echoprism.cloud/realms/cantaloupe
+  OIDC_AUDIENCE: audio-api

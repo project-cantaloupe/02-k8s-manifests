@@ -25,6 +25,16 @@ The `steady`, `unexpected-burst`, and `scheduled-peak` profiles use the same
 deterministic WAV fixture set for baseline and candidate runs. The result
 collector persists each run with its `run_id`, `profile`, and `phase`.
 
+All profiles use the same production path as Audio uploads: the Runner obtains
+a short-lived `audio-finops` Client-Credentials token, calls the internal Audio
+API, uploads the returned presigned URL to S3, and then follows the shared
+SQS/Worker/artifact/READY path. Public Web accounts remain disabled; no test-only
+API, Queue, or development Subject header is used.
+
+The KEDA cron prewarm is disabled while every load CronJob is suspended. Burst
+capacity is activated only by real transcode Queue backlog until scheduled-peak
+is deliberately resumed.
+
 ## Candidate decision
 
 The candidate is not predetermined. After valid baseline runs, choose it from:
