@@ -325,8 +325,6 @@ def policy_metrics(now):
                 "scope": lifecycle_scope(rule),
             }
             lines.append(sample("cantaloupe_s3_bucket_lifecycle_rule_info", 1, base))
-            if rule.get("Status") != "Enabled":
-                continue
             for transition in rule.get("Transitions") or []:
                 days = transition.get("Days", 0)
                 labels = {**base, "days": str(days), "storage_type": STORAGE_TYPES.get(transition.get("StorageClass", ""), transition.get("StorageClass", "unknown"))}
