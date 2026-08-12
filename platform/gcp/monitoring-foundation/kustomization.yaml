@@ -11,6 +11,7 @@ resources:
   - finops-recording-rules.yaml
   - onprem-rightsizing-rules.yaml
   - gcp-recommender-collector.yaml
+  - pushgateway-network-policy.yaml
   - aws-compute-optimizer-collector.yaml
   - aws-s3-finops-collector.yaml
   - vpa-recommendation-collector.yaml
