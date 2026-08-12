@@ -91,13 +91,28 @@ spec:
 
               # Monitors get a server-generated id, so a blind POST would add a
               # duplicate on every sync. Look it up by name and update in place.
+              #
+              # ⚠️ No --fail here. Before the first monitor exists the alerting
+              # config index does not either, and the search answers 404. That
+              # is the normal first-run state, not an error - with --fail plus
+              # `set -e` the Job dies exactly once, on the run that was supposed
+              # to create the monitor, and succeeds on every run after.
               existing=$(mktemp)
-              curl --fail --silent --show-error --output "$existing" \
+              status=$(curl --silent --show-error --output "$existing" --write-out '%{http_code}' \
                 -X GET "$endpoint/_plugins/_alerting/monitors/_search" \
                 -H 'Content-Type: application/json' \
-                -d '{"query":{"term":{"monitor.name.keyword":"waf-coraza-blocked"}}}'
+                -d '{"query":{"term":{"monitor.name.keyword":"waf-coraza-blocked"}}}')
 
-              id=$(grep -o '"_id":"[^"]*"' "$existing" | head -n1 | cut -d'"' -f4)
+              if [ "$status" = "200" ]; then
+                id=$(grep -o '"_id":"[^"]*"' "$existing" | head -n1 | cut -d'"' -f4)
+              elif [ "$status" = "404" ]; then
+                echo "No alerting config index yet - creating the first monitor"
+                id=""
+              else
+                echo "Failed to search monitors: HTTP $status" >&2
+                cat "$existing" >&2
+                exit 1
+              fi
 
               response=$(mktemp)
               if [ -n "$id" ]; then
