@@ -43,7 +43,6 @@ class CollectorTest(unittest.TestCase):
         metrics = {
             "processing_p95_seconds": 3.5,
             "transcode_completed": 10,
-            "transcode_failed": 0,
             "transcode_retried": 0,
             "queue_visible_max": 4,
             "queue_inflight_max": 2,
@@ -139,8 +138,16 @@ class CollectorTest(unittest.TestCase):
 
         def prom_range(query, *_, **__):
             if "messages_visible" in query:
-                return [(100.0, 0.0), (160.0, 5.0), (220.0, 0.0)]
-            return [(100.0, 0.0), (160.0, 2.0), (220.0, 0.0)]
+                return [
+                    (start_timestamp, 0.0),
+                    (start_timestamp + 60, 5.0),
+                    (start_timestamp + 120, 0.0),
+                ]
+            return [
+                (start_timestamp, 0.0),
+                (start_timestamp + 60, 2.0),
+                (start_timestamp + 120, 0.0),
+            ]
 
         self.collector["prom"] = prom
         self.collector["prom_range"] = prom_range
@@ -167,7 +174,7 @@ class CollectorTest(unittest.TestCase):
         start = dt.datetime(2026, 8, 11, 14, 0, tzinfo=dt.timezone.utc)
         finish = dt.datetime(2026, 8, 11, 14, 1, tzinfo=dt.timezone.utc)
 
-        self.collector["prom_range"] = lambda *_args, **_kwargs: [
+        nodes = [
             (start.timestamp(), 0.0),
             (start.timestamp() + 15, 1.0),
             (start.timestamp() + 45, 2.0),
@@ -175,13 +182,44 @@ class CollectorTest(unittest.TestCase):
             (start.timestamp() + 105, 0.0),
             (finish.timestamp() + 300, 0.0),
         ]
+        costs = [(timestamp, count * 0.03) for timestamp, count in nodes]
+        self.collector["prom_range"] = (
+            lambda query, *_args, **_kwargs: costs
+            if "node_total_cost_per_hour" in query
+            else nodes
+        )
 
-        metrics = self.collector["karpenter_node_metrics"](start, finish)
+        metrics = self.collector["karpenter_node_metrics"](
+            start, finish, finish + dt.timedelta(minutes=5)
+        )
 
         self.assertEqual(metrics["karpenter_nodes_max"], 2)
         self.assertAlmostEqual(metrics["karpenter_node_minutes"], 2.0)
+        self.assertAlmostEqual(metrics["karpenter_cost_usd"], 0.001)
         self.assertEqual(metrics["karpenter_nodes_final"], 0)
         self.assertEqual(metrics["karpenter_node_cleanup_complete"], 1)
+
+    def test_karpenter_cost_is_not_published_until_nodes_return_to_zero(self):
+        start = dt.datetime(2026, 8, 11, 14, 0, tzinfo=dt.timezone.utc)
+        finish = dt.datetime(2026, 8, 11, 14, 1, tzinfo=dt.timezone.utc)
+        evaluate = finish + dt.timedelta(minutes=5)
+
+        def prom_range(query, *_args, **_kwargs):
+            multiplier = 0.03 if "node_total_cost_per_hour" in query else 1.0
+            return [
+                (start.timestamp(), 0.0),
+                (start.timestamp() + 15, multiplier),
+                (evaluate.timestamp(), multiplier),
+            ]
+
+        self.collector["prom_range"] = prom_range
+        metrics = self.collector["karpenter_node_metrics"](start, finish, evaluate)
+
+        self.assertEqual(metrics["karpenter_nodes_max"], 1)
+        self.assertIsNone(metrics["karpenter_node_minutes"])
+        self.assertIsNone(metrics["karpenter_cost_usd"])
+        self.assertEqual(metrics["karpenter_nodes_final"], 1)
+        self.assertEqual(metrics["karpenter_node_cleanup_complete"], 0)
 
     def test_failed_job_without_result_log_gets_synthetic_result(self):
         job = {
