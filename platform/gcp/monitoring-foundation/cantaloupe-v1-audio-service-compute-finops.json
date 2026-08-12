@@ -102,7 +102,7 @@
     {
       "id": 102,
       "type": "stat",
-      "title": "READY",
+      "title": "완료",
       "description": "선택 시간 범위에 완료된 Audio Transcode 건수입니다.",
       "datasource": {
         "type": "prometheus",
@@ -121,7 +121,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])) or vector(0)",
+          "expr": "round(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -131,6 +131,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "decimals": 0,
           "noValue": "0",
           "color": {
             "mode": "thresholds"
@@ -185,7 +186,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(audio_transcode_failed_total{namespace=\"apps\"}[$__range])) or vector(0)",
+          "expr": "round(sum(increase(audio_transcode_failed_total{namespace=\"apps\"}[$__range]))) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -195,6 +196,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "decimals": 0,
           "noValue": "0",
           "color": {
             "mode": "thresholds"
@@ -231,7 +233,7 @@
       "id": 104,
       "type": "stat",
       "title": "성공률",
-      "description": "선택 시간 범위 READY ÷ 최신 Run 제출 × 100입니다.",
+      "description": "선택 시간 범위 완료 건수 ÷ 최신 Run 제출 건수 × 100입니다. Prometheus counter 보간값은 건수로 반올림하고 결과는 최대 100%로 제한합니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -249,7 +251,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * (sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])) or vector(0)) / clamp_min(max(cantaloupe_audio_finops_run_submitted), 1)",
+          "expr": "clamp_max(100 * (round(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) or vector(0)) / clamp_min(max(cantaloupe_audio_finops_run_submitted), 1), 100)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -259,7 +261,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
-          "decimals": 2,
+          "decimals": 0,
           "noValue": "0",
           "color": {
             "mode": "thresholds"
@@ -360,8 +362,8 @@
     {
       "id": 106,
       "type": "stat",
-      "title": "안전 이상",
-      "description": "선택 구간 OOMKilled, Transcode Worker 재시작, Transcode DLQ 잔존의 합계입니다. 순간 Pending은 정상 확장 과정일 수 있고 지속 Pending 허용시간이 아직 정의되지 않아 현재 합계에서 제외합니다.",
+      "title": "안전 이상 여부",
+      "description": "OOMKilled, 비정상 Transcode Worker 재시작, Transcode DLQ 중 하나라도 감지되면 1, 모두 정상이면 0입니다. 순간 Pending은 정상 확장 과정으로 보고 지속 Pending 허용시간은 아직 정의되지 않아 현재 판정에서 제외합니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -379,7 +381,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(sum(increase(kube_pod_container_status_restarts_total{namespace=\"apps\",container=\"transcode\"}[$__range])) or vector(0)) + (sum(max_over_time(kube_pod_container_status_last_terminated_reason{namespace=\"apps\",container=\"transcode\",reason=\"OOMKilled\"}[$__range])) or vector(0)) + (max(max_over_time(cantaloupe:aws_sqs_messages_visible{queue_name=\"cntlp-aws-queue-transcode-dlq\"}[$__range])) or vector(0))",
+          "expr": "clamp_max((round(sum(increase(kube_pod_container_status_restarts_total{namespace=\"apps\",container=\"transcode\"}[$__range]))) or vector(0)) + (sum(max_over_time(kube_pod_container_status_last_terminated_reason{namespace=\"apps\",container=\"transcode\",reason=\"OOMKilled\"}[$__range])) or vector(0)) + (max(max_over_time(cantaloupe:aws_sqs_messages_visible{queue_name=\"cntlp-aws-queue-transcode-dlq\"}[$__range])) or vector(0)), 1)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -388,7 +390,8 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "none",
+          "decimals": 0,
           "noValue": "0",
           "color": {
             "mode": "thresholds"
@@ -440,8 +443,8 @@
     {
       "id": 201,
       "type": "timeseries",
-      "title": "제출 / READY / 실패 추이",
-      "description": "동일 패널에서 선택 시간 범위의 제출, READY, 실패 변화를 확인합니다. 제출은 Pushgateway 최신 Run gauge입니다.",
+      "title": "제출 / 완료 / 실패 추이",
+      "description": "동일 패널에서 선택 시간 범위의 제출, 완료, 실패 변화를 확인합니다. 제출은 Pushgateway 최신 Run gauge입니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -472,12 +475,12 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])) or vector(0)",
+          "expr": "round(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
           "refId": "B",
-          "legendFormat": "READY"
+          "legendFormat": "완료"
         },
         {
           "datasource": {
@@ -485,7 +488,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(audio_transcode_failed_total{namespace=\"apps\"}[$__range])) or vector(0)",
+          "expr": "round(sum(increase(audio_transcode_failed_total{namespace=\"apps\"}[$__range]))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -496,7 +499,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 2,
+          "decimals": 0,
           "color": {
             "mode": "palette-classic"
           },
@@ -972,8 +975,8 @@
     {
       "id": 501,
       "type": "stat",
-      "title": "Track 기준 단위경제성",
-      "description": "모두 USD/READY Track입니다. Audio K8s는 Web·API·Events·Base/Burst Transcode의 Kubernetes 배분비용이며 S3 저장비, 일부 SQS 요청비, Data Transfer는 포함하지 않습니다. Transcode는 Base/Burst Worker 비용, 추가 VM은 Karpenter 노드 비용입니다.",
+      "title": "Audio K8s 비용 / Track",
+      "description": "Web·API·Events·Base/Burst Transcode의 Kubernetes 배분비용을 완료 Track 수로 나눈 값입니다. S3 저장비, 일부 SQS 요청비, Data Transfer는 포함하지 않습니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -981,7 +984,7 @@
       "gridPos": {
         "x": 0,
         "y": 37,
-        "w": 18,
+        "w": 6,
         "h": 7
       },
       "targets": [
@@ -995,40 +998,13 @@
           "format": "time_series",
           "instant": true,
           "range": false,
-          "refId": "A",
-          "legendFormat": "Audio K8s 비용/Track"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "(sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{namespace=\"apps\",container=\"transcode\"}[$__range:1m])) / 60) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
-          "format": "time_series",
-          "instant": true,
-          "range": false,
-          "refId": "B",
-          "legendFormat": "Transcode 비용/Track"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "(sum(sum_over_time((cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{label_karpenter_sh_nodepool=\"aws-service\"}))[$__range:1m])) / 60) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
-          "format": "time_series",
-          "instant": true,
-          "range": false,
-          "refId": "C",
-          "legendFormat": "추가 VM 비용/Track"
+          "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
-          "decimals": 6,
+          "decimals": 4,
           "noValue": "0",
           "color": {
             "mode": "thresholds"
@@ -1050,7 +1026,7 @@
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "textMode": "value_and_name",
+        "textMode": "auto",
         "wideLayout": true,
         "reduceOptions": {
           "calcs": [
@@ -1062,10 +1038,42 @@
       }
     },
     {
+      "id": 503,
+      "type": "stat",
+      "title": "Transcode 비용 / Track",
+      "description": "Base/Burst Transcode Worker의 Kubernetes 배분비용을 완료 Track 수로 나눈 값입니다.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 6, "y": 37, "w": 6, "h": 7 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "editorMode": "code",
+        "expr": "(sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{namespace=\"apps\",container=\"transcode\"}[$__range:1m])) / 60) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
+        "format": "time_series", "instant": true, "range": false, "refId": "A"
+      }],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4, "noValue": "0", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "textMode": "auto", "wideLayout": true, "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
+      "id": 504,
+      "type": "stat",
+      "title": "추가 VM 비용 / Track",
+      "description": "Karpenter 추가 노드 비용을 완료 Track 수로 나눈 값입니다.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 37, "w": 6, "h": 7 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "editorMode": "code",
+        "expr": "(sum(sum_over_time((cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{label_karpenter_sh_nodepool=\"aws-service\"}))[$__range:1m])) / 60) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
+        "format": "time_series", "instant": true, "range": false, "refId": "A"
+      }],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4, "noValue": "0", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "textMode": "auto", "wideLayout": true, "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+    },
+    {
       "id": 502,
       "type": "stat",
       "title": "Karpenter Node-minute / Track",
-      "description": "선택 구간 Karpenter Node-minute ÷ READY Track입니다. 비용이 아니라 오디오 1건당 추가 인프라 소비량입니다.",
+      "description": "선택 구간 Karpenter Node-minute ÷ 완료 Track입니다. 비용이 아니라 오디오 1건당 추가 인프라 소비량입니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
