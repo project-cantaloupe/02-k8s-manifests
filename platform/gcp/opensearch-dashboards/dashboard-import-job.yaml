@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opensearch-dashboard-import
+  namespace: logging
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+        - name: curl
+          image: curlimages/curl:8.10.1
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              # Wait for OpenSearch Dashboards to be ready
+              echo "Waiting for OpenSearch Dashboards API..."
+              until curl -sS http://opensearch-dashboards:5601/api/status > /dev/null; do
+                sleep 5
+              done
+
+              echo "Importing Trivy Dashboard..."
+              curl -k -sS -X POST "http://opensearch-dashboards:5601/api/saved_objects/_import?overwrite=true" \
+                -H "osd-xsrf: true" \
+                --form file=@/config/trivy-dashboard.ndjson
+
+              echo "Done."
+          volumeMounts:
+            - name: dashboard-config
+              mountPath: /config
+      volumes:
+        - name: dashboard-config
+          configMap:
+            name: trivy-dashboard-ndjson
+      restartPolicy: OnFailure
