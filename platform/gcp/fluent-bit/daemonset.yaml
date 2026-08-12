@@ -74,6 +74,9 @@ spec:
             - name: metrics
               containerPort: 2020
               protocol: TCP
+            - name: webhook
+              containerPort: 9880
+              protocol: TCP
           resources:
             requests:
               cpu: 50m
