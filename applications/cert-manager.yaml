@@ -66,6 +66,14 @@ spec:
               memory: 32Mi
             limits:
               memory: 64Mi
+        # Certificate Ready/Not Ready, expiration and renewal metrics are
+        # emitted by cert-manager on the existing 9402 metrics Services.
+        # Prometheus selects ServiceMonitors cluster-wide, so no instance
+        # label is required here.
+        prometheus:
+          servicemonitor:
+            enabled: true
+            interval: 30s
         # AWS 자격증명은 Node Instance Profile에서 IMDS로 가져온다. 별도 환경
         # 변수나 Token Volume을 두지 않는다. Calico IMDS GlobalNetworkPolicy의
         # 허용 대상에 cert-manager를 포함해야 DNS-01이 동작한다.
