@@ -51,13 +51,43 @@ spec:
               # created out of band and never lives in Git. Fail loudly rather
               # than installing a monitor whose action silently goes nowhere.
               # → references/20260812_waf-slack-alerting.md
-              status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              cfg=$(mktemp)
+              status=$(curl --silent --output "$cfg" --write-out '%{http_code}' \
                 "$endpoint/_plugins/_notifications/configs/$channel")
               if [ "$status" != "200" ]; then
                 echo "Notification channel '$channel' is missing (HTTP $status)." >&2
                 echo "Create it first - see references/20260812_waf-slack-alerting.md" >&2
                 exit 1
               fi
+
+              # The channel is created by hand from a terminal, and the usual
+              # recipe reads the URL with `read -rs` so it never lands in shell
+              # history. That also hides a double paste: the first attempt here
+              # stored the webhook three times over, 243 characters long, which
+              # Slack would simply reject at delivery time with nothing in this
+              # Job to say why. Check the shape now instead.
+              #
+              # Never echo the URL itself - this Job's logs are readable by
+              # anyone with logs access in the namespace.
+              url=$(grep -o '"url":"[^"]*"' "$cfg" | head -n1 | cut -d'"' -f4)
+              # `grep -c` counts matching lines, not matches - the URL is one
+              # line, so a triple paste would still report 1. Count occurrences.
+              hosts=$(printf '%s' "$url" | grep -o 'hooks\.slack\.com' | wc -l | tr -d ' ')
+              case "$url" in
+                https://hooks.slack.com/services/*) ;;
+                *)
+                  echo "Channel '$channel' does not hold a Slack webhook URL." >&2
+                  echo "Expected https://hooks.slack.com/services/... - see the runbook." >&2
+                  exit 1
+                  ;;
+              esac
+              if [ "$hosts" -ne 1 ]; then
+                echo "Channel '$channel' URL looks concatenated:" >&2
+                echo "  length=${#url} hooks.slack.com occurrences=$hosts (expected 1)" >&2
+                echo "Recreate the channel - see references/20260812_waf-slack-alerting.md" >&2
+                exit 1
+              fi
+              echo "Notification channel '$channel' looks well formed (length ${#url})"
 
               # Monitors get a server-generated id, so a blind POST would add a
               # duplicate on every sync. Look it up by name and update in place.
