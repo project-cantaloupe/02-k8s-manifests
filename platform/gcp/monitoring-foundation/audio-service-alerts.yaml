@@ -1,0 +1,112 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: audio-service-alerts
+  namespace: monitoring
+  labels:
+    app: audio
+    area: monitoring
+    service: audio
+    platform: aws
+spec:
+  groups:
+    - name: audio-service.availability
+      rules:
+        - alert: AudioWorkloadUnavailable
+          expr: >-
+            max by (namespace, deployment)
+              (kube_deployment_spec_replicas{namespace="apps",deployment=~"audio-web|audio-api|audio-events|audio-transcode"}) > 0
+            and on (namespace, deployment)
+            max by (namespace, deployment)
+              (kube_deployment_status_replicas_available{namespace="apps",deployment=~"audio-web|audio-api|audio-events|audio-transcode"}) == 0
+          for: 3m
+          labels:
+            severity: critical
+            category: monitoring
+            service: audio
+            component: workload
+          annotations:
+            summary: Audio 핵심 Workload가 가용하지 않습니다.
+            description: '{{ $labels.namespace }}/{{ $labels.deployment }}의 가용 Pod가 0개입니다.'
+            action: Deployment rollout, Pod 이벤트, 이미지 Pull, Secret과 노드 상태를 확인하세요.
+
+        - alert: AudioAPIHTTP5xxRateHigh
+          expr: >-
+            (
+              sum(increase(istio_requests_total{reporter="source",source_workload="audio-ingress",destination_workload="audio-api",destination_workload_namespace="apps",response_code=~"5.."}[5m]))
+              /
+              clamp_min(sum(increase(istio_requests_total{reporter="source",source_workload="audio-ingress",destination_workload="audio-api",destination_workload_namespace="apps"}[5m])), 1)
+            ) > 0.05
+            and
+            sum(increase(istio_requests_total{reporter="source",source_workload="audio-ingress",destination_workload="audio-api",destination_workload_namespace="apps"}[5m])) >= 10
+          for: 5m
+          labels:
+            severity: critical
+            category: monitoring
+            service: audio
+            component: api
+          annotations:
+            summary: Audio API의 HTTP 5xx 비율이 5%를 초과했습니다.
+            description: 최근 5분 요청이 10건 이상인 상태에서 5xx 비율이 5%를 넘었습니다.
+            action: audio-api 로그, RDS 연결, S3·SQS 오류와 최근 배포를 확인하세요.
+
+    - name: audio-service.transcode
+      rules:
+        - alert: AudioTranscodeDLQNotEmpty
+          expr: >-
+            max by (queue_name)
+              (cantaloupe:aws_sqs_messages_visible{queue_name="cntlp-aws-queue-transcode-dlq"}) > 0
+          for: 5m
+          labels:
+            severity: critical
+            category: monitoring
+            service: audio
+            component: queue
+          annotations:
+            summary: Transcode DLQ에 실패 메시지가 남아 있습니다.
+            description: 자동 재시도 한도를 초과한 Transcode 메시지가 DLQ에 존재합니다.
+            action: DLQ 메시지 원인, Worker 로그, RDS 인증, S3 접근을 확인한 뒤 안전하게 redrive 하세요.
+
+        - alert: AudioTranscodeProcessingStalled
+          expr: >-
+            (
+              max by (queue_name)
+                (cantaloupe:aws_sqs_messages_visible{queue_name="cntlp-aws-queue-transcode"})
+              + max by (queue_name)
+                (cantaloupe:aws_sqs_messages_not_visible{queue_name="cntlp-aws-queue-transcode"})
+            ) > 0
+            and on ()
+            sum(increase(audio_transcode_completed_total{namespace="apps"}[5m])) == 0
+          for: 10m
+          labels:
+            severity: critical
+            category: monitoring
+            service: audio
+            component: transcode
+          annotations:
+            summary: Queue 작업이 남아 있지만 Transcode 완료가 멈췄습니다.
+            description: 처리 대기 또는 처리 중 메시지가 존재하는데 최근 5분 완료 증가가 없는 상태가 10분간 지속됐습니다.
+            action: Base/Burst Worker, KEDA ScaledObject, Pending Pod, Karpenter 노드와 Worker 로그를 확인하세요.
+
+        - alert: AudioContainerOOMOrRestarting
+          expr: >-
+            sum by (namespace, pod, container)
+              (increase(kube_pod_container_status_restarts_total{namespace="apps",container=~"web|api|events|transcode"}[10m])) >= 2
+            or
+            (
+              max by (namespace, pod, container)
+                (kube_pod_container_status_last_terminated_reason{namespace="apps",container=~"web|api|events|transcode",reason="OOMKilled"} == 1)
+              and on (namespace, pod, container)
+              sum by (namespace, pod, container)
+                (increase(kube_pod_container_status_restarts_total{namespace="apps",container=~"web|api|events|transcode"}[10m])) > 0
+            )
+          for: 2m
+          labels:
+            severity: critical
+            category: monitoring
+            service: audio
+            component: container
+          annotations:
+            summary: Audio 컨테이너가 OOM 종료되었거나 반복 재시작 중입니다.
+            description: '{{ $labels.namespace }}/{{ $labels.pod }}의 {{ $labels.container }} 컨테이너에서 비정상 재시작이 감지됐습니다.'
+            action: 종료 사유와 로그를 확인하고, OOM이면 실제 사용량과 VPA 권고를 검토한 뒤 Request·Limit을 조정하세요.

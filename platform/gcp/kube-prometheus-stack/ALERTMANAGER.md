@@ -12,6 +12,26 @@ kubectl -n monitoring create secret generic alertmanager-slack-webhook \
   | kubectl apply -f -
 ```
 
+오디오 서비스 알람은 같은 Workspace의 전용 채널 Webhook을 별도 Secret으로
+관리한다. `service=audio` 라벨이 있는 warning/critical 알람만 이 Receiver로
+분기되며 기존 플랫폼 채널에는 중복 전송하지 않는다.
+
+```bash
+read -s SLACK_AUDIO_WEBHOOK
+kubectl -n monitoring create secret generic alertmanager-slack-audio-webhook \
+  --from-literal=api-url="$SLACK_AUDIO_WEBHOOK" \
+  --dry-run=client -o yaml | kubectl apply -f -
+unset SLACK_AUDIO_WEBHOOK
+```
+
+Secret 확인 시 `.data` 또는 `api-url`을 출력하지 않는다. 존재 여부만 다음처럼
+확인한다.
+
+```bash
+kubectl -n monitoring get secret alertmanager-slack-audio-webhook \
+  -o jsonpath='{.metadata.name}{" 등록 완료\\n"}'
+```
+
 값을 노출하지 않고 Secret 구조만 확인한다.
 
 ```bash
@@ -24,6 +44,8 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
 ## 알림 정책
 
 - `warning`, `critical`만 `#cantaloupe-platform-alerts`로 전송한다.
+- 그중 `service=audio` 알람은 `#cantaloupe-audio-alerts`로 분기하고 플랫폼
+  채널에는 중복 전송하지 않는다.
 - 동일한 namespace/alertname/severity 알림은 한 메시지로 묶는다.
 - 최초 대기 30초, 신규 그룹 갱신 5분, 미복구 반복 알림 4시간이다.
 - 복구 시 resolved 메시지를 보낸다.
