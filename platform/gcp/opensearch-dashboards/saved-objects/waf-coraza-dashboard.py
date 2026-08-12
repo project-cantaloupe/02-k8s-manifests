@@ -28,6 +28,8 @@
 # so an unmapped field aggregates to an empty bucket without any error.
 # → tasks/todo/023_waf-blocking-and-siem.md
 
+import json, sys
+
 IP_ID = "cantaloupe-app-logs-v1"
 DASH_ID = "waf-coraza-overview-v1"
 WAF_Q = 'security_event_type : "waf_rule_match"'
@@ -85,9 +87,13 @@ metric("waf-total-detections", "WAF 탐지 총 건수",
 metric("waf-blocked-count", "실제 차단 건수",
        "SecRuleEngine On 에서만 증가한다. DetectionOnly 동안은 0 이 정상이며, 이 값이 오르는 순간이 차단 전환 시점이다.",
        WAF_Q + ' and waf_action : "blocked"', "차단", threshold=1)
+# ⚠️ 949110(phase 2) 과 949111(phase 1) 을 함께 센다.
+# DetectionOnly 는 끝까지 평가해 둘 다 찍지만, SecRuleEngine On 은 임계값에
+# 닿는 phase 1 에서 즉시 거절하므로 949110 이 아예 실행되지 않는다.
+# 949110 만 세면 차단 전환 순간 이 타일이 멈춘 것처럼 보인다.
 metric("waf-threshold-exceeded", "이상점수 임계 초과",
-       "룰 949110 발화 건수. 차단 모드였다면 403 이 되었을 요청 수와 같다.",
-       'waf_rule_id : "949110"', "요청")
+       "CRS 차단 평가 룰(949110·949111) 발화 건수. 탐지 모드에서는 「차단 모드였다면 403 이 되었을 요청」, 차단 모드에서는 실제로 거절된 요청을 뜻한다.",
+       'waf_rule_id : ("949110" or "949111")', "요청")
 metric("waf-unique-attackers", "공격 출발 IP 수",
        "고유 클라이언트 IP 수. externalTrafficPolicy: Local 이 아니면 항상 노드 수만큼만 나온다.",
        WAF_Q, "IP", agg={"id": "1", "enabled": True, "type": "cardinality", "schema": "metric",
