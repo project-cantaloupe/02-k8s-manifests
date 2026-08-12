@@ -168,7 +168,7 @@
       "id": 103,
       "type": "stat",
       "title": "실패",
-      "description": "선택 시간 범위의 Transcode 시도 실패 건수입니다.",
+      "description": "동일 run_id에서 수집된 audio_transcode_failed_total 증가량입니다. READY가 아닌 중간 상태 건수를 실패로 세지 않습니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -186,7 +186,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_failed{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -484,7 +484,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_failed{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -627,7 +627,7 @@
       "id": 301,
       "type": "timeseries",
       "title": "SQS / Transcode / Pending / Karpenter 통합 타임라인",
-      "description": "Queue 유입, 전체 Transcode Worker, Pending Transcode, Karpenter Node의 발생 순서와 처리 종료 후 scale-in을 같은 시간축에서 확인합니다. SQS CloudWatch 표본은 약 2분 지연될 수 있습니다.",
+      "description": "Queue 유입, 전체 Transcode Worker, Pending Transcode, Karpenter Node의 발생 순서와 처리 종료 후 scale-in을 같은 시간축에서 확인합니다. SQS는 CloudWatch 수집 주기 때문에 짧은 Spike를 놓칠 수 있고, Pending은 Prometheus scrape 시점 사이에 생성·해소되면 포착되지 않을 수 있습니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -684,7 +684,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(max by(node) (kube_node_labels{label_karpenter_sh_nodepool=\"aws-service\"})) or vector(0)",
+          "expr": "count(max by(node) (kube_node_labels{label_karpenter_sh_nodepool=~\"aws-audio-burst-(98|99)\"})) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -746,7 +746,7 @@
       "id": 401,
       "type": "timeseries",
       "title": "CPU — Actual / Request / VPA Target",
-      "description": "Right Sizing 후 실제 CPU 사용량이 변경된 Request에서 안전하게 동작하는지 확인합니다. CPU limit은 설정하지 않습니다.",
+      "description": "Base audio-transcode workload만 비교합니다. Request는 Pod별 값이 아니라 실행 중인 Base Pod들의 합계이며, 현재 Pod 1개 × 250m이면 0.250 cores입니다. CPU limit은 설정하지 않습니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1000,7 +1000,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD",
-          "decimals": 4,
+          "decimals": 6,
           "noValue": "0",
           "color": {
             "mode": "thresholds"
@@ -1046,7 +1046,7 @@
         "expr": "(sum(sum_over_time(cantaloupe:container_allocated_cost_per_hour{namespace=\"apps\",container=\"transcode\"}[$__range:1m])) / 60) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
         "format": "time_series", "instant": true, "range": false, "refId": "A"
       }],
-      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4, "noValue": "0", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 6, "noValue": "0", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "textMode": "auto", "wideLayout": true, "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
     },
     {
@@ -1059,10 +1059,10 @@
       "targets": [{
         "datasource": { "type": "prometheus", "uid": "prometheus" },
         "editorMode": "code",
-        "expr": "(sum(sum_over_time((cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{label_karpenter_sh_nodepool=\"aws-service\"}))[$__range:1m])) / 60) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
+        "expr": "(sum(sum_over_time((cantaloupe:node_total_cost_per_hour * on(node) group_left() max by(node) (kube_node_labels{label_karpenter_sh_nodepool=~\"aws-audio-burst-(98|99)\"}))[$__range:1m])) / 60) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
         "format": "time_series", "instant": true, "range": false, "refId": "A"
       }],
-      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4, "noValue": "0", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 6, "noValue": "0", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "textMode": "auto", "wideLayout": true, "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
     },
     {
@@ -1087,7 +1087,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(sum_over_time((count(max by(node) (kube_node_labels{label_karpenter_sh_nodepool=\"aws-service\"})))[$__range:1m]) or vector(0)) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
+          "expr": "(sum_over_time((count(max by(node) (kube_node_labels{label_karpenter_sh_nodepool=~\"aws-audio-burst-(98|99)\"})))[$__range:1m]) or vector(0)) / clamp_min(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range])), 1)",
           "format": "time_series",
           "instant": true,
           "range": false,
