@@ -458,7 +458,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool 60))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -471,7 +471,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool 60))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -484,7 +484,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool 60))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
