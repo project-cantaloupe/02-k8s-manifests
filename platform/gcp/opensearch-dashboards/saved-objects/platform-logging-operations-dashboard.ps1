@@ -146,9 +146,9 @@ Save-Terms "platform-ops-unknown-apps" "Unknown 레벨 발생 상위 앱" 'level
 # 2. Incident location
 $platformColors = @{ aws = "#00A69C"; gcp = "#5274C7"; onp = "#8E5EA2"; unknown = "#8A8A8A" }
 Save-Terms "platform-ops-errors-by-namespace" "네임스페이스별 경고/오류" 'level : (warning or error)' "namespace" "경고와 오류가 집중된 네임스페이스를 확인합니다." 15 "#D36086"
-Save-Terms "platform-ops-top-error-workloads" "오류 발생 상위 워크로드" 'level : error' "app" "오류 로그를 가장 많이 발생시킨 워크로드입니다." 10
+Save-Terms "platform-ops-top-error-workloads" "오류 발생 상위 워크로드" 'level : error' "app" "오류 로그를 가장 많이 발생시킨 워크로드입니다." 5
 Save-Terms "platform-ops-by-platform" "플랫폼별 로그 발생량" "" "collector_platform" "AWS, GCP, 온프레미스의 로그 발생량을 비교합니다." 10 "" -CategoryPalette -Colors $platformColors
-Save-Terms "platform-ops-top-producers" "로그 발생량 상위 소스" "" "app" "로그를 가장 많이 발생시킨 워크로드/앱입니다." 15
+Save-Terms "platform-ops-top-producers" "로그 발생량 상위 소스" "" "app" "로그를 가장 많이 발생시킨 워크로드/앱입니다." 5
 
 Save-Object "search" "platform-ops-recent-warning-error" @{
   title = "최근 경고/오류 로그"; description = "선택한 범위의 최신 경고 및 오류 로그입니다."; hits = 0
@@ -187,21 +187,48 @@ Save-Visualization "platform-ops-usage-by-namespace" "네임스페이스별 원�
 $panels = @()
 function Panel([string]$Index, [string]$Ref, [int]$X, [int]$Y, [int]$W, [int]$H, $Config = @{}) { @{ gridData = @{ x=$X; y=$Y; w=$W; h=$H; i=$Index }; panelIndex=$Index; version="7.10.0"; panelRefName=$Ref; embeddableConfig=$Config } }
 $panels += Panel "scope" "p_scope" 0 0 48 5
-$panels += Panel "group-current" "p_group_current" 0 5 48 2 @{ hidePanelTitles=$true }
-$panels += Panel "total" "p_total" 0 7 10 7; $panels += Panel "warning" "p_warning" 10 7 9 7; $panels += Panel "error" "p_error" 19 7 9 7; $panels += Panel "k8s" "p_k8s" 28 7 10 7; $panels += Panel "delivery" "p_delivery" 38 7 10 7
-$panels += Panel "volume" "p_volume" 0 14 32 10; $panels += Panel "levels" "p_levels" 32 14 16 10
-$panels += Panel "group-incident" "p_group_incident" 0 24 48 2 @{ hidePanelTitles=$true }
-$panels += Panel "ns" "p_ns" 0 26 24 10; $panels += Panel "errapp" "p_errapp" 24 26 24 10
-$panels += Panel "recent" "p_recent" 0 36 48 12 @{ columns=@("collector_platform","namespace","app","level","message"); sort=@("@timestamp","desc") }
-$panels += Panel "platform" "p_platform" 0 48 24 10; $panels += Panel "producer" "p_producer" 24 48 24 10
-$panels += Panel "group-cluster" "p_group_cluster" 0 58 48 2 @{ hidePanelTitles=$true }
-$panels += Panel "reasons" "p_reasons" 0 60 24 10; $panels += Panel "scaling" "p_scaling" 24 60 24 10
-$panels += Panel "argocd" "p_argocd" 0 70 24 8; $panels += Panel "core" "p_core" 24 70 24 8
-$panels += Panel "group-health" "p_group_health" 0 78 48 2 @{ hidePanelTitles=$true }
-$panels += Panel "delivery2" "p_delivery" 0 80 24 7; $panels += Panel "logerr" "p_logerr" 24 80 24 7
-$panels += Panel "daily" "p_daily" 0 87 24 11 @{ timeRange=@{from="now-24h";to="now"} }; $panels += Panel "ingest" "p_ingest" 24 87 24 11
-$panels += Panel "usage" "p_usage" 0 98 48 12
-$panels += Panel "unknown" "p_unknown" 0 110 48 10
+$panels += Panel "group-current" "p_group_current" 0 5 48 3 @{ hidePanelTitles=$true }
+
+$panels += Panel "total" "p_total" 0 8 10 7
+$panels += Panel "warning" "p_warning" 10 8 9 7
+$panels += Panel "error" "p_error" 19 8 9 7
+$panels += Panel "k8s" "p_k8s" 28 8 10 7
+$panels += Panel "delivery" "p_delivery" 38 8 10 7
+
+$panels += Panel "volume" "p_volume" 0 15 32 10
+$panels += Panel "levels" "p_levels" 32 15 16 10
+
+
+$panels += Panel "group-incident" "p_group_incident" 0 25 48 3 @{ hidePanelTitles=$true }
+
+$panels += Panel "ns" "p_ns" 0 28 24 10
+$panels += Panel "errapp" "p_errapp" 24 28 24 10
+
+$panels += Panel "recent" "p_recent" 0 38 48 12 @{ columns=@("collector_platform","namespace","app","level","message"); sort=@("@timestamp","desc") }
+
+$panels += Panel "platform" "p_platform" 0 50 24 10
+$panels += Panel "producer" "p_producer" 24 50 24 10
+
+
+$panels += Panel "group-cluster" "p_group_cluster" 0 60 48 3 @{ hidePanelTitles=$true }
+
+$panels += Panel "reasons" "p_reasons" 0 63 24 10
+$panels += Panel "scaling" "p_scaling" 24 63 24 10
+
+$panels += Panel "argocd" "p_argocd" 0 73 24 8
+$panels += Panel "core" "p_core" 24 73 24 8
+
+
+$panels += Panel "group-health" "p_group_health" 0 81 48 3 @{ hidePanelTitles=$true }
+
+$panels += Panel "delivery2" "p_delivery" 0 84 24 7
+$panels += Panel "logerr" "p_logerr" 24 84 24 7
+
+$panels += Panel "daily" "p_daily" 0 91 24 11 @{ timeRange=@{from="now-24h";to="now"} }
+$panels += Panel "ingest" "p_ingest" 24 91 24 11
+
+$panels += Panel "usage" "p_usage" 0 102 48 12
+$panels += Panel "unknown" "p_unknown" 0 114 48 10
 
 $refs = @(
   @{name="p_scope";id="platform-ops-scope-v2";type="visualization"}, @{name="p_group_current";id="platform-ops-group-current";type="visualization"}, @{name="p_group_incident";id="platform-ops-group-incident";type="visualization"}, @{name="p_group_cluster";id="platform-ops-group-cluster";type="visualization"}, @{name="p_group_health";id="platform-ops-group-health";type="visualization"},
