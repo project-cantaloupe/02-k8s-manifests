@@ -11,4 +11,4 @@ resources:
 images:
   - name: audio-web
     newName: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/app-audio-web
-    newTag: 8a435700a75094a3fb9b825134661a25bef1f12e
+    newTag: db4a495500dfcbdb7ef5e9b07c73a19aa7fafa90
