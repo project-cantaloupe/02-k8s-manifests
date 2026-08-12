@@ -39,7 +39,7 @@
       "id": 101,
       "type": "stat",
       "title": "제출",
-      "description": "Load Runner가 API 생성과 S3 업로드에 성공해 추적을 시작한 최신 Run 제출 건수입니다. Pushgateway 최신 gauge이므로 오래된 과거 Run은 시간 범위만으로 정확히 귀속할 수 없습니다.",
+      "description": "선택 시간 범위 안에 Pushgateway로 기록된 부하테스트 run_id들의 실제 제출 건수 합계입니다. 실행 시각은 Pushgateway push_time_seconds로 판정합니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -57,7 +57,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(cantaloupe_audio_finops_run_submitted) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -251,7 +251,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "clamp_max(100 * (round(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) or vector(0)) / clamp_min(max(cantaloupe_audio_finops_run_submitted), 1), 100)",
+          "expr": "clamp_max(100 * (round(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) or vector(0)) / clamp_min(sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})), 1), 100)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -444,7 +444,7 @@
       "id": 201,
       "type": "timeseries",
       "title": "제출 / 완료 / 실패 추이",
-      "description": "동일 패널에서 선택 시간 범위의 제출, 완료, 실패 변화를 확인합니다. 제출은 Pushgateway 최신 Run gauge입니다.",
+      "description": "동일 패널에서 선택 시간 범위의 제출 이벤트, 완료, 실패 변화를 확인합니다. 제출은 run_id별 push_time_seconds 시점에 표시합니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -462,12 +462,12 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(cantaloupe_audio_finops_run_submitted) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
           "refId": "A",
-          "legendFormat": "제출(최신 Run)"
+          "legendFormat": "제출"
         },
         {
           "datasource": {
