@@ -121,7 +121,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "round(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -186,7 +186,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "round(sum(increase(audio_transcode_failed_total{namespace=\"apps\"}[$__range]))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_failed{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -204,10 +204,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
             ]
           }
         },
@@ -251,7 +249,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "clamp_max(100 * (round(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) or vector(0)) / clamp_min(sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})), 1), 100)",
+          "expr": "100 * (sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)) / clamp_min(sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})), 1)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -269,10 +267,8 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
+              { "color": "red", "value": null },
+              { "color": "green", "value": 100 }
             ]
           }
         },
@@ -363,7 +359,7 @@
       "id": 106,
       "type": "stat",
       "title": "안전 이상 여부",
-      "description": "OOMKilled, 비정상 Transcode Worker 재시작, Transcode DLQ 중 하나라도 감지되면 1, 모두 정상이면 0입니다. 순간 Pending은 정상 확장 과정으로 보고 지속 Pending 허용시간은 아직 정의되지 않아 현재 판정에서 제외합니다.",
+      "description": "OOMKilled, 비정상 Transcode Worker 재시작, 선택 구간의 Transcode DLQ 신규 전송 중 하나라도 감지되면 1, 모두 정상이면 0입니다. DLQ는 기존 잔여 메시지가 아니라 NumberOfMessagesSent 합계로 판정합니다. 지속 Pending 허용시간은 프로젝트 기준 미정이라 현재 판정에서 제외합니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -381,7 +377,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "clamp_max((round(sum(increase(kube_pod_container_status_restarts_total{namespace=\"apps\",container=\"transcode\"}[$__range]))) or vector(0)) + (sum(max_over_time(kube_pod_container_status_last_terminated_reason{namespace=\"apps\",container=\"transcode\",reason=\"OOMKilled\"}[$__range])) or vector(0)) + (max(max_over_time(cantaloupe:aws_sqs_messages_visible{queue_name=\"cntlp-aws-queue-transcode-dlq\"}[$__range])) or vector(0)), 1)",
+          "expr": "clamp_max((round(sum(increase(kube_pod_container_status_restarts_total{namespace=\"apps\",container=\"transcode\"}[$__range]))) or vector(0)) + (sum(max_over_time(kube_pod_container_status_last_terminated_reason{namespace=\"apps\",container=\"transcode\",reason=\"OOMKilled\"}[$__range])) or vector(0)) + (sum(sum_over_time(cantaloupe:aws_sqs_messages_sent_total{queue_name=\"cntlp-aws-queue-transcode-dlq\"}[$__range])) > bool 0), 1)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -475,7 +471,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "round(sum(increase(audio_transcode_completed_total{namespace=\"apps\"}[$__range]))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -488,7 +484,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "round(sum(increase(audio_transcode_failed_total{namespace=\"apps\"}[$__range]))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_failed{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -768,7 +764,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"apps\",container=\"transcode\"}[$__rate_interval]))",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"apps\",container=\"transcode\"}[$__rate_interval]) * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -781,7 +777,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_requests{namespace=\"apps\",container=\"transcode\",resource=\"cpu\",unit=\"core\"})",
+          "expr": "sum(kube_pod_container_resource_requests{namespace=\"apps\",container=\"transcode\",resource=\"cpu\",unit=\"core\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -862,7 +858,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(container_memory_working_set_bytes{namespace=\"apps\",container=\"transcode\"})",
+          "expr": "sum(container_memory_working_set_bytes{namespace=\"apps\",container=\"transcode\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -875,7 +871,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_requests{namespace=\"apps\",container=\"transcode\",resource=\"memory\",unit=\"byte\"})",
+          "expr": "sum(kube_pod_container_resource_requests{namespace=\"apps\",container=\"transcode\",resource=\"memory\",unit=\"byte\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -914,7 +910,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_limits{namespace=\"apps\",container=\"transcode\",resource=\"memory\",unit=\"byte\"})",
+          "expr": "sum(kube_pod_container_resource_limits{namespace=\"apps\",container=\"transcode\",resource=\"memory\",unit=\"byte\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -1100,7 +1096,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "none",
+          "unit": "suffix: node-min / Track",
           "decimals": 2,
           "noValue": "0",
           "color": {
