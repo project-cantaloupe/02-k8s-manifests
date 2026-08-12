@@ -25,6 +25,11 @@ data:
         'count(max by(node) (kube_node_labels{job="opencost",'
         'label_karpenter_sh_nodepool=~"aws-audio-burst-(98|99)"})) or vector(0)'
     )
+    KARPENTER_COST_QUERY = (
+        'sum(cantaloupe:node_total_cost_per_hour * on(node) group_left() '
+        'max by(node) (kube_node_labels{job="opencost",'
+        'label_karpenter_sh_nodepool=~"aws-audio-burst-(98|99)"})) or vector(0)'
+    )
 
     def kube_get(path):
         with open(SA + "/token", encoding="utf-8") as handle:
@@ -80,7 +85,6 @@ data:
         critical = (
             "processing_p95_seconds",
             "transcode_completed",
-            "transcode_failed",
             "transcode_retried",
             "queue_visible_max",
             "queue_inflight_max",
@@ -204,9 +208,19 @@ data:
             return None
         return max(0, round(after - before))
 
-    def karpenter_node_metrics(start, finish):
-        # Queue 처리 종료 뒤 WhenEmpty 축소까지 같은 5분 관측 창에 포함한다.
-        evaluate = finish + dt.timedelta(seconds=COLLECTION_DELAY_SECONDS)
+    def integrate_step_series(points, cutoff):
+        total = 0.0
+        for index, (timestamp, value) in enumerate(points):
+            if timestamp >= cutoff:
+                break
+            next_timestamp = points[index + 1][0] if index + 1 < len(points) else cutoff
+            total += value * max(0.0, min(next_timestamp, cutoff) - timestamp)
+        return total
+
+    def karpenter_node_metrics(start, finish, evaluate):
+        # Collector는 매 주기 같은 Run을 다시 평가한다. Run 중 생성된 노드가
+        # 0대로 복귀한 최초 시점에서 관측 구간을 닫아 이후 Run의 노드가 섞이지
+        # 않게 한다. 아직 남아 있으면 현재 시점까지의 값은 관측 하한이다.
         points = prom_range(
             KARPENTER_NODE_QUERY,
             start.timestamp(),
@@ -217,25 +231,41 @@ data:
             return {
                 "karpenter_nodes_max": None,
                 "karpenter_node_minutes": None,
+                "karpenter_cost_usd": None,
                 "karpenter_nodes_final": None,
                 "karpenter_node_cleanup_complete": None,
             }
 
-        node_minutes = 0.0
-        finish_timestamp = evaluate.timestamp()
-        for index, (timestamp, value) in enumerate(points):
-            next_timestamp = (
-                points[index + 1][0] if index + 1 < len(points) else finish_timestamp
-            )
-            interval = max(0.0, min(next_timestamp, finish_timestamp) - timestamp)
-            node_minutes += value * interval / 60.0
+        finish_timestamp = finish.timestamp()
+        evaluate_timestamp = evaluate.timestamp()
+        seen_positive = False
+        cleanup_timestamp = None
+        for timestamp, value in points:
+            seen_positive = seen_positive or value > 0
+            if seen_positive and timestamp >= finish_timestamp and value == 0:
+                cleanup_timestamp = timestamp
+                break
 
-        final_nodes = points[-1][1]
+        if not seen_positive:
+            cleanup_timestamp = finish_timestamp
+        cutoff = cleanup_timestamp if cleanup_timestamp is not None else evaluate_timestamp
+        node_minutes = integrate_step_series(points, cutoff) / 60.0
+        cost_points = prom_range(
+            KARPENTER_COST_QUERY,
+            start.timestamp(),
+            evaluate_timestamp,
+            step=15,
+        )
+        cost_usd = integrate_step_series(cost_points, cutoff) / 3600.0 if cost_points else None
+        cleanup_complete = int(cleanup_timestamp is not None)
         return {
             "karpenter_nodes_max": max(value for _, value in points),
-            "karpenter_node_minutes": node_minutes,
-            "karpenter_nodes_final": final_nodes,
-            "karpenter_node_cleanup_complete": int(final_nodes == 0),
+            # 확장 노드가 남아 있는 동안에는 변하는 하한값을 확정 비용처럼
+            # 게시하지 않는다. 다음 Collector 주기에 0대 복귀가 확인되면 채운다.
+            "karpenter_node_minutes": node_minutes if cleanup_complete else None,
+            "karpenter_cost_usd": cost_usd if cleanup_complete else None,
+            "karpenter_nodes_final": 0 if cleanup_complete else points[-1][1],
+            "karpenter_node_cleanup_complete": cleanup_complete,
         }
 
     def collect(result, job_failed=0):
@@ -303,7 +333,7 @@ data:
             "job_failed": int(job_failed),
         }
         metrics.update(queue_metrics(start, finish))
-        metrics.update(karpenter_node_metrics(start, finish))
+        metrics.update(karpenter_node_metrics(start, finish, dt.datetime.now(dt.timezone.utc)))
         return metrics
 
     def job_env(job, name, default=""):
