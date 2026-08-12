@@ -4,7 +4,7 @@ metadata:
   name: karpenter-nodepool
   namespace: devops
   annotations:
-    # Controller chart가 CRD를 설치한 다음 검증용 NodePool 생성
+    # Controller chart가 CRD를 설치한 다음 Audio Burst 전용 NodePool 생성
     argocd.argoproj.io/sync-wave: "-14"
 spec:
   project: default

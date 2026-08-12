@@ -18,8 +18,9 @@ metadata:
   name: audio-transcode
   namespace: apps
   annotations:
-    cantaloupe.io/finops-baseline: "cpu=250m,memory=256Mi"
-    cantaloupe.io/finops-baseline-rationale: conservative-initial-sizing-before-controlled-load
+    cantaloupe.io/finops-profile: baseline
+    cantaloupe.io/finops-request: "cpu=250m,memory=256Mi"
+    cantaloupe.io/finops-rationale: conservative-initial-sizing-before-controlled-load
   labels:
     app: audio-transcode
     area: apps

@@ -4,6 +4,30 @@ kind: Kustomization
 resources:
   - runner-configmap.yaml
   - cronjobs.yaml
+  - oidc-secret.yaml
   - collector-configmap.yaml
   - collector-cronjob.yaml
   - collector-rbac.yaml
+
+# 부하 생성기 네 개에만 전용 서비스 Client Secret을 주입한다. Collector는
+# monitoring Namespace에서 실행되며 이 Secret을 사용하지 않는다.
+patches:
+  - target:
+      kind: CronJob
+      labelSelector: app=audio-finops-load-runner
+    patch: |
+      # CronJob Controller와 `kubectl create job --from=cronjob` 양쪽에서 Job
+      # 최상위 Label을 보존해야 Collector의 Job Selector가 결과를 찾을 수 있다.
+      - op: add
+        path: /spec/jobTemplate/metadata
+        value:
+          labels:
+            app: audio-finops-load-runner
+            area: apps
+            platform: aws
+            experiment: audio-finops
+      - op: add
+        path: /spec/jobTemplate/spec/template/spec/containers/0/envFrom
+        value:
+          - secretRef:
+              name: audio-finops-oidc

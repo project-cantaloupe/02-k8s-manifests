@@ -1,5 +1,5 @@
-# Audio Workload는 apps Namespace에서 실행한다. devops는 Argo CD, Jenkins,
-# Harbor 같은 DevOps 도구의 자리이므로 섞지 않는다.
+# Audio Workload는 apps Namespace에서 실행한다. devops는 Argo CD, Harbor 같은
+# DevOps 도구의 자리이므로 섞지 않는다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -17,7 +17,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: apps
-  # KEDA owns the burst worker's replica count (0-1). Argo CD must reconcile
+  # KEDA owns the Burst Worker replica count (0-6). Argo CD must reconcile
   # the workload definition without fighting KEDA's runtime scaling decisions.
   ignoreDifferences:
     - group: apps

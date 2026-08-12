@@ -7,12 +7,18 @@ metadata:
     app: audio-finops-result-collector
     experiment: audio-finops
 spec:
-  schedule: "5 14-23 * * 2-5"
+  # CloudWatch SQS의 120초 지연 뒤에도 5분 Guard를 확보하고, Due가 된 Run을
+  # 한 시간씩 기다리지 않도록 실험 시간대에는 10분마다 재수집한다.
+  schedule: "*/10 14-23 * * 2-5"
   timeZone: Asia/Seoul
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   jobTemplate:
+    metadata:
+      labels:
+        app: audio-finops-result-collector
+        experiment: audio-finops
     spec:
       backoffLimit: 1
       activeDeadlineSeconds: 300
@@ -32,6 +38,8 @@ spec:
               env:
                 - name: EXPERIMENT_END_DATE
                   value: "2026-08-14"
+                - name: COLLECTION_DELAY_SECONDS
+                  value: "300"
               securityContext:
                 runAsNonRoot: true
                 runAsUser: 65532
@@ -58,4 +66,3 @@ spec:
                 name: audio-finops-result-collector
             - name: tmp
               emptyDir: {}
-

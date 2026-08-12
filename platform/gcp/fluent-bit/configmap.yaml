@@ -124,10 +124,17 @@ data:
         Format       regex
         Regex        ^(?<http_client_ip>[^ ]+) - (?<http_user>[^ ]+) \[(?<http_request_time>[^\]]+)\] "(?<http_method>[^ ]+) (?<http_path>[^ ]+) [^"]+" (?<http_status>[0-9]{3}) (?<http_response_bytes>[0-9]+) "(?<http_referer>[^"]*)" "(?<http_user_agent>[^"]*)" "(?<http_forwarded_for>[^"]*)"$
         Types        http_status:integer http_response_bytes:integer
+    # Field order follows Istio's default access-log format. Three captures
+    # were unnamed until the WAF work needed them:
+    #   response_code_details  separates a WAF denial from an Istio RBAC
+    #                          denial when both answer 403
+    #   http_client_ip         X-Forwarded-For. Masked in Lua before indexing
+    #   http_user_agent        scanner attribution
+    # → tasks/todo/023_waf-blocking-and-siem.md
     [PARSER]
         Name         istio_access
         Format       regex
-        Regex        ^\[[^\]]+\] "(?<http_method>[^ ]+) (?<http_route>[^ ?]+)(?:\?[^ ]*)? [^"]+" (?<http_status>[0-9]{3}) [^ ]+ [^ ]+ [^ ]+ "[^"]*" [0-9]+ [0-9]+ (?<processing_duration_ms>[0-9]+) [^ ]+ "[^"]*" "[^"]*" "(?<request_id>[^"]*)" "[^"]*" "[^"]*" (?<upstream_service>[^ ]+) .*$
+        Regex        ^\[[^\]]+\] "(?<http_method>[^ ]+) (?<http_route>[^ ?]+)(?:\?[^ ]*)? [^"]+" (?<http_status>[0-9]{3}) (?<response_flags>[^ ]+) (?<response_code_details>[^ ]+) [^ ]+ "[^"]*" [0-9]+ [0-9]+ (?<processing_duration_ms>[0-9]+) [^ ]+ "(?<http_client_ip>[^"]*)" "(?<http_user_agent>[^"]*)" "(?<request_id>[^"]*)" "[^"]*" "[^"]*" (?<upstream_service>[^ ]+) .*$
         Types        http_status:integer processing_duration_ms:integer
   platform-normalize.lua: |
     -- Common schema for platform log dashboards. `collector_platform` is
@@ -333,6 +340,69 @@ data:
       return false
     end
 
+    -- Coraza WAF runs as a proxy-wasm filter inside the audio-ingress Envoy,
+    -- so its ModSecurity-style audit lines arrive on the gateway's stderr
+    -- wrapped by Envoy. The payload starts after `wasm log <plugin>: ` and
+    -- carries rule metadata as sparse [key "value"] pairs.
+    --
+    -- This lives in Lua rather than a regex PARSER because one line holds a
+    -- variable number of [tag "..."] pairs and the keys of interest are
+    -- sparse — the same reason Keycloak and Kyverno events are parsed here.
+    local function parse_coraza_security(normalized, message)
+      if string.find(message, "Coraza:", 1, true) == nil then
+        return false
+      end
+
+      -- Plugin lifecycle lines ("initializing", "fetching image") mention
+      -- Coraza without carrying a rule hit. Only rule hits are security events.
+      local rule_id = string.match(message, '%[id "(%d+)"%]')
+      if rule_id == nil then
+        return false
+      end
+
+      normalized["security_event_type"] = "waf_rule_match"
+      normalized["waf_rule_id"] = rule_id
+      normalized["waf_msg"] = string.match(message, '%[msg "([^"]*)"%]')
+      normalized["waf_severity"] = string.match(message, '%[severity "([^"]*)"%]')
+      normalized["waf_uri"] = string.match(message, '%[uri "([^"]*)"%]')
+      normalized["waf_crs_version"] = string.match(message, '%[ver "([^"]*)"%]')
+
+      -- `@owasp_crs/REQUEST-942-APPLICATION-ATTACK-SQLI.conf` — the file name
+      -- is the attack family and is what the dashboard groups by. Grouping by
+      -- rule ID alone produces one bucket per variant of the same attack.
+      normalized["waf_rule_group"] = string.match(message, '%[file "[^"]*/([^"/]+)%.conf"%]')
+
+      -- Only the 949xxx blocking-evaluation rules carry the running total.
+      -- CRS scores by severity (critical 5, error 4, warning 3, notice 2) and
+      -- blocks at 5, so this value is what decides pass or deny.
+      local score = string.match(message, "Total Score: (%d+)")
+      if score ~= nil then
+        normalized["waf_anomaly_score"] = tonumber(score)
+      end
+
+      -- DetectionOnly logs `Coraza: Warning.`; SecRuleEngine On logs
+      -- `Coraza: Access denied (phase N).`. This field is how the dashboard
+      -- shows the detection→blocking cutover without reading rule IDs.
+      if string.find(message, "Access denied", 1, true) then
+        normalized["waf_action"] = "blocked"
+      else
+        normalized["waf_action"] = "detected"
+      end
+
+      -- ⚠️ Full source address is retained for WAF records only, unlike every
+      -- other source IP in this pipeline. These are by definition requests
+      -- that matched an attack signature, and IP-level response (blocklist,
+      -- rate limit, repeat-offender correlation) is the whole reason
+      -- externalTrafficPolicy was set to Local. A /24 mask would put unrelated
+      -- hosts in the same bucket and make a blocklist unusable.
+      -- Access-log client IPs stay masked → `source_network`.
+      -- → decisions/20260812_waf-blocking-and-siem.md
+      local client_ip = string.match(message, '%[client "([^"]+)"%]')
+      normalized["waf_client_ip"] = client_ip
+      normalized["source_network"] = mask_ip(client_ip)
+      return true
+    end
+
     function normalize(tag, timestamp, record)
       local kubernetes = record["kubernetes"] or {}
       local pod_labels = kubernetes["labels"] or {}
@@ -360,6 +430,7 @@ data:
       parse_keycloak_security(normalized, raw_message)
       parse_oauth2_security(normalized, raw_message)
       parse_kyverno_security(normalized, raw_message)
+      parse_coraza_security(normalized, raw_message)
 
       local http_status = tonumber(record["http_status"] or normalized["http_status"])
       if http_status == nil then
@@ -467,6 +538,18 @@ data:
           normalized["event_type"] = "ingress_request_completed"
           normalized["status"] = tonumber(record["http_status"]) < 400 and "success" or "error"
           normalized["message"] = "ingress request completed"
+          -- Envoy states why a request ended the way it did. Without this a
+          -- 403 from the WAF and a 403 from Istio RBAC are indistinguishable
+          -- in the index, and the WAF dashboard would over-count blocks.
+          normalized["response_code_details"] = record["response_code_details"]
+          normalized["response_flags"] = record["response_flags"]
+          normalized["http_user_agent"] = record["http_user_agent"]
+          -- Masked, unlike `waf_client_ip`. Access logs cover every visitor
+          -- including real users; WAF records cover attack traffic only.
+          local client_ip = record["http_client_ip"]
+          if client_ip ~= nil and client_ip ~= "-" and client_ip ~= "" then
+            normalized["source_network"] = mask_ip(client_ip)
+          end
         end
       end
 

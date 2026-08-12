@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: waf-parser-dry-run
+  namespace: logging
+  labels: {app: waf-parser-dry-run, area: logging, platform: gcp}
+spec:
+  activeDeadlineSeconds: 20
+  restartPolicy: Never
+  containers:
+    - name: fluent-bit
+      image: cr.fluentbit.io/fluent/fluent-bit:3.1.9
+      workingDir: /test
+      args: ["-c", "/test/waf-parser.conf"]
+      volumeMounts: [{name: test-config, mountPath: /test, readOnly: true}]
+      resources: {requests: {cpu: 5m, memory: 16Mi}, limits: {memory: 64Mi}}
+  volumes:
+    - name: test-config
+      configMap: {name: waf-parser-dry-run}

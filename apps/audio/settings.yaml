@@ -48,9 +48,9 @@ data:
   AUDIO_MAXIMUM_DURATION_SECONDS: "7200"
   METRICS_PORT: "9090"
 
-  # 브라우저는 Keycloak Authorization Code + PKCE로 로그인하고 Access Token을
-  # 전달한다. API는 Discovery와 JWKS를 사용해 서명·발급자·대상·만료를 검증한
-  # 뒤 JWT의 sub를 소유자 식별자로 사용한다.
+  # 공개 Web의 사용자 계정 기능은 계속 꺼 둔다. API만 OIDC 검증을 켜서
+  # 클러스터 내부 FinOps Runner의 전용 Client-Credentials Token을 받는다.
+  # 공개 Gateway는 조회와 제한된 익명 Public Upload 두 POST만 허용한다.
   AUTH_MODE: oidc
   OIDC_ISSUER_URL: https://auth.echoprism.cloud/realms/cantaloupe
   OIDC_AUDIENCE: audio-api

@@ -1,0 +1,28 @@
+# Public Audio identity is intentionally disabled until it is separated from
+# the internal operator realm. The public gateway exposes catalog reads plus
+# the two operations required for bounded anonymous public uploads. Private
+# uploads and mutations remain authentication-protected inside the API.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: audio-public-access
+  namespace: audio-ingress
+spec:
+  selector:
+    matchLabels:
+      app: audio-ingress
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            methods:
+              - GET
+              - HEAD
+              - OPTIONS
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /v1/audios/uploads
+              - /v1/audios/{*}/complete

@@ -85,7 +85,7 @@ Enforce 전환 조건이다. 이 표가 비면 완료다.
 그건 규칙이 아니라 통계다. 새 정책을 넣을 때 이유 없이 Audit 로 두지 않는다.
 
 **이유가 있는 경우가 하나 있다 — 아직 안 세운 서드파티 스택.**
-Harbor·ArgoCD·Jenkins·Prometheus 같은 차트는 위반 목록을 미리 알 수 없다.
+Harbor·ArgoCD·Prometheus 같은 차트는 위반 목록을 미리 알 수 없다.
 모르는 채로 Enforce 를 켜면 클러스터가 자기 배포를 막는다
 (→ `tasks/todo/002_bootstrap-blockers.md` 2번). 그럴 때만 이 순서를 쓴다.
 

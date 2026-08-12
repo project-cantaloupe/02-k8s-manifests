@@ -1,0 +1,77 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubelet-csr-approver
+  namespace: devops
+  annotations:
+    # Karpenter NodePool이 동적 Node를 만들기 전에 serving CSR 승인기를 준비한다.
+    argocd.argoproj.io/sync-wave: "-15"
+spec:
+  project: default
+  source:
+    repoURL: https://postfinance.github.io/kubelet-csr-approver
+    chart: kubelet-csr-approver
+    targetRevision: 1.2.14
+    helm:
+      releaseName: kubelet-csr-approver
+      values: |
+        # Audio Burst 전용 Karpenter Node 두 개의 예약 이름만 허용한다.
+        providerRegex: "^cntlp-aws-wk-(98|99)$"
+        providerIpPrefixes:
+          - 100.64.0.0/10
+        maxExpirationSeconds: "31536000"
+
+        # Cluster DNS는 Tailscale MagicDNS의 Node 이름을 해석하지 못한다. DNS
+        # Resolution만 우회하되 정확한 Node 이름, Tailscale IP 대역, Hostname,
+        # Signer/CN/SAN 개수 검사는 유지한다. 불일치는 거부하지 않고 Pending으로 남긴다.
+        bypassDnsResolution: true
+        bypassHostnameCheck: false
+        allowedDnsNames: 1
+        ignoreNonSystemNode: true
+        skipDenyStep: true
+
+        replicas: 1
+        leaderElection: true
+
+        image:
+          repository: ghcr.io/postfinance/kubelet-csr-approver
+          tag: "v1.2.14@sha256:c0f6aa1abdc225a32f9a29992fd97f711e78e2df21434f9ce7bc60981f96a5f8"
+          pullPolicy: IfNotPresent
+
+        metrics:
+          enable: false
+
+        podLabels:
+          app: kubelet-csr-approver
+          area: platform
+          platform: aws
+
+        # 승인 대상인 동적 Worker는 Audio 전용 Taint 때문에 제외된다. CPU가 이미
+        # 예약된 Control Plane 대신 기존 고정 AWS Service Worker에서 실행한다.
+        nodeSelector:
+          platform: aws
+          role: service
+        tolerations: []
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            memory: 128Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

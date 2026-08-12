@@ -73,7 +73,7 @@ Audio Edge Application 정의는 코드로 먼저 병합한 뒤 `istio-base`, `i
 `audio-ingress`, `audio-edge-smoke` 순서로 Root 목록에 추가한다. 각 단계는 이전
 구성의 실제 Ready 상태를 확인한 뒤 진행한다.
 
-DevOps UI(Argo CD·Jenkins·Harbor)는 Istio를 경유하지 않는다. Tailscale과 각
+DevOps UI(Argo CD·Harbor)는 Istio를 경유하지 않는다. Tailscale과 각
 서비스의 NodePort로 직접 접근한다. On-Prem Node에는 Istio Workload를 두지 않으며
 `istiod`는 AWS Control Plane Node에서 실행한다.
 
@@ -85,6 +85,14 @@ cert-manager의 AWS 자격증명 경로가 확정되기 전까지 Root 목록에
 Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics는
 `platform/gcp/kube-prometheus-stack/`에서 하나의 Helm release로 관리한다.
 OpenCost는 별도 release로 두되 같은 Prometheus를 데이터 원본으로 사용한다.
+
+S3 FinOps 인벤토리는 AWS service Worker에서 6시간마다 `ListObjectsV2`와
+`ListObjectVersions`로 현재·비현재 버전, 삭제 마커, 용량·객체 수를 집계해
+Pushgateway에 게시한다. Bucket Versioning, Lifecycle, 암호화, Public Access
+Block, Policy 공개 상태와 Object Ownership은 매주 월요일 03:00(KST)에 별도로
+확인한다. Lifecycle What-if는 객체의 실제 Size·LastModified로만 계산하며 S3를
+변경하지 않는다. SQS 운영 지표는 기존 1분 CloudWatch Exporter를 계속 사용하고,
+S3 CloudWatch Exporter는 사용하지 않는다.
 
 ## 거버넌스
 

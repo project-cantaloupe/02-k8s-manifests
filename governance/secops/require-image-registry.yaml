@@ -8,7 +8,7 @@
 # ── 왜 apps 네임스페이스만인가 ──────────────────────────────────
 #
 # 이 규칙이 강제하는 것은 **우리가 빌드한 이미지**의 출처다.
-# `platform/*` 의 ArgoCD·Harbor·Jenkins·Prometheus 는 업스트림 차트에서 오고
+# `platform/*` 의 ArgoCD·Harbor·Prometheus 는 업스트림 차트에서 오고
 # docker.io·quay.io·registry.k8s.io 를 당긴다. 거기에 ECR 을 요구하면
 # 플랫폼이 전부 막힌다.
 #

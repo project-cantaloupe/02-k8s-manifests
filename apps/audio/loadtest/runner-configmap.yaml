@@ -20,6 +20,7 @@ data:
     import random
     import struct
     import sys
+    import threading
     import time
     import urllib.error
     import urllib.parse
@@ -27,7 +28,6 @@ data:
     import wave
 
     API = os.getenv("AUDIO_API_URL", "http://audio-api.apps.svc.cluster.local")
-    SUBJECT = os.getenv("AUDIO_SUBJECT", "finops-loadtest")
     VISIBILITY = os.getenv("AUDIO_VISIBILITY", "private")
     PROFILE = os.getenv("LOAD_PROFILE", "manual-unexpected")
     COUNT = min(int(os.getenv("LOAD_COUNT", "60")), 100)
@@ -35,7 +35,15 @@ data:
     INTERVAL = max(float(os.getenv("LOAD_INTERVAL_SECONDS", "0")), 0)
     END_DATE = os.getenv("EXPERIMENT_END_DATE", "2026-08-14")
     RUN_ID = os.getenv("RUN_ID") or os.getenv("HOSTNAME") or f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{PROFILE}"
-    DEADLINE = time.monotonic() + int(os.getenv("RUN_DEADLINE_SECONDS", "5400"))
+    READY_TIMEOUT = int(os.getenv("READY_TIMEOUT_SECONDS", "3600"))
+    OIDC_TOKEN_URL = os.getenv(
+        "OIDC_TOKEN_URL",
+        "https://auth.echoprism.cloud/realms/cantaloupe/protocol/openid-connect/token",
+    )
+    OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID", "").strip()
+    OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", "").strip()
+    TOKEN = {"value": "", "expires_at": 0.0}
+    TOKEN_LOCK = threading.Lock()
     PROMETHEUS = os.getenv("PROMETHEUS_URL", "http://monitoring-prometheus.monitoring.svc:9090")
     PUSHGATEWAY = os.getenv("PUSHGATEWAY_URL", "http://cantaloupe-finops-pushgateway.monitoring.svc:9091")
 
@@ -78,20 +86,58 @@ data:
         return output.getvalue(), seconds
 
     def request_json(method, url, body=None, headers=None, timeout=60):
-        merged = {"X-Cantaloupe-Subject": SUBJECT}
+        merged = dict(headers or {})
         if body is not None:
             merged["Content-Type"] = "application/json"
             body = json.dumps(body).encode()
-        merged.update(headers or {})
         req = urllib.request.Request(url, data=body, headers=merged, method=method)
         with urllib.request.urlopen(req, timeout=timeout) as response:
             raw = response.read()
             return json.loads(raw) if raw else None
 
+    def access_token():
+        if not OIDC_CLIENT_ID or not OIDC_CLIENT_SECRET:
+            raise RuntimeError("OIDC_CLIENT_ID and OIDC_CLIENT_SECRET are required")
+        with TOKEN_LOCK:
+            now = time.monotonic()
+            if TOKEN["value"] and now < TOKEN["expires_at"]:
+                return TOKEN["value"]
+            credentials = base64.b64encode(
+                f"{OIDC_CLIENT_ID}:{OIDC_CLIENT_SECRET}".encode()
+            ).decode()
+            form = urllib.parse.urlencode({"grant_type": "client_credentials"}).encode()
+            request = urllib.request.Request(
+                OIDC_TOKEN_URL,
+                data=form,
+                method="POST",
+                headers={
+                    "Authorization": "Basic " + credentials,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+            with urllib.request.urlopen(request, timeout=20) as response:
+                payload = json.load(response)
+            token = str(payload.get("access_token", ""))
+            expires_in = max(60, int(payload.get("expires_in", 300)))
+            if not token:
+                raise RuntimeError("Keycloak did not return an access_token")
+            TOKEN["value"] = token
+            TOKEN["expires_at"] = now + max(30, expires_in - 30)
+            return token
+
+    def api_request_json(method, path, body=None, timeout=60):
+        return request_json(
+            method,
+            API + path,
+            body,
+            headers={"Authorization": "Bearer " + access_token()},
+            timeout=timeout,
+        )
+
     def prometheus_value(query):
         url = PROMETHEUS + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
         try:
-            payload = request_json("GET", url, headers={"X-Cantaloupe-Subject": ""}, timeout=10)
+            payload = request_json("GET", url, timeout=10)
             result = payload["data"]["result"]
             return float(result[0]["value"][1]) if result else None
         except Exception as exc:
@@ -149,7 +195,7 @@ data:
         wav_bytes, seconds = make_wav(index)
         checksum = base64.b64encode(hashlib.sha256(wav_bytes).digest()).decode()
         title = f"FinOps {RUN_ID} fixture-{index % len(FIXTURES) + 1:02d} item-{index + 1:03d}"
-        session = request_json("POST", API + "/v1/audios/uploads", {
+        session = api_request_json("POST", "/v1/audios/uploads", {
             "title": title,
             "content_type": "audio/wav",
             "content_length": len(wav_bytes),
@@ -161,25 +207,33 @@ data:
         with urllib.request.urlopen(put, timeout=180) as response:
             if response.status < 200 or response.status >= 300:
                 raise RuntimeError(f"S3 upload returned {response.status}")
-        record = request_json("POST", f"{API}/v1/audios/{session['audio_id']}/complete")
+        record = api_request_json("POST", f"/v1/audios/{session['audio_id']}/complete")
         return {
             "audio_id": session["audio_id"],
             "fixture": index % len(FIXTURES) + 1,
             "source_seconds": seconds,
             "submit_seconds": round(time.monotonic() - started, 3),
             "initial_status": record.get("status"),
+            "_ready_started": time.monotonic(),
         }
 
     def poll_ready(item):
-        while time.monotonic() < DEADLINE:
-            record = request_json("GET", f"{API}/v1/audios/{item['audio_id']}")
+        deadline = item["_ready_started"] + READY_TIMEOUT
+        while time.monotonic() < deadline:
+            record = api_request_json("GET", f"/v1/audios/{item['audio_id']}")
             status = record.get("status")
             if status in ("READY", "FAILED", "REJECTED"):
                 item["final_status"] = status
                 item["duration_ms"] = record.get("duration_ms")
+                item["terminal_latency_seconds"] = round(
+                    time.monotonic() - item.pop("_ready_started"), 3
+                )
                 return item
             time.sleep(5)
         item["final_status"] = "TIMEOUT"
+        item["terminal_latency_seconds"] = round(
+            time.monotonic() - item.pop("_ready_started"), 3
+        )
         return item
 
     def main():
@@ -189,25 +243,29 @@ data:
             return 0
         run_started = dt.datetime.now(dt.timezone.utc)
         phase = os.getenv("EXPERIMENT_PHASE") or ("baseline" if today <= "2026-08-12" else "candidate" if today == "2026-08-13" else "confirmation")
-        items, errors = [], []
-        if INTERVAL:
-            for index in range(COUNT):
-                try:
-                    items.append(upload_one(index))
-                except Exception as exc:
-                    errors.append({"index": index, "error": str(exc)})
-                if index + 1 < COUNT:
-                    time.sleep(INTERVAL)
-        else:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
-                futures = {pool.submit(upload_one, index): index for index in range(COUNT)}
-                for future in concurrent.futures.as_completed(futures):
+        items, errors, tracked = [], [], {}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(max(COUNT, 1), 20)) as trackers:
+            if INTERVAL:
+                for index in range(COUNT):
                     try:
-                        items.append(future.result())
+                        tracked[trackers.submit(poll_ready, upload_one(index))] = index
                     except Exception as exc:
-                        errors.append({"index": futures[future], "error": str(exc)})
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(CONCURRENCY, 20)) as pool:
-            items = list(pool.map(poll_ready, items))
+                        errors.append({"index": index, "stage": "upload", "error": str(exc)})
+                    if index + 1 < COUNT:
+                        time.sleep(INTERVAL)
+            else:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as uploaders:
+                    futures = {uploaders.submit(upload_one, index): index for index in range(COUNT)}
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            tracked[trackers.submit(poll_ready, future.result())] = futures[future]
+                        except Exception as exc:
+                            errors.append({"index": futures[future], "stage": "upload", "error": str(exc)})
+            for future in concurrent.futures.as_completed(tracked):
+                try:
+                    items.append(future.result())
+                except Exception as exc:
+                    errors.append({"index": tracked[future], "stage": "tracking", "error": str(exc)})
         counts = {}
         for item in items:
             counts[item.get("final_status", "UNKNOWN")] = counts.get(item.get("final_status", "UNKNOWN"), 0) + 1
@@ -216,12 +274,12 @@ data:
             "run_id": RUN_ID,
             "profile": PROFILE,
             "phase": phase,
-            "subject": SUBJECT,
+            "auth_client_id": OIDC_CLIENT_ID,
             "visibility": VISIBILITY,
             "started_at": run_started.isoformat(),
             "finished_at": dt.datetime.now(dt.timezone.utc).isoformat(),
             "requested": COUNT,
-            "submitted": len(items),
+            "submitted": len(tracked),
             "upload_errors": len(errors),
             "status_counts": counts,
             "items": sorted(items, key=lambda item: item["audio_id"]),

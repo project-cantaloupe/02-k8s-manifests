@@ -14,23 +14,19 @@ spec:
   pollingInterval: 15
   cooldownPeriod: 120
   minReplicaCount: 0
-  maxReplicaCount: 1
+  # FinOps 비교에서 동일한 Queue 부하로 Baseline 2개 Node와
+  # Right-sized Candidate 1개 Node의 실제 사용시간을 측정한다.
+  maxReplicaCount: 6
   advanced:
     restoreToOriginalReplicaCount: true
   triggers:
-    # 평일 저녁 피크가 예측된다는 실험 가정이다. 20:55에 Burst Worker를 먼저
-    # 요청해 Karpenter Node 준비시간을 사용자 요청 경로에서 분리한다. 실험 기간
-    # 종료 후 이 트리거는 결과 PR과 함께 제거하거나 운영 시간표로 재승인한다.
-    - type: cron
-      metadata:
-        timezone: Asia/Seoul
-        start: 55 20 * * 2-4
-        end: 30 21 * * 2-4
-        desiredReplicas: "1"
+    # 예약 부하 CronJob이 모두 suspend인 동안에는 시간 기반 prewarm도 하지
+    # 않는다. 실제 scheduled-peak를 재개하는 리뷰에서 함께 복원한다.
     - type: aws-sqs-queue
       metadata:
         # Base Worker가 처리하는 한 건은 확장하지 않고 Visible과 In-flight의 합이
-        # 2건 이상일 때 Burst Worker 한 개를 활성화한다.
+        # 2건 이상일 때 활성화한다. 활성화 후에는 합계 1건당 Burst Worker 한 개를
+        # 목표로 하되 위 maxReplicaCount를 넘지 않는다.
         queueURLFromEnv: TRANSCODE_QUEUE_URL
         queueLength: "1"
         activationQueueLength: "1"

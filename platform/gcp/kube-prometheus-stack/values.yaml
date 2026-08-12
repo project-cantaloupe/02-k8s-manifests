@@ -247,6 +247,34 @@ grafana:
           memory: 64Mi
 
 kube-state-metrics:
+  # Collect only AuthorizationPolicy object state.  This intentionally does
+  # not infer denied requests; the dashboard will show policy application
+  # counts only after Prometheus confirms the generated metric.
+  customResourceState:
+    enabled: true
+    config:
+      kind: CustomResourceStateMetrics
+      spec:
+        resources:
+          - groupVersionKind:
+              group: security.istio.io
+              version: v1
+              kind: AuthorizationPolicy
+            labelsFromPath:
+              namespace: [metadata, namespace]
+            metrics:
+              - name: authorizationpolicy
+                help: Istio AuthorizationPolicy object state.
+                each:
+                  type: Info
+                  info:
+                    labelsFromPath:
+                      name: [metadata, name]
+  rbac:
+    extraRules:
+      - apiGroups: ["security.istio.io"]
+        resources: ["authorizationpolicies"]
+        verbs: ["list", "watch"]
   nodeSelector:
     platform: gcp
     role: monitoring

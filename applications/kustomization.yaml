@@ -34,6 +34,7 @@ resources:
   - istio-cni.yaml
   - ztunnel.yaml
   - karpenter-controller.yaml
+  - kubelet-csr-approver.yaml
   - karpenter-nodepool.yaml
   - keda.yaml
   - monitoring-foundation.yaml
@@ -41,7 +42,6 @@ resources:
   - metrics-server.yaml
   - vpa-recommender.yaml
   - monitoring-stack.yaml
-  - cloudwatch-exporter.yaml
   - cloudwatch-exporter-sqs.yaml
   - opencost.yaml
   - audio-ingress.yaml
