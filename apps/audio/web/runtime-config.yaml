@@ -1,6 +1,6 @@
-# Public Audio 사용자용 인증 경계가 준비되기 전까지 로그인과 업로드를 닫는다.
-# API의 AUTH_MODE와 같은 GitOps 변경으로 전환해 Web이 존재하지 않는 로그인
-# 경로를 노출하거나 개발용 Subject를 만드는 상태를 막는다.
+# Public Audio 사용자용 인증 경계가 준비되기 전까지 로그인·가입은 닫는다.
+# Web은 이 모드에서도 제한된 익명 Public Upload를 제공하지만 개발용 Subject나
+# 브라우저에 노출되는 서비스 자격 증명은 만들지 않는다.
 apiVersion: v1
 kind: ConfigMap
 metadata:

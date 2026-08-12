@@ -3,4 +3,4 @@ kind: Kustomization
 
 resources:
   - imds-egress.yaml
-  - public-readonly-ingress.yaml
+  - public-access-ingress.yaml
