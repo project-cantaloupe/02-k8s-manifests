@@ -220,6 +220,21 @@ data:
             if response.status < 200 or response.status >= 300:
                 raise RuntimeError(f"Pushgateway returned {response.status}")
 
+    def push_progress(submitted, ready, failed, phase):
+        labels = f'profile="{PROFILE}",phase="{phase}"'
+        samples = {
+            "cantaloupe_audio_finops_run_submitted": submitted,
+            "cantaloupe_audio_finops_run_ready": ready,
+            "cantaloupe_audio_finops_run_failed": failed,
+            "cantaloupe_audio_finops_run_transcode_failed": failed,
+        }
+        body = "\n".join(f'{name}{{{labels}}} {value}' for name, value in samples.items()) + "\n"
+        path = "/metrics/job/audio_finops_experiment/run_id/" + urllib.parse.quote(RUN_ID, safe="")
+        req = urllib.request.Request(PUSHGATEWAY + path, data=body.encode(), method="PUT", headers={"Content-Type": "text/plain; version=0.0.4"})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            if response.status < 200 or response.status >= 300:
+                raise RuntimeError(f"Pushgateway returned {response.status}")
+
     def upload_one(index, fixture_cache):
         started = time.monotonic()
         fixture_index = index % len(fixture_cache)
@@ -283,6 +298,9 @@ data:
         phase = os.getenv("EXPERIMENT_PHASE") or ("baseline" if today <= "2026-08-12" else "candidate" if today == "2026-08-13" else "confirmation")
         items, errors, tracked = [], [], {}
         submitted = 0
+        ready_count = 0
+        failed_count = 0
+        push_progress(submitted, ready_count, failed_count, phase)
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(max(COUNT, 1), 20)) as trackers:
             if INTERVAL:
                 for index in range(COUNT):
@@ -290,6 +308,7 @@ data:
                         item = upload_one(index, fixture_cache)
                         tracked[trackers.submit(poll_ready, item)] = index
                         submitted += 1
+                        push_progress(submitted, ready_count, failed_count, phase)
                         log_event(
                             "upload_complete",
                             index=index,
@@ -313,6 +332,7 @@ data:
                             item = future.result()
                             tracked[trackers.submit(poll_ready, item)] = futures[future]
                             submitted += 1
+                            push_progress(submitted, ready_count, failed_count, phase)
                             log_event(
                                 "upload_complete",
                                 index=futures[future],
@@ -331,6 +351,11 @@ data:
                 try:
                     item = future.result()
                     items.append(item)
+                    if item["final_status"] == "READY":
+                        ready_count += 1
+                    else:
+                        failed_count += 1
+                    push_progress(submitted, ready_count, failed_count, phase)
                     log_event(
                         "terminal_status",
                         completed=len(items),
