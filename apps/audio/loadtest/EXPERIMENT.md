@@ -38,10 +38,17 @@ data increase, not default load targets. Every cost-incurring one-off Job still
 requires a reviewed count, visibility, and unique Run ID before execution.
 
 All profiles use the same production path as Audio uploads: the Runner obtains
-a short-lived `audio-finops` Client-Credentials token, calls the internal Audio
-API, uploads the returned presigned URL to S3, and then follows the shared
-SQS/Worker/artifact/READY path. Public Web accounts remain disabled; no test-only
+a short-lived `audio-finops` Client-Credentials token, calls the Audio API through
+the in-cluster Istio Ingress Service, uploads the returned presigned URL directly
+to S3, and then follows the shared SQS/Worker/artifact/READY path. This keeps the
+API request leg observable through `istio_requests_total` without routing the S3
+payload through the gateway. Public Web accounts remain disabled; no test-only
 API, Queue, or development Subject header is used.
+
+Istio request count is not a Track count. Each Track uses one upload-session
+request, one complete request, and repeated status requests until it becomes
+terminal. FinOps per-Track denominators therefore use the run-scoped submitted
+or READY metrics, while Istio metrics describe HTTP volume, errors, and latency.
 
 The KEDA cron prewarm requests six Burst Workers from 20:45 through 21:30 KST
 on Tuesday through Thursday. This gives the self-managed Karpenter Nodes fifteen

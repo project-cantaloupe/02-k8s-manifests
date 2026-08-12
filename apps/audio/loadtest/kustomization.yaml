@@ -31,3 +31,10 @@ patches:
         value:
           - secretRef:
               name: audio-finops-oidc
+      # Load Runner API 요청의 Istio Ingress 관측 경로 통일
+      # Presigned PUT은 기존 S3 직접 업로드 경로 유지
+      - op: add
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/-
+        value:
+          name: AUDIO_API_URL
+          value: http://audio-ingress.audio-ingress.svc.cluster.local
