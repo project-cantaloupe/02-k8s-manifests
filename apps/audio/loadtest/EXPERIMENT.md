@@ -31,17 +31,28 @@ API, uploads the returned presigned URL to S3, and then follows the shared
 SQS/Worker/artifact/READY path. Public Web accounts remain disabled; no test-only
 API, Queue, or development Subject header is used.
 
-The KEDA cron prewarm is disabled while every load CronJob is suspended. Burst
-capacity is activated only by real transcode Queue backlog until scheduled-peak
-is deliberately resumed.
+The KEDA cron prewarm requests six Burst Workers from 20:45 through 21:30 KST
+on Tuesday through Thursday. This gives the self-managed Karpenter Nodes fifteen
+minutes to boot, join Tailscale and kubeadm, and become Ready before the assumed
+21:00 peak. The load CronJobs remain suspended until a reviewed run is approved;
+prewarming capacity does not generate Audio requests by itself.
+
+The cron and SQS triggers share one ScaledObject. During the prewarm window the
+cron trigger holds six replicas. After 21:30, the SQS trigger continues to hold
+only the capacity required by remaining Queue backlog, and the existing cooldown
+and WhenEmpty policies return Burst Pods and Nodes to zero after the Queue drains.
+Remove the cron trigger after the controlled experiment so the recurring schedule
+does not create idle EC2 cost.
 
 KEDA may create up to six `audio-transcode-burst` Pods and the two
 `aws-audio-burst-*` Karpenter NodePools may create one `t3.small` Node each.
 These values are capacity ceilings, not permanently running capacity. With six simultaneous
 Burst Pods, the `250m/256Mi` baseline is expected to require two Nodes after
 DaemonSet overhead, while a validated candidate that fits all six Pods on one
-Node is expected to require one. Both runs must start with zero Burst replicas
-and zero Karpenter Nodes and must use the same queue workload.
+Node is expected to require one. Reactive `unexpected-burst` comparison runs
+must start with zero Burst replicas and zero Karpenter Nodes and use the same
+queue workload. The `scheduled-peak` profile is a separate forecast-based
+readiness scenario and starts after the prewarm window has requested capacity.
 
 The `steady`, `scheduled-peak`, and `unexpected-burst` profiles create private
 audio records. They are intentionally absent from the public `/discover` page.
