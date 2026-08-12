@@ -13,7 +13,9 @@ spec:
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
     targetRevision: main
-    path: apps/audio
+    # FinOps B 시나리오에서는 동일한 Worker와 KEDA 조건을 유지하고
+    # CPU·Memory Request만 줄인 Candidate Overlay를 배포한다.
+    path: overlays/audio/right-sized-candidate
   destination:
     server: https://kubernetes.default.svc
     namespace: apps
