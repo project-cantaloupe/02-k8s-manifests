@@ -434,6 +434,13 @@ extraManifests:
           - name: severity
             matchType: =~
             value: warning|critical
+        routes:
+          - receiver: slack-audio-alerts
+            matchers:
+              - name: service
+                matchType: "="
+                value: audio
+            continue: false
       receivers:
         - name: slack-platform-alerts
           slackConfigs:
@@ -452,6 +459,25 @@ extraManifests:
                 {{ `{{ if .CommonAnnotations.action }}` }}\n*권장 조치:* {{ `{{ .CommonAnnotations.action }}` }}{{ `{{ end }}` }}
                 \n*영향 대상 ({{ `{{ len .Alerts }}` }}건)*
                 {{ `{{ range .Alerts }}` }}\n•{{ `{{ if .Labels.node }}` }} Node `{{ `{{ .Labels.node }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.platform }}` }} · Platform `{{ `{{ .Labels.platform }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.namespace }}` }} · Namespace `{{ `{{ .Labels.namespace }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.pod }}` }} · Pod `{{ `{{ .Labels.pod }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.instance_type }}` }} · Type `{{ `{{ .Labels.instance_type }}` }}`{{ `{{ end }}` }}{{ `{{ end }}` }}
+                \n*최초 발생:* {{ `{{ (index .Alerts 0).StartsAt }}` }}
+              color: >-
+                {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
+        - name: slack-audio-alerts
+          slackConfigs:
+            - apiURL:
+                name: alertmanager-slack-audio-webhook
+                key: api-url
+              sendResolved: true
+              title: >-
+                {{ `{{ if eq .Status "firing" }}` }}[발생]{{ `{{ else }}` }}[해소]{{ `{{ end }}` }}
+                {{ `{{ if eq .CommonLabels.severity "critical" }}` }}[긴급]{{ `{{ else }}` }}[주의]{{ `{{ end }}` }}
+                [AUDIO] {{ `{{ .CommonLabels.alertname }}` }}
+              text: >-
+                *요약:* {{ `{{ .CommonAnnotations.summary }}` }}
+                {{ `{{ if .CommonAnnotations.description }}` }}\n*영향·원인:* {{ `{{ .CommonAnnotations.description }}` }}{{ `{{ end }}` }}
+                {{ `{{ if .CommonAnnotations.action }}` }}\n*권장 조치:* {{ `{{ .CommonAnnotations.action }}` }}{{ `{{ end }}` }}
+                \n*영향 대상 ({{ `{{ len .Alerts }}` }}건)*
+                {{ `{{ range .Alerts }}` }}\n•{{ `{{ if .Labels.component }}` }} Component `{{ `{{ .Labels.component }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.deployment }}` }} · Deployment `{{ `{{ .Labels.deployment }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.pod }}` }} · Pod `{{ `{{ .Labels.pod }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.queue_name }}` }} · Queue `{{ `{{ .Labels.queue_name }}` }}`{{ `{{ end }}` }}{{ `{{ end }}` }}
                 \n*최초 발생:* {{ `{{ (index .Alerts 0).StartsAt }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
