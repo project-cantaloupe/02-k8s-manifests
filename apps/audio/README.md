@@ -15,7 +15,7 @@ AWS Service Worker에서 실행하는 Audio 서비스 매니페스트다. `nodeS
 gateway.yaml          audio-ingress Namespace의 Gateway 진입점
 settings.yaml         세 워크로드가 공유하는 비민감 ConfigMap
 virtual-service.yaml  경로 분기를 한 곳에서 관리 (/v1 -> api, 나머지 -> web)
-policies/             IMDS Egress 제한과 공개 Read-only Gateway 정책
+policies/             IMDS Egress 제한과 공개 조회·익명 업로드 Gateway 정책
 web/                  audio-web와 브라우저 인증 런타임 설정
 api/                  audio-api와 audio-events (같은 Image의 다른 진입점)
 worker/               audio-transcode Base·Burst와 SQS ScaledObject
@@ -45,11 +45,12 @@ worker/               audio-transcode Base·Burst와 SQS ScaledObject
 AuthorizationPolicy나 DestinationRule의 트래픽 정책은 waypoint 프록시를 세우기
 전까지 **에러 없이 무시된다.**
 
-`audio-public-readonly`는 예외다. 이 정책은 일반 ambient Workload가 아니라
+`audio-public-access`는 예외다. 이 정책은 일반 ambient Workload가 아니라
 `audio-ingress` Envoy Gateway를 선택하므로 Gateway가 HTTP 메서드를 직접 검사한다.
-Public Audio Identity가 내부 운영자 Realm에서 분리될 때까지 `GET`·`HEAD`·`OPTIONS`
-만 허용한다. API도 `AUTH_MODE=disabled`에서 인증 Header를 모두 무시하고 인증 필수
-Endpoint를 401로 닫으며, VirtualService는 외부 `X-Cantaloupe-Subject`를 제거한다.
+Public Audio Identity가 내부 운영자 Realm에서 분리될 때까지 공개 조회와 제한된
+Public Upload POST 두 개만 허용한다. API는 익명 업로드를 Public·25 MiB 이하로
+제한하고, 완료 요청에 세션 Upload ID를 요구한다. 다른 인증 필수 Endpoint는 401로
+닫으며 VirtualService는 외부 `X-Cantaloupe-Subject`를 제거한다.
 
 `istio-injection` 라벨은 Namespace에 두지 않는다. ambient에서는 주입기를 안 쓰니
 무해해 보이지만, 값이 `disabled`면 Webhook이 그 Namespace를 대상에서 제외해
@@ -207,7 +208,9 @@ docker buildx build --platform linux/amd64 \
 `VITE_API_BASE_URL`은 빌드 시점에 박히며 비우면 같은 출처를 사용한다. 인증 모드는
 `web/runtime-config.yaml`의 공개 ConfigMap으로 관리하고
 `/usr/share/nginx/html/config`에 마운트한다. 현재는 Web과 API를 모두 `disabled`로
-맞춰 로그인·가입·업로드를 닫고 공개 카탈로그만 유지한다.
+맞추는 구성이 아니다. Web은 `disabled`로 로그인·가입을 숨기고, API는 `oidc`로
+내부 FinOps Client Credentials를 검증하면서 익명 공개 조회와 제한된 Public
+Upload를 별도로 허용한다.
 
 ## 정적 렌더링
 
