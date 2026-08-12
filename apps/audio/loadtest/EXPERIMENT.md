@@ -66,10 +66,12 @@ must start with zero Burst replicas and zero Karpenter Nodes and use the same
 queue workload. The `scheduled-peak` profile is a separate forecast-based
 readiness scenario and starts after the prewarm window has requested capacity.
 
-All controlled profiles set `AUDIO_VISIBILITY=public` so the presentation can
-correlate the Run log and metrics with tracks that reached `READY` in the public
-`/discover` catalog. Titles include the `run_id`, fixture number, and item number
-so test records remain attributable. The catalog shows twenty records per page
+All controlled profiles and the Runner default set `AUDIO_VISIBILITY=public` so
+the presentation can correlate the Run log and metrics with tracks that reached
+`READY` in the public `/discover` catalog. Titles use a readable
+`FinOps Baseline · Reactive Burst · 08/12 21:48 KST · #001 · 15초 · 패턴 1`
+format so the phase, profile, Run time, sequence, duration, and fixture remain
+distinguishable in the Web UI. The catalog shows twenty records per page
 and exposes the remaining records through `Load more`. This is an experiment
 visibility choice, not a public S3 policy: source and artifact buckets remain
 private and playback continues to use signed URLs.
