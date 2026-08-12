@@ -57,7 +57,7 @@ def stat(panel_id, title, description, expr, x, y, *, w=6, h=5, danger_on_positi
     }
 
 
-def bar_gauge(panel_id, title, description, targets, x, y, w, h=5):
+def bar_gauge(panel_id, title, description, targets, x, y, w, h=5, colors=None):
     """Show related existing instant queries together without changing them."""
     return {
         "id": panel_id, "title": title, "description": description, "type": "bargauge",
@@ -73,6 +73,10 @@ def bar_gauge(panel_id, title, description, targets, x, y, w, h=5):
                 {"matcher": {"id": "byName", "options": label},
                  "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": color}}]}
                 for label, color in [("미적용", "red"), ("누락", "red"), ("Not Ready", "red"), ("실패", "red")]
+            ] + [
+                {"matcher": {"id": "byName", "options": label},
+                 "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": color}}]}
+                for label, color in (colors or [])
             ]},
         "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": True,
                     "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}},
@@ -142,7 +146,7 @@ def dashboard():
         row(400, "4. 자격증명 / 인증서", 34),
         stat(401, "cert-manager 상태", "cert-manager 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="cert-manager",deployment=~"cert-manager|cert-manager-cainjector|cert-manager-webhook"'), 0, 35, danger_on_positive=True),
         stat(402, "External Secrets 상태", "External Secrets 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="external-secrets",deployment=~"external-secrets|external-secrets-cert-controller|external-secrets-webhook"'), 6, 35, danger_on_positive=True),
-        bar_gauge(411, "Certificate 상태", "Ready·Not Ready·만료 예정은 cert-manager의 기존 Certificate Metric을 함께 표시합니다.", [("Ready", 'sum(certmanager_certificate_ready_status{condition="True"})'), ("Not Ready", 'sum(certmanager_certificate_ready_status{condition="False"})'), ("30일 이내 만료", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 30 * 24 * 60 * 60)) or vector(0)'), ("7일 이내 만료", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 7 * 24 * 60 * 60)) or vector(0)')], 12, 35, 12),
+        bar_gauge(411, "Certificate 상태", "Ready·Not Ready·만료 예정은 cert-manager의 기존 Certificate Metric을 함께 표시합니다.", [("Ready", 'sum(certmanager_certificate_ready_status{condition="True"})'), ("Not Ready", 'sum(certmanager_certificate_ready_status{condition="False"})'), ("30일 이내 만료", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 30 * 24 * 60 * 60)) or vector(0)'), ("7일 이내 만료", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 7 * 24 * 60 * 60)) or vector(0)')], 12, 35, 12, colors=[("Ready", "green"), ("Not Ready", "red"), ("30일 이내 만료", "orange"), ("7일 이내 만료", "red")]),
         bar_gauge(412, "ExternalSecret Sync 상태", "ExternalSecret Ready 조건의 정상·실패 수입니다.", [("정상", 'sum(externalsecret_status_condition{condition="Ready",status="True"})'), ("실패", 'sum(externalsecret_status_condition{condition="Ready",status="False"})')], 0, 40, 12),
         stat(410, "Provider 접근 오류 (1시간)", "최근 1시간 External Secrets Provider API 호출 중 success 이외 상태의 증가량입니다.", 'sum(increase(externalsecret_provider_api_calls_count{status!="success"}[1h])) or vector(0)', 12, 40, w=12, danger_on_positive=True),
         series(403, "인증서·Secret 컴포넌트 Available Replica", "cert-manager 및 External Secrets Deployment 가용 replica 추이입니다.", 'kube_deployment_status_replicas_available{namespace=~"cert-manager|external-secrets"}', 0, 45, 24, 8),
