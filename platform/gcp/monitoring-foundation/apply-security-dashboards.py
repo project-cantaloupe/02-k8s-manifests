@@ -41,12 +41,12 @@ def row(panel_id, title, y):
             "gridPos": {"x": 0, "y": y, "w": 24, "h": 1}, "panels": []}
 
 
-def stat(panel_id, title, description, expr, x, y, *, danger_on_positive=False):
+def stat(panel_id, title, description, expr, x, y, *, w=6, h=5, danger_on_positive=False):
     steps = ([{"color": "green", "value": None}, {"color": "red", "value": 1}]
              if danger_on_positive else [{"color": "red", "value": None}, {"color": "green", "value": 1}])
     return {
         "id": panel_id, "title": title, "description": description, "type": "stat",
-        "gridPos": {"x": x, "y": y, "w": 4, "h": 5}, "datasource": DATASOURCE,
+        "gridPos": {"x": x, "y": y, "w": w, "h": h}, "datasource": DATASOURCE,
         "targets": [{"datasource": DATASOURCE, "editorMode": "code", "expr": expr,
                      "format": "time_series", "instant": True, "range": False, "refId": "A"}],
         "fieldConfig": {"defaults": {"unit": "short", "noValue": "데이터 없음",
@@ -54,6 +54,28 @@ def stat(panel_id, title, description, expr, x, y, *, danger_on_positive=False):
         "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center",
                     "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
                     "textMode": "auto"},
+    }
+
+
+def bar_gauge(panel_id, title, description, targets, x, y, w, h=5):
+    """Show related existing instant queries together without changing them."""
+    return {
+        "id": panel_id, "title": title, "description": description, "type": "bargauge",
+        "gridPos": {"x": x, "y": y, "w": w, "h": h}, "datasource": DATASOURCE,
+        "targets": [{"datasource": DATASOURCE, "editorMode": "code", "expr": expr,
+                     "format": "time_series", "instant": True, "range": False,
+                     "legendFormat": label, "refId": chr(ord("A") + index)}
+                    for index, (label, expr) in enumerate(targets)],
+        "fieldConfig": {"defaults": {"unit": "short", "noValue": "0",
+            "color": {"mode": "thresholds"},
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": None}]}},
+            "overrides": [
+                {"matcher": {"id": "byName", "options": label},
+                 "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": color}}]}
+                for label, color in [("미적용", "red"), ("누락", "red"), ("Not Ready", "red"), ("실패", "red")]
+            ]},
+        "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": True,
+                    "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}},
     }
 
 
@@ -111,27 +133,19 @@ def dashboard():
 
         row(300, "3. Kubernetes 정책 보안", 20),
         stat(301, "Kyverno 상태", "Kyverno 컨트롤러의 미가용 replica 수입니다. 적용 정책 수·Enforce/Audit·위반 수는 Metric 수집 후 추가합니다.", unavailable('namespace="kyverno",deployment=~"kyverno-.*"'), 0, 21, danger_on_positive=True),
-        stat(302, "Restricted 적용 네임스페이스", "시스템 기본 네임스페이스를 제외하고 PSA enforce=restricted 라벨이 있는 네임스페이스 수입니다.", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="restricted"}})', 4, 21),
-        stat(303, "Baseline 적용 네임스페이스", "시스템 기본 네임스페이스를 제외하고 PSA enforce=baseline 라벨이 있는 네임스페이스 수입니다.", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="baseline"}})', 8, 21),
-        stat(304, "PSA 미적용 네임스페이스", "상단 KPI와 같은 모집단입니다. privileged는 보호 적용으로 집계하지 않습니다.", psa_unprotected, 12, 21, danger_on_positive=True),
-        stat(305, "NetworkPolicy 적용 네임스페이스", "시스템 기본 네임스페이스를 제외하고 하나 이상의 NetworkPolicy가 있는 네임스페이스 수입니다.", f'count(count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces}}}))', 16, 21),
-        stat(306, "NetworkPolicy 미적용 네임스페이스", "시스템 기본 네임스페이스를 제외하고 NetworkPolicy가 하나도 없는 네임스페이스 수입니다.", namespace_without_policy, 20, 21, danger_on_positive=True),
-        stat(307, "Default Deny 적용 네임스페이스", "시스템 기본 네임스페이스를 제외하고 default-deny 이름 정책이 있는 네임스페이스 수입니다.", f'count(count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces},networkpolicy=~"default-deny.*"}}))', 0, 26),
-        stat(308, "Default Deny 누락 네임스페이스", "상단 KPI와 같은 모집단에서 default-deny 이름 정책이 없는 네임스페이스 수입니다.", default_deny_missing, 4, 26, danger_on_positive=True),
-        series(309, "Kyverno 컨트롤러 Available Replica", "정책 엔진의 가용 replica 추이입니다. 정책 적용 현황 Metric은 수집 후 별도 패널로 추가합니다.", 'kube_deployment_status_replicas_available{namespace="kyverno",deployment=~"kyverno-.*"}', 0, 31, 12, 8),
-        series(310, "NetworkPolicy 적용 네임스페이스", "시스템 기본 네임스페이스를 제외한 정책 적용 상태입니다. Calico 실제 차단 건수는 표시하지 않습니다.", f'count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces}}})', 12, 31, 12, 8, legend_format="{{namespace}}"),
+        bar_gauge(311, "PSA 적용 현황", "Restricted·Baseline·미적용은 같은 시스템 Namespace 제외 모집단을 사용합니다.", [("Restricted", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="restricted"}})'), ("Baseline", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="baseline"}})'), ("미적용", psa_unprotected)], 6, 21, 6),
+        bar_gauge(312, "NetworkPolicy 적용 현황", "시스템 기본 Namespace를 제외한 적용·미적용 수입니다.", [("적용", f'count(count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces}}}))'), ("미적용", namespace_without_policy)], 12, 21, 6),
+        bar_gauge(313, "Default Deny 적용 현황", "시스템 기본 Namespace를 제외한 default-deny 적용·누락 수입니다.", [("적용", f'count(count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces},networkpolicy=~"default-deny.*"}}))'), ("누락", default_deny_missing)], 18, 21, 6),
+        series(309, "Kyverno 컨트롤러 Available Replica", "정책 엔진의 가용 replica 추이입니다. 정책 적용 현황 Metric은 수집 후 별도 패널로 추가합니다.", 'kube_deployment_status_replicas_available{namespace="kyverno",deployment=~"kyverno-.*"}', 0, 26, 12, 8),
+        series(310, "NetworkPolicy 적용 네임스페이스", "시스템 기본 네임스페이스를 제외한 정책 적용 상태입니다. Calico 실제 차단 건수는 표시하지 않습니다.", f'count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces}}})', 12, 26, 12, 8, legend_format="{{namespace}}"),
 
-        row(400, "4. 자격증명 / 인증서", 39),
-        stat(401, "cert-manager 상태", "cert-manager 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="cert-manager",deployment=~"cert-manager|cert-manager-cainjector|cert-manager-webhook"'), 0, 40, danger_on_positive=True),
-        stat(402, "External Secrets 상태", "External Secrets 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="external-secrets",deployment=~"external-secrets|external-secrets-cert-controller|external-secrets-webhook"'), 6, 40, danger_on_positive=True),
-        stat(404, "Certificate Ready", "cert-manager가 Ready=True로 보고한 Certificate 수입니다.", 'sum(certmanager_certificate_ready_status{condition="True"})', 12, 40),
-        stat(405, "Certificate Not Ready", "cert-manager가 Ready=False로 보고한 Certificate 수입니다.", 'sum(certmanager_certificate_ready_status{condition="False"})', 16, 40, danger_on_positive=True),
-        stat(406, "30일 이내 만료 인증서", "현재 시각부터 30일 이내에 만료되는, 아직 만료되지 않은 Certificate 수입니다.", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 30 * 24 * 60 * 60)) or vector(0)', 20, 40, danger_on_positive=True),
-        stat(407, "7일 이내 만료 인증서", "현재 시각부터 7일 이내에 만료되는, 아직 만료되지 않은 Certificate 수입니다.", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 7 * 24 * 60 * 60)) or vector(0)', 0, 45, danger_on_positive=True),
-        stat(408, "Secret Sync 정상", "ExternalSecret의 Ready=True 조건 수입니다.", 'sum(externalsecret_status_condition{condition="Ready",status="True"})', 6, 45),
-        stat(409, "Secret Sync 실패", "ExternalSecret의 Ready=False 조건 수입니다.", 'sum(externalsecret_status_condition{condition="Ready",status="False"})', 12, 45, danger_on_positive=True),
-        stat(410, "Provider 접근 오류 (1시간)", "최근 1시간 External Secrets Provider API 호출 중 success 이외 상태의 증가량입니다.", 'sum(increase(externalsecret_provider_api_calls_count{status!="success"}[1h])) or vector(0)', 18, 45, danger_on_positive=True),
-        series(403, "인증서·Secret 컴포넌트 Available Replica", "cert-manager 및 External Secrets Deployment 가용 replica 추이입니다.", 'kube_deployment_status_replicas_available{namespace=~"cert-manager|external-secrets"}', 0, 51, 24, 8),
+        row(400, "4. 자격증명 / 인증서", 34),
+        stat(401, "cert-manager 상태", "cert-manager 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="cert-manager",deployment=~"cert-manager|cert-manager-cainjector|cert-manager-webhook"'), 0, 35, danger_on_positive=True),
+        stat(402, "External Secrets 상태", "External Secrets 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="external-secrets",deployment=~"external-secrets|external-secrets-cert-controller|external-secrets-webhook"'), 6, 35, danger_on_positive=True),
+        bar_gauge(411, "Certificate 상태", "Ready·Not Ready·만료 예정은 cert-manager의 기존 Certificate Metric을 함께 표시합니다.", [("Ready", 'sum(certmanager_certificate_ready_status{condition="True"})'), ("Not Ready", 'sum(certmanager_certificate_ready_status{condition="False"})'), ("30일 이내 만료", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 30 * 24 * 60 * 60)) or vector(0)'), ("7일 이내 만료", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 7 * 24 * 60 * 60)) or vector(0)')], 12, 35, 12),
+        bar_gauge(412, "ExternalSecret Sync 상태", "ExternalSecret Ready 조건의 정상·실패 수입니다.", [("정상", 'sum(externalsecret_status_condition{condition="Ready",status="True"})'), ("실패", 'sum(externalsecret_status_condition{condition="Ready",status="False"})')], 0, 40, 12),
+        stat(410, "Provider 접근 오류 (1시간)", "최근 1시간 External Secrets Provider API 호출 중 success 이외 상태의 증가량입니다.", 'sum(increase(externalsecret_provider_api_calls_count{status!="success"}[1h])) or vector(0)', 12, 40, w=12, danger_on_positive=True),
+        series(403, "인증서·Secret 컴포넌트 Available Replica", "cert-manager 및 External Secrets Deployment 가용 replica 추이입니다.", 'kube_deployment_status_replicas_available{namespace=~"cert-manager|external-secrets"}', 0, 45, 24, 8),
 
     ]
     return {"id": None, "uid": "cantaloupe-platform-security-overview", "title": "Platform Security Controls",
