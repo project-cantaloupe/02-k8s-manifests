@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-audio-load-runner-to-pushgateway
+  namespace: monitoring
+  labels:
+    app: cantaloupe-finops-pushgateway
+    area: monitoring
+    component: progress-ingress
+    platform: gcp
+spec:
+  podSelector:
+    matchLabels:
+      app: cantaloupe-finops-pushgateway
+  policyTypes:
+    - Ingress
+  ingress:
+    # Audio Load Runner가 Run 진행률을 기록할 때 사용하는 경로만 허용한다.
+    # namespaceSelector와 podSelector를 같은 항목에 두어 두 조건을 모두 만족시킨다.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: apps
+          podSelector:
+            matchLabels:
+              app: audio-finops-load-runner
+      ports:
+        - protocol: TCP
+          port: 9091
