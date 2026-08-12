@@ -7,12 +7,12 @@ resources:
   - pvc.yaml
   - postgres.yaml
   - redis.yaml
-  - registry-config.yaml
   - registry.yaml
   - harbor-core-config.yaml
   - harbor-components.yaml
   - harbor-service.yaml
   - portal.yaml
+  - external-secret.yaml
 
 patches:
   # -----------------------------------------------------------------
@@ -53,18 +53,10 @@ patches:
                     value: "postgresql"
                   - name: POSTGRESQL_PORT
                     value: "5432"
-                  - name: POSTGRESQL_PASSWORD
-                    value: "root123"
                   - name: POSTGRESQL_DATABASE
                     value: "registry"
                   - name: REGISTRY_URL
                     value: "http://harbor-registry:5000"
-                  - name: CORE_SECRET
-                    value: "HARBOR_CORE_SECRET_123456"
-                  - name: JOBSERVICE_SECRET
-                    value: "HARBOR_JOBSERVICE_SECRET_123456"
-                  - name: CSRF_KEY
-                    value: "12345678901234567890123456789012"
 
   # 2. Harbor Registry 패치 (harbor-data 볼륨 포함)
   - target:
@@ -89,8 +81,8 @@ patches:
                     subPath: config.yml
             volumes:
               - name: registry-config
-                configMap:
-                  name: harbor-registry-config
+                secret:
+                  secretName: harbor-registry-config
               - name: harbor-data
                 persistentVolumeClaim:
                   claimName: harbor-data-pvc

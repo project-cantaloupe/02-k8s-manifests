@@ -22,7 +22,10 @@ spec:
             - name: POSTGRESQL_PORT
               value: "5432"
             - name: POSTGRESQL_PASSWORD
-              value: "root123"
+              valueFrom:
+                secretKeyRef:
+                  name: harbor-secrets
+                  key: POSTGRESQL_PASSWORD
             - name: POSTGRESQL_DATABASE
               value: "registry"
             - name: CACHE_TYPE
@@ -36,11 +39,20 @@ spec:
             - name: REGISTRY_URL
               value: "http://harbor-registry:5000"
             - name: CORE_SECRET
-              value: "HARBOR_REGISTRY_SECRET_123456"
+              valueFrom:
+                secretKeyRef:
+                  name: harbor-secrets
+                  key: CORE_SECRET
             - name: JOBSERVICE_SECRET
-              value: "HARBOR_REGISTRY_SECRET_123456"
+              valueFrom:
+                secretKeyRef:
+                  name: harbor-secrets
+                  key: JOBSERVICE_SECRET
             - name: CSRF_KEY
-              value: "12345678901234567890123456789012"
+              valueFrom:
+                secretKeyRef:
+                  name: harbor-secrets
+                  key: CSRF_KEY
             # ✨ [핵심 추가] 내부 알림 URL 경로 매핑 허용
             - name: CORE_URL
               value: "http://harbor-core:8080"
