@@ -42,6 +42,31 @@ class RunnerLimitTest(unittest.TestCase):
         self.assertEqual(runner["COUNT"], 200)
 
 
+class RunnerPresentationTest(unittest.TestCase):
+    def test_visibility_defaults_to_public(self):
+        with mock.patch.dict("os.environ", {}, clear=True):
+            runner = load_runner()
+
+        self.assertEqual(runner["VISIBILITY"], "public")
+
+    def test_title_explains_phase_profile_time_sequence_and_fixture(self):
+        env = {
+            "RUN_ID": "audio-finops-reactive-150-20260812-124826",
+            "LOAD_PROFILE": "unexpected-burst",
+            "EXPERIMENT_PHASE": "baseline",
+        }
+        with mock.patch.dict("os.environ", env, clear=True):
+            runner = load_runner()
+
+        title = runner["track_title"](0, 0, 15)
+
+        self.assertEqual(
+            title,
+            "FinOps Baseline · Reactive Burst · 08/12 21:48 KST · #001 · 15초 · 패턴 1",
+        )
+        self.assertLessEqual(len(title), 200)
+
+
 class FakeResponse(io.BytesIO):
     def __enter__(self):
         return self
@@ -133,6 +158,10 @@ class RunnerFixtureTest(unittest.TestCase):
         self.assertEqual(item["audio_id"], "audio-1")
         self.assertEqual(item["source_seconds"], 15)
         self.assertEqual(requests[0][2]["checksum_sha256"], "cached-checksum")
+        self.assertEqual(requests[0][2]["visibility"], "public")
+        self.assertEqual(
+            requests[0][2]["title"], self.runner["track_title"](0, 0, 15)
+        )
         self.runner["make_wav"].assert_not_called()
 
 
