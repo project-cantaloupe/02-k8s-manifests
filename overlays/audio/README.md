@@ -4,9 +4,11 @@
 Baseline Run이 유효하게 수집된 뒤에만 Argo CD `app-audio`의 source path를
 `overlays/audio/right-sized-candidate`로 변경한다.
 
-Candidate는 Base와 Burst Transcode의 Request를 함께 `50m/224Mi`로 바꾸고 Memory
-Limit `512Mi`는 유지한다. Load Runner의 `EXPERIMENT_PHASE`도 `candidate`로 고정한다.
-VPA 추천을 자동 반영하는 설정이 아니며 동일 부하에서
+Candidate는 Base와 Burst Transcode의 Request를 함께 `50m/160Mi`로 바꾸고 Memory
+Limit `512Mi`와 Burst Replica 6개는 유지한다. Calico kubelet의 `maxPods=110`과
+Karpenter의 Node 수용량 예측도 일치시켜 Pod 슬롯 오판으로 두 번째 Node를 생성하지
+않게 한다. Load Runner의 `EXPERIMENT_PHASE`도 `candidate`로 고정한다. VPA 추천을
+자동 반영하는 설정이 아니며 동일 부하에서
 READY, 처리 P95, 실패, OOM·Restart·MemoryPressure와 Karpenter Node-minute를 확인한
 뒤 채택한다.
 

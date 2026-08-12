@@ -17,16 +17,16 @@ patches:
         value: candidate
       - op: replace
         path: /metadata/annotations/cantaloupe.io~1finops-request
-        value: cpu=50m,memory=224Mi
+        value: cpu=50m,memory=160Mi
       - op: replace
         path: /metadata/annotations/cantaloupe.io~1finops-rationale
-        value: vpa-upper-bound-with-controlled-load-headroom
+        value: single-node-packing-candidate-with-controlled-load-validation
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/cpu
         value: 50m
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 224Mi
+        value: 160Mi
   - target:
       group: batch
       version: v1
