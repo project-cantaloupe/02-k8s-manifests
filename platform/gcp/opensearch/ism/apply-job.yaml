@@ -161,6 +161,19 @@ spec:
                 exit 1
               fi
 
+              echo "Applying WAF and ingress fields to the current app index"
+              response=$(mktemp)
+              status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X PUT \
+                "$endpoint/cantaloupe-app-logs-v1/_mapping" \
+                -H 'Content-Type: application/json' \
+                --data-binary @/policy/app-current-mapping.json)
+              cat "$response"
+              echo
+              if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+                echo "Failed to apply app index mapping: HTTP $status" >&2
+                exit 1
+              fi
+
               echo "Removing legacy index template: cantaloupe-platform-logs"
               response=$(mktemp)
               status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X DELETE \

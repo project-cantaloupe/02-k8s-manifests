@@ -110,6 +110,33 @@ data:
         "policy_name": { "type": "keyword" }
       }
     }
+  # An index template only applies to indices created after it. The live
+  # cantaloupe-app-logs-v1 predates the WAF fields, and its mapping is
+  # `dynamic: false` — so without this PUT the documents keep their waf_*
+  # values in _source but nothing indexes them, and every aggregation comes
+  # back with empty buckets while the raw documents look perfectly correct.
+  # Mirrors platform-current-mapping.json. Keep both in step with the
+  # matching *-index-template.json.
+  # → tasks/todo/023_waf-blocking-and-siem.md
+  app-current-mapping.json: |
+    {
+      "properties": {
+        "http_user_agent": { "type": "keyword", "ignore_above": 512 },
+        "response_flags": { "type": "keyword" },
+        "response_code_details": { "type": "keyword" },
+        "source_network": { "type": "keyword" },
+        "security_event_type": { "type": "keyword" },
+        "waf_rule_id": { "type": "keyword" },
+        "waf_rule_group": { "type": "keyword" },
+        "waf_msg": { "type": "keyword", "ignore_above": 512 },
+        "waf_severity": { "type": "keyword" },
+        "waf_uri": { "type": "keyword", "ignore_above": 1024 },
+        "waf_client_ip": { "type": "ip", "ignore_malformed": true },
+        "waf_anomaly_score": { "type": "integer" },
+        "waf_action": { "type": "keyword" },
+        "waf_crs_version": { "type": "keyword" }
+      }
+    }
   app-retention-policy.json: |
     {
       "policy": {
@@ -165,7 +192,21 @@ data:
             "http_status_class": {"type": "keyword"},
             "http_method": {"type": "keyword"},
             "http_route": {"type": "keyword"},
-            "upstream_service": {"type": "keyword"}
+            "upstream_service": {"type": "keyword"},
+            "http_user_agent": {"type": "keyword", "ignore_above": 512},
+            "response_flags": {"type": "keyword"},
+            "response_code_details": {"type": "keyword"},
+            "source_network": {"type": "keyword"},
+            "security_event_type": {"type": "keyword"},
+            "waf_rule_id": {"type": "keyword"},
+            "waf_rule_group": {"type": "keyword"},
+            "waf_msg": {"type": "keyword", "ignore_above": 512},
+            "waf_severity": {"type": "keyword"},
+            "waf_uri": {"type": "keyword", "ignore_above": 1024},
+            "waf_client_ip": {"type": "ip", "ignore_malformed": true},
+            "waf_anomaly_score": {"type": "integer"},
+            "waf_action": {"type": "keyword"},
+            "waf_crs_version": {"type": "keyword"}
           }
         }
       }
