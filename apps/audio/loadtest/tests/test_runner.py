@@ -27,6 +27,21 @@ def load_runner():
     return namespace
 
 
+class RunnerLimitTest(unittest.TestCase):
+    def test_load_count_allows_reactive_run_below_safety_cap(self):
+        with mock.patch.dict("os.environ", {"LOAD_COUNT": "150"}):
+            runner = load_runner()
+
+        self.assertEqual(runner["MAX_COUNT"], 200)
+        self.assertEqual(runner["COUNT"], 150)
+
+    def test_load_count_is_capped_at_two_hundred(self):
+        with mock.patch.dict("os.environ", {"LOAD_COUNT": "250"}):
+            runner = load_runner()
+
+        self.assertEqual(runner["COUNT"], 200)
+
+
 class FakeResponse(io.BytesIO):
     def __enter__(self):
         return self

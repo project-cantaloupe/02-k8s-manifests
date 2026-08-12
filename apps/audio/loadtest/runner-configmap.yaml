@@ -30,7 +30,11 @@ data:
     API = os.getenv("AUDIO_API_URL", "http://audio-api.apps.svc.cluster.local")
     VISIBILITY = os.getenv("AUDIO_VISIBILITY", "private")
     PROFILE = os.getenv("LOAD_PROFILE", "manual-unexpected")
-    COUNT = min(int(os.getenv("LOAD_COUNT", "60")), 100)
+    # 실수로 대규모 Job을 실행해 S3·SQS·EC2 비용과 테스트 데이터가
+    # 무제한으로 늘어나지 않도록 상한을 유지한다. 2분 이상의 Reactive
+    # Backlog를 검증할 수 있도록 승인 가능한 범위를 200건으로 확장한다.
+    MAX_COUNT = 200
+    COUNT = min(int(os.getenv("LOAD_COUNT", "60")), MAX_COUNT)
     CONCURRENCY = min(int(os.getenv("LOAD_CONCURRENCY", "10")), 20)
     INTERVAL = max(float(os.getenv("LOAD_INTERVAL_SECONDS", "0")), 0)
     END_DATE = os.getenv("EXPERIMENT_END_DATE", "2026-08-14")
