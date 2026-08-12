@@ -105,6 +105,8 @@ def dashboard():
         row(200, "2. 인증 / 접근 제어", 6),
         stat(201, "Keycloak 상태", "Keycloak Deployment의 desired 대비 available replica 차이입니다.", unavailable('namespace="secops",deployment="keycloak"'), 0, 7, danger_on_positive=True),
         stat(202, "OAuth2 Proxy 상태", "OAuth2 Proxy Deployment의 desired 대비 available replica 차이입니다.", unavailable('namespace="logging",deployment="oauth2-proxy"'), 6, 7, danger_on_positive=True),
+        stat(204, "AuthorizationPolicy 적용 수", "kube-state-metrics가 실제 수집한 Istio AuthorizationPolicy 객체 수입니다. Denied 요청 수는 아닙니다.", 'sum(kube_customresource_authorizationpolicy)', 12, 7),
+        stat(205, "AuthorizationPolicy 적용 네임스페이스", "AuthorizationPolicy 객체가 하나 이상 있는 네임스페이스 수입니다.", 'count(count by(namespace) (kube_customresource_authorizationpolicy))', 18, 7),
         series(203, "Keycloak / OAuth2 Proxy Available Replica", "인증·접근 제어 컴포넌트의 가용 replica 추이입니다. 인증 실패율과 OAuth 오류율은 현재 Prometheus Metric이 없어 포함하지 않습니다.", 'kube_deployment_status_replicas_available{namespace=~"secops|logging",deployment=~"keycloak|oauth2-proxy"}', 0, 12, 24, 8),
 
         row(300, "3. Kubernetes 정책 보안", 20),
@@ -120,9 +122,16 @@ def dashboard():
         series(310, "NetworkPolicy 적용 네임스페이스", "시스템 기본 네임스페이스를 제외한 정책 적용 상태입니다. Calico 실제 차단 건수는 표시하지 않습니다.", f'count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces}}})', 12, 31, 12, 8, legend_format="{{namespace}}"),
 
         row(400, "4. 자격증명 / 인증서", 39),
-        stat(401, "cert-manager 상태", "cert-manager 컴포넌트의 미가용 replica 수입니다. Certificate Ready/만료/갱신 실패는 Metric 수집 후 추가합니다.", unavailable('namespace="cert-manager",deployment=~"cert-manager|cert-manager-cainjector|cert-manager-webhook"'), 0, 40, danger_on_positive=True),
-        stat(402, "External Secrets 상태", "External Secrets 컴포넌트의 미가용 replica 수입니다. Secret Sync·Provider 오류는 Metric 수집 후 추가합니다.", unavailable('namespace="external-secrets",deployment=~"external-secrets|external-secrets-cert-controller|external-secrets-webhook"'), 6, 40, danger_on_positive=True),
-        series(403, "인증서·Secret 컴포넌트 Available Replica", "cert-manager 및 External Secrets Deployment 가용 replica 추이입니다.", 'kube_deployment_status_replicas_available{namespace=~"cert-manager|external-secrets"}', 0, 45, 24, 8),
+        stat(401, "cert-manager 상태", "cert-manager 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="cert-manager",deployment=~"cert-manager|cert-manager-cainjector|cert-manager-webhook"'), 0, 40, danger_on_positive=True),
+        stat(402, "External Secrets 상태", "External Secrets 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="external-secrets",deployment=~"external-secrets|external-secrets-cert-controller|external-secrets-webhook"'), 6, 40, danger_on_positive=True),
+        stat(404, "Certificate Ready", "cert-manager가 Ready=True로 보고한 Certificate 수입니다.", 'sum(certmanager_certificate_ready_status{condition="True"})', 12, 40),
+        stat(405, "Certificate Not Ready", "cert-manager가 Ready=False로 보고한 Certificate 수입니다.", 'sum(certmanager_certificate_ready_status{condition="False"})', 16, 40, danger_on_positive=True),
+        stat(406, "30일 이내 만료 인증서", "현재 시각부터 30일 이내에 만료되는, 아직 만료되지 않은 Certificate 수입니다.", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 30 * 24 * 60 * 60)) or vector(0)', 20, 40, danger_on_positive=True),
+        stat(407, "7일 이내 만료 인증서", "현재 시각부터 7일 이내에 만료되는, 아직 만료되지 않은 Certificate 수입니다.", 'count((certmanager_certificate_expiration_timestamp_seconds - time() > 0) and (certmanager_certificate_expiration_timestamp_seconds - time() <= 7 * 24 * 60 * 60)) or vector(0)', 0, 45, danger_on_positive=True),
+        stat(408, "Secret Sync 정상", "ExternalSecret의 Ready=True 조건 수입니다.", 'sum(externalsecret_status_condition{condition="Ready",status="True"})', 6, 45),
+        stat(409, "Secret Sync 실패", "ExternalSecret의 Ready=False 조건 수입니다.", 'sum(externalsecret_status_condition{condition="Ready",status="False"})', 12, 45, danger_on_positive=True),
+        stat(410, "Provider 접근 오류 (1시간)", "최근 1시간 External Secrets Provider API 호출 중 success 이외 상태의 증가량입니다.", 'sum(increase(externalsecret_provider_api_calls_count{status!="success"}[1h])) or vector(0)', 18, 45, danger_on_positive=True),
+        series(403, "인증서·Secret 컴포넌트 Available Replica", "cert-manager 및 External Secrets Deployment 가용 replica 추이입니다.", 'kube_deployment_status_replicas_available{namespace=~"cert-manager|external-secrets"}', 0, 51, 24, 8),
 
     ]
     return {"id": None, "uid": "cantaloupe-platform-security-overview", "title": "Platform Security Controls",
