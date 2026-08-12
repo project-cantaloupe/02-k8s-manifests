@@ -47,6 +47,8 @@ spec:
                   value: "1"
                 - name: LOAD_INTERVAL_SECONDS
                   value: "300"
+                - name: AUDIO_VISIBILITY
+                  value: public
                 - name: EXPERIMENT_END_DATE
                   value: "2026-08-14"
               securityContext:
@@ -125,6 +127,8 @@ spec:
                   value: "10"
                 - name: LOAD_INTERVAL_SECONDS
                   value: "0"
+                - name: AUDIO_VISIBILITY
+                  value: public
                 - name: EXPERIMENT_END_DATE
                   value: "2026-08-14"
               securityContext:
@@ -203,6 +207,8 @@ spec:
                   value: "10"
                 - name: LOAD_INTERVAL_SECONDS
                   value: "0"
+                - name: AUDIO_VISIBILITY
+                  value: public
                 - name: EXPERIMENT_END_DATE
                   value: "2026-08-14"
               securityContext:
@@ -232,8 +238,7 @@ spec:
             - name: tmp
               emptyDir: {}
 ---
-# 발표자가 웹에서 자동 처리 결과를 직접 재생하기 위한 대표곡이다. 대규모
-# 성능 Run은 계속 private이며, 이 Job만 하루 한 곡을 공개한다.
+# 발표자가 대규모 Run과 별개로 자동 처리 결과 한 곡을 빠르게 재생 검증한다.
 apiVersion: batch/v1
 kind: CronJob
 metadata:

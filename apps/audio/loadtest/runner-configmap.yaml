@@ -60,6 +60,12 @@ data:
         (90, (261.63, 329.63, 392.00, 523.25), 8),
     )
 
+    def log_event(event, **fields):
+        print(
+            json.dumps({"event": event, **fields}, separators=(",", ":")),
+            flush=True,
+        )
+
     def make_wav(index):
         seconds, chord, seed = FIXTURES[index % len(FIXTURES)]
         rate = 16000
@@ -84,6 +90,30 @@ data:
                 frames.extend(struct.pack("<h", sample))
             wav.writeframes(frames)
         return output.getvalue(), seconds
+
+    def prepare_fixtures():
+        started = time.monotonic()
+        cache = []
+        total_bytes = 0
+        for index in range(len(FIXTURES)):
+            wav_bytes, seconds = make_wav(index)
+            checksum = base64.b64encode(hashlib.sha256(wav_bytes).digest()).decode()
+            cache.append((wav_bytes, seconds, checksum))
+            total_bytes += len(wav_bytes)
+            log_event(
+                "fixture_prepared",
+                fixture=index + 1,
+                fixtures_total=len(FIXTURES),
+                source_seconds=seconds,
+                bytes=len(wav_bytes),
+            )
+        log_event(
+            "fixture_cache_ready",
+            fixtures=len(cache),
+            bytes=total_bytes,
+            prepare_seconds=round(time.monotonic() - started, 3),
+        )
+        return tuple(cache)
 
     def request_json(method, url, body=None, headers=None, timeout=60):
         merged = dict(headers or {})
@@ -190,10 +220,10 @@ data:
             if response.status < 200 or response.status >= 300:
                 raise RuntimeError(f"Pushgateway returned {response.status}")
 
-    def upload_one(index):
+    def upload_one(index, fixture_cache):
         started = time.monotonic()
-        wav_bytes, seconds = make_wav(index)
-        checksum = base64.b64encode(hashlib.sha256(wav_bytes).digest()).decode()
+        fixture_index = index % len(fixture_cache)
+        wav_bytes, seconds, checksum = fixture_cache[fixture_index]
         title = f"FinOps {RUN_ID} fixture-{index % len(FIXTURES) + 1:02d} item-{index + 1:03d}"
         session = api_request_json("POST", "/v1/audios/uploads", {
             "title": title,
@@ -241,31 +271,81 @@ data:
         if today > END_DATE:
             print(json.dumps({"run_id": RUN_ID, "profile": PROFILE, "status": "SKIPPED_END_DATE", "date": today}))
             return 0
+        fixture_cache = prepare_fixtures()
         run_started = dt.datetime.now(dt.timezone.utc)
+        log_event(
+            "run_started",
+            run_id=RUN_ID,
+            profile=PROFILE,
+            count=COUNT,
+            concurrency=CONCURRENCY,
+        )
         phase = os.getenv("EXPERIMENT_PHASE") or ("baseline" if today <= "2026-08-12" else "candidate" if today == "2026-08-13" else "confirmation")
         items, errors, tracked = [], [], {}
+        submitted = 0
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(max(COUNT, 1), 20)) as trackers:
             if INTERVAL:
                 for index in range(COUNT):
                     try:
-                        tracked[trackers.submit(poll_ready, upload_one(index))] = index
+                        item = upload_one(index, fixture_cache)
+                        tracked[trackers.submit(poll_ready, item)] = index
+                        submitted += 1
+                        log_event(
+                            "upload_complete",
+                            index=index,
+                            submitted=submitted,
+                            requested=COUNT,
+                            submit_seconds=item["submit_seconds"],
+                        )
                     except Exception as exc:
                         errors.append({"index": index, "stage": "upload", "error": str(exc)})
+                        log_event("upload_failed", index=index, error=str(exc))
                     if index + 1 < COUNT:
                         time.sleep(INTERVAL)
             else:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as uploaders:
-                    futures = {uploaders.submit(upload_one, index): index for index in range(COUNT)}
+                    futures = {
+                        uploaders.submit(upload_one, index, fixture_cache): index
+                        for index in range(COUNT)
+                    }
                     for future in concurrent.futures.as_completed(futures):
                         try:
-                            tracked[trackers.submit(poll_ready, future.result())] = futures[future]
+                            item = future.result()
+                            tracked[trackers.submit(poll_ready, item)] = futures[future]
+                            submitted += 1
+                            log_event(
+                                "upload_complete",
+                                index=futures[future],
+                                submitted=submitted,
+                                requested=COUNT,
+                                submit_seconds=item["submit_seconds"],
+                            )
                         except Exception as exc:
                             errors.append({"index": futures[future], "stage": "upload", "error": str(exc)})
+                            log_event(
+                                "upload_failed",
+                                index=futures[future],
+                                error=str(exc),
+                            )
             for future in concurrent.futures.as_completed(tracked):
                 try:
-                    items.append(future.result())
+                    item = future.result()
+                    items.append(item)
+                    log_event(
+                        "terminal_status",
+                        completed=len(items),
+                        requested=COUNT,
+                        audio_id=item["audio_id"],
+                        status=item["final_status"],
+                        terminal_latency_seconds=item["terminal_latency_seconds"],
+                    )
                 except Exception as exc:
                     errors.append({"index": tracked[future], "stage": "tracking", "error": str(exc)})
+                    log_event(
+                        "tracking_failed",
+                        index=tracked[future],
+                        error=str(exc),
+                    )
         counts = {}
         for item in items:
             counts[item.get("final_status", "UNKNOWN")] = counts.get(item.get("final_status", "UNKNOWN"), 0) + 1
@@ -289,7 +369,7 @@ data:
         # 읽어 Prometheus 구간 집계를 수행한다.
         result["metrics_pushed"] = False
         result["metrics_collection"] = "pending_collector"
-        print("FINOPS_RUN_RESULT=" + json.dumps(result, separators=(",", ":")))
+        print("FINOPS_RUN_RESULT=" + json.dumps(result, separators=(",", ":")), flush=True)
         return 0 if not errors and counts.get("READY", 0) == COUNT else 1
 
     if __name__ == "__main__":

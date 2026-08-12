@@ -1,0 +1,96 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opensearch-alerting-apply
+  labels:
+    app: opensearch
+    area: logging
+    platform: gcp
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    # ISM(10) 뒤에 선다. 모니터가 거는 인덱스의 매핑이 먼저 서야 한다.
+    argocd.argoproj.io/sync-wave: "11"
+spec:
+  activeDeadlineSeconds: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: opensearch-alerting-apply
+        area: logging
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: apply
+          image: curlimages/curl:8.10.1
+          volumeMounts:
+            - name: monitors
+              mountPath: /monitors
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              endpoint=http://opensearch-cluster-master.logging.svc.cluster.local:9200
+              channel=waf-slack-security
+
+              echo "Waiting for OpenSearch"
+              until curl --fail --silent --show-error "$endpoint/_cluster/health" >/dev/null; do
+                sleep 5
+              done
+
+              # The notification channel carries the Slack webhook URL, so it is
+              # created out of band and never lives in Git. Fail loudly rather
+              # than installing a monitor whose action silently goes nowhere.
+              # → references/20260812_waf-slack-alerting.md
+              status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+                "$endpoint/_plugins/_notifications/configs/$channel")
+              if [ "$status" != "200" ]; then
+                echo "Notification channel '$channel' is missing (HTTP $status)." >&2
+                echo "Create it first - see references/20260812_waf-slack-alerting.md" >&2
+                exit 1
+              fi
+
+              # Monitors get a server-generated id, so a blind POST would add a
+              # duplicate on every sync. Look it up by name and update in place.
+              existing=$(mktemp)
+              curl --fail --silent --show-error --output "$existing" \
+                -X GET "$endpoint/_plugins/_alerting/monitors/_search" \
+                -H 'Content-Type: application/json' \
+                -d '{"query":{"term":{"monitor.name.keyword":"waf-coraza-blocked"}}}'
+
+              id=$(grep -o '"_id":"[^"]*"' "$existing" | head -n1 | cut -d'"' -f4)
+
+              response=$(mktemp)
+              if [ -n "$id" ]; then
+                echo "Updating monitor waf-coraza-blocked ($id)"
+                status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+                  -X PUT "$endpoint/_plugins/_alerting/monitors/$id" \
+                  -H 'Content-Type: application/json' \
+                  --data-binary @/monitors/waf-blocked-monitor.json)
+              else
+                echo "Creating monitor waf-coraza-blocked"
+                status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+                  -X POST "$endpoint/_plugins/_alerting/monitors" \
+                  -H 'Content-Type: application/json' \
+                  --data-binary @/monitors/waf-blocked-monitor.json)
+              fi
+              cat "$response"
+              echo
+              if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+                echo "Failed to apply WAF monitor: HTTP $status" >&2
+                exit 1
+              fi
+              echo "WAF alerting monitor applied"
+      volumes:
+        - name: monitors
+          configMap:
+            name: opensearch-alerting-monitors

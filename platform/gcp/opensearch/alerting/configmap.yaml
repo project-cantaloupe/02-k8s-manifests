@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-alerting-monitors
+  labels:
+    app: opensearch
+    area: logging
+    platform: gcp
+data:
+  # WAF 차단 알람. Prometheus 가 아니라 여기 사는 이유:
+  #
+  # Envoy 는 WAF 가 거절한 요청을 `istio_requests_total{response_code="403",
+  # destination_workload="unknown"}` 으로 센다. 업스트림에 도달하지 않아
+  # 목적지가 안 붙기 때문인데, **Istio RBAC 거부도 정확히 같은 라벨을 갖는다.**
+  # 메트릭만으로는 둘을 못 가르고 룰 ID·공격 IP 도 없다. Coraza proxy-wasm 은
+  # 자체 카운터를 노출하지 않는다(`wasm.*.vm_reload*` 는 VM 헬스다).
+  #
+  # 그 정보는 로그에만 있다 → parse_coraza_security() in
+  # platform/gcp/fluent-bit/configmap.yaml
+  #
+  # ⚠️ `destination_id` 가 가리키는 알림 채널은 **이 매니페스트가 만들지 않는다.**
+  # OpenSearch 알림 채널은 웹훅 URL 을 k8s Secret 참조가 아니라 자기 인덱스에
+  # 평문으로 담는다. GitOps 로 만들면 URL 이 Git 에 박힌다.
+  # Alertmanager 쪽 Secret 과 같은 원칙으로 **클러스터에서 직접 먼저 만든다** —
+  # 만들기 전에는 이 Job 이 실패한다(조용히 넘어가지 않는 편이 낫다).
+  # → references/20260812_waf-slack-alerting.md
+  waf-blocked-monitor.json: |
+    {
+      "type": "monitor",
+      "name": "waf-coraza-blocked",
+      "monitor_type": "query_level_monitor",
+      "enabled": true,
+      "schedule": { "period": { "interval": 5, "unit": "MINUTES" } },
+      "inputs": [
+        {
+          "search": {
+            "indices": ["cantaloupe-app-logs-v1"],
+            "query": {
+              "size": 0,
+              "query": {
+                "bool": {
+                  "filter": [
+                    { "term": { "security_event_type": "waf_rule_match" } },
+                    { "range": { "@timestamp": { "gte": "now-5m", "lte": "now" } } }
+                  ]
+                }
+              },
+              "aggregations": {
+                "blocked": {
+                  "filter": {
+                    "bool": {
+                      "filter": [
+                        { "term": { "waf_action": "blocked" } },
+                        { "term": { "waf_rule_id": "949111" } }
+                      ]
+                    }
+                  }
+                },
+                "families": {
+                  "terms": {
+                    "field": "waf_rule_group",
+                    "size": 5,
+                    "exclude": "REQUEST-949.*"
+                  }
+                },
+                "attackers": { "terms": { "field": "waf_client_ip", "size": 5 } },
+                "paths": { "terms": { "field": "waf_uri", "size": 5 } }
+              }
+            }
+          }
+        }
+      ],
+      "triggers": [
+        {
+          "query_level_trigger": {
+            "name": "waf-blocked-requests",
+            "severity": "2",
+            "condition": {
+              "script": {
+                "source": "ctx.results[0].aggregations.blocked.doc_count > 0",
+                "lang": "painless"
+              }
+            },
+            "actions": [
+              {
+                "name": "slack-security",
+                "destination_id": "waf-slack-security",
+                "throttle_enabled": true,
+                "throttle": { "value": 30, "unit": "MINUTES" },
+                "message_template": {
+                  "lang": "mustache",
+                  "source": "🛡️ *[WAF 차단]* audio-ingress\n\n최근 5분간 *{{ctx.results.0.aggregations.blocked.doc_count}}건 차단* — 룰 발화 {{ctx.results.0.hits.total.value}}회\n\n*공격 유형* _(탐지 전체 기준)_\n{{#ctx.results.0.aggregations.families.buckets}}• {{key}} — {{doc_count}}회\n{{/ctx.results.0.aggregations.families.buckets}}\n*공격 출발 IP*\n{{#ctx.results.0.aggregations.attackers.buckets}}• `{{key}}` — {{doc_count}}회\n{{/ctx.results.0.aggregations.attackers.buckets}}\n*표적 경로*\n{{#ctx.results.0.aggregations.paths.buckets}}• `{{key}}`\n{{/ctx.results.0.aggregations.paths.buckets}}\n<https://cntlp-gcp-wk-02.tail270b85.ts.net/app/dashboards#/view/waf-coraza-overview-v1|WAF 대시보드에서 보기>\n\n_차단 자체는 정상 동작이다. 확인할 것은 표적 경로에 정상 앱 경로가 섞였는가다._"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
