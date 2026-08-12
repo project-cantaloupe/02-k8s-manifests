@@ -10,6 +10,7 @@ resources:
   - daemonset.yaml
   - allow-prometheus-scrape.yaml
   - metrics-service.yaml
+  - webhook-service.yaml
   - servicemonitor.yaml
   - prometheus-rule.yaml
   - events-configmap.yaml

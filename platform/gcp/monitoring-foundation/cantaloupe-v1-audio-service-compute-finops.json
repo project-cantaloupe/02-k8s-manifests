@@ -440,7 +440,7 @@
       "id": 201,
       "type": "timeseries",
       "title": "제출 / 완료 / 실패 추이",
-      "description": "동일 패널에서 선택 시간 범위의 제출 이벤트, 완료, 실패 변화를 확인합니다. 제출은 run_id별 push_time_seconds 시점에 표시합니다.",
+      "description": "현재 테스트의 제출·완료·실패 누적 진행값입니다. Runner가 각 제출과 Terminal 상태 확인 시 기존 run_id Metric을 즉시 갱신합니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -458,7 +458,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -471,7 +471,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -484,7 +484,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} * on(job,run_id) group_left() ((time() - push_time_seconds{job=\"audio_finops_experiment\"} >= bool 0) * (time() - push_time_seconds{job=\"audio_finops_experiment\"} < bool (${__interval_ms} / 1000)))) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
