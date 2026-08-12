@@ -39,7 +39,7 @@
       "id": 101,
       "type": "stat",
       "title": "제출",
-      "description": "선택 시간 범위 안에 Pushgateway로 기록된 부하테스트 run_id들의 실제 제출 건수 합계입니다. 실행 시각은 Pushgateway push_time_seconds로 판정합니다.",
+      "description": "가장 최근에 Push된 단일 run_id의 제출 건수입니다. 같은 시간 범위에 이전 Run이 있어도 합산하지 않습니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -57,7 +57,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -121,7 +121,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -186,7 +186,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} and on(job,run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -231,7 +231,7 @@
       "id": 104,
       "type": "stat",
       "title": "성공률",
-      "description": "선택 시간 범위 완료 건수 ÷ 최신 Run 제출 건수 × 100입니다. Prometheus counter 보간값은 건수로 반올림하고 결과는 최대 100%로 제한합니다.",
+      "description": "가장 최근 단일 run_id의 완료 건수 ÷ 제출 건수 × 100입니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -249,7 +249,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * (sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)) / clamp_min(sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})), 1)",
+          "expr": "100 * (sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)) / clamp_min(sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})), 1)",
           "format": "time_series",
           "instant": true,
           "range": false,
@@ -440,7 +440,7 @@
       "id": 201,
       "type": "timeseries",
       "title": "제출 / 완료 / 실패 추이",
-      "description": "현재 테스트의 제출·완료·실패 누적 진행값입니다. Runner가 각 제출과 Terminal 상태 확인 시 기존 run_id Metric을 즉시 갱신합니다.",
+      "description": "가장 최근 단일 run_id의 제출·완료·실패 누적 진행값입니다. 이전 Run은 합산하지 않습니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -458,7 +458,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_submitted{job=\"audio_finops_experiment\"} and on(job,run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -471,7 +471,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job,run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
@@ -484,7 +484,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} and on(job,run_id) (push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
+          "expr": "sum(cantaloupe_audio_finops_run_transcode_failed{job=\"audio_finops_experiment\"} and on(job,run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds})) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
