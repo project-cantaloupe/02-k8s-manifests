@@ -20,7 +20,10 @@ spec:
           image: postgres:13-alpine
           env:
             - name: POSTGRES_PASSWORD
-              value: "root123"
+              valueFrom:
+                secretKeyRef:
+                  name: harbor-secrets
+                  key: POSTGRESQL_PASSWORD
             - name: POSTGRES_DB
               value: "registry"
           ports:

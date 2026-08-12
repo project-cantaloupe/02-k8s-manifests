@@ -45,8 +45,8 @@ spec:
               subPath: root.crt
       volumes:
         - name: registry-config
-          configMap:
-            name: harbor-registry-config
+          secret:
+            secretName: harbor-registry-config
         - name: harbor-data
           persistentVolumeClaim:
             claimName: harbor-data-pvc
