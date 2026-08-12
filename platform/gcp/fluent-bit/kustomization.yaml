@@ -12,3 +12,5 @@ resources:
   - metrics-service.yaml
   - servicemonitor.yaml
   - prometheus-rule.yaml
+  - events-configmap.yaml
+  - events-deployment.yaml

@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-events-config
+  labels:
+    app: fluent-bit-events
+    area: logging
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         1
+        Log_Level     info
+        HTTP_Server   On
+        HTTP_Listen   0.0.0.0
+        HTTP_Port     2020
+
+    [INPUT]
+        Name                 kubernetes_events
+        Tag                  k8s.events
+        Kube_URL             https://kubernetes.default.svc
+        Kube_Retention_Time  24h
+        DB                   /fluent-bit/state/kubernetes-events.db
+
+    [FILTER]
+        Name    lua
+        Match   k8s.events
+        Script  /fluent-bit/etc/events-normalize.lua
+        Call    normalize_event
+
+    [OUTPUT]
+        Name                opensearch
+        Match               k8s.events
+        Host                opensearch-cluster-master.logging.svc.cluster.local
+        Port                9200
+        Index               cantaloupe-platform-logs-v2
+        Suppress_Type_Name  On
+        Generate_ID         On
+        Retry_Limit         False
+        tls                 Off
+  events-normalize.lua: |
+    local warning_reasons = {
+      FailedScheduling=true, FailedMount=true, BackOff=true, Unhealthy=true,
+      Evicted=true, NodeNotReady=true, FailedPull=true, ErrImagePull=true,
+      ImagePullBackOff=true, Killing=true
+    }
+
+    function normalize_event(tag, timestamp, record)
+      local object = record["involvedObject"] or {}
+      local metadata = record["metadata"] or {}
+      local source = record["source"] or {}
+      if type(source) ~= "table" then
+        source = { component = tostring(source) }
+      end
+      local reason = record["reason"] or "unknown"
+      local message = record["message"] or record["note"] or ""
+      local event_type = string.lower(record["type"] or "normal")
+      local normalized = {
+        namespace = object["namespace"] or metadata["namespace"] or "cluster",
+        area = "platform",
+        app = "kubernetes-events",
+        collector_platform = "gcp",
+        collector_node = "kubernetes-api",
+        pod = object["kind"] == "Pod" and (object["name"] or "unknown") or "unknown",
+        container = "kubernetes-events",
+        level = (event_type == "warning" or warning_reasons[reason]) and "warning" or "info",
+        message = message,
+        ingest_bytes = string.len(message),
+        event_reason = reason,
+        event_kind = object["kind"] or "unknown",
+        event_name = object["name"] or "unknown",
+        event_action = record["action"] or reason,
+        event_count = tonumber(record["count"] or 1),
+        event_source = source["component"] or source["host"] or record["reportingController"] or record["reportingInstance"] or "kubernetes"
+      }
+      return 1, timestamp, normalized
+    end

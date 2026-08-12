@@ -3,6 +3,13 @@
 `security-logs-dashboard.ps1` creates or updates the saved objects for
 `Security Logs Overview v1` through the OpenSearch Dashboards API.
 
+`platform-logging-operations-dashboard.ps1` creates or updates
+`Platform Logging Operations v2`. Its layout follows the investigation flow:
+current health, incident location, cluster changes, then logging platform
+health. Kubernetes API events come from the single-replica Fluent Bit event
+collector. `ingest_bytes` is an approximate source-message size and must not be
+reported as the physical OpenSearch index store size.
+
 The dashboard intentionally contains log-derived security events only:
 
 - Keycloak authentication and logout events
@@ -21,5 +28,5 @@ Run from PowerShell on a Tailscale-connected workstation:
 .\security-logs-dashboard.ps1
 ```
 
-The script uses stable saved-object IDs and overwrites only those IDs. It does
-not change `Platform Logging Operations v2` or the audio application dashboard.
+Both scripts use stable saved-object IDs and overwrite only their own IDs. They
+do not change the audio application dashboard.
