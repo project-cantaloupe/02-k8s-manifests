@@ -130,11 +130,18 @@ data:
     #                          denial when both answer 403
     #   http_client_ip         X-Forwarded-For. Masked in Lua before indexing
     #   http_user_agent        scanner attribution
+    #
+    # ⚠️ The three fields after the status code use `*`, not `+`. Envoy leaves
+    # RESPONSE_CODE_DETAILS **empty** when a wasm filter answers the request
+    # itself, printing two spaces in a row. With `+` the whole regex fails and
+    # Fluent Bit drops the line unparsed — so every request the WAF blocked
+    # vanished from the structured index while RBAC denials stayed. One empty
+    # field costs the entire record, not just that field.
     # → tasks/todo/023_waf-blocking-and-siem.md
     [PARSER]
         Name         istio_access
         Format       regex
-        Regex        ^\[[^\]]+\] "(?<http_method>[^ ]+) (?<http_route>[^ ?]+)(?:\?[^ ]*)? [^"]+" (?<http_status>[0-9]{3}) (?<response_flags>[^ ]+) (?<response_code_details>[^ ]+) [^ ]+ "[^"]*" [0-9]+ [0-9]+ (?<processing_duration_ms>[0-9]+) [^ ]+ "(?<http_client_ip>[^"]*)" "(?<http_user_agent>[^"]*)" "(?<request_id>[^"]*)" "[^"]*" "[^"]*" (?<upstream_service>[^ ]+) .*$
+        Regex        ^\[[^\]]+\] "(?<http_method>[^ ]+) (?<http_route>[^ ?]+)(?:\?[^ ]*)? [^"]+" (?<http_status>[0-9]{3}) (?<response_flags>[^ ]*) (?<response_code_details>[^ ]*) [^ ]* "[^"]*" [0-9]+ [0-9]+ (?<processing_duration_ms>[0-9]+) [^ ]+ "(?<http_client_ip>[^"]*)" "(?<http_user_agent>[^"]*)" "(?<request_id>[^"]*)" "[^"]*" "[^"]*" (?<upstream_service>[^ ]+) .*$
         Types        http_status:integer processing_duration_ms:integer
   platform-normalize.lua: |
     -- Common schema for platform log dashboards. `collector_platform` is
@@ -541,7 +548,17 @@ data:
           -- Envoy states why a request ended the way it did. Without this a
           -- 403 from the WAF and a 403 from Istio RBAC are indistinguishable
           -- in the index, and the WAF dashboard would over-count blocks.
-          normalized["response_code_details"] = record["response_code_details"]
+          --
+          -- A wasm filter that answers the request itself leaves this empty.
+          -- Label it rather than indexing "" so the value is groupable: on
+          -- this gateway the only two sources of a 403 are Istio RBAC, which
+          -- always stamps `rbac_access_denied_*`, and Coraza, which does not.
+          -- So `403 + local_reply` reads as a WAF block.
+          local details = record["response_code_details"]
+          if details == nil or details == "" then
+            details = "local_reply"
+          end
+          normalized["response_code_details"] = details
           normalized["response_flags"] = record["response_flags"]
           normalized["http_user_agent"] = record["http_user_agent"]
           -- Masked, unlike `waf_client_ip`. Access logs cover every visitor
