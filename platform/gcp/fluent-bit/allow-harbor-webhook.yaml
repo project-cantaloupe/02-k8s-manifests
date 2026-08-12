@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-harbor-webhook-fluent-bit
+  labels:
+    app: fluent-bit
+    area: logging
+    component: webhook
+    platform: gcp
+spec:
+  podSelector:
+    matchLabels:
+      app: fluent-bit
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: harbor-system
+      ports:
+        - protocol: TCP
+          port: 9880

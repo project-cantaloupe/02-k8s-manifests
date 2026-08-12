@@ -9,6 +9,7 @@ resources:
   - configmap.yaml
   - daemonset.yaml
   - allow-prometheus-scrape.yaml
+  - allow-harbor-webhook.yaml
   - metrics-service.yaml
   - webhook-service.yaml
   - servicemonitor.yaml
