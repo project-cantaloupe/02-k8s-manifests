@@ -34,9 +34,18 @@ function Save-Object {
     references = $References
   }
   $endpoint = "$($DashboardsUrl.TrimEnd('/'))/api/saved_objects/$Type/$Id`?overwrite=true"
-  $result = $body | curl.exe -k -sS --fail-with-body `
-    -H "osd-xsrf: true" -H "Content-Type: application/json" `
-    -X POST $endpoint --data-binary "@-"
+  # Do not pipe JSON through Windows PowerShell: its native-process encoding
+  # can turn Korean saved-object titles into question marks. curl reads this
+  # UTF-8 payload file unchanged.
+  $payloadFile = New-TemporaryFile
+  try {
+    [IO.File]::WriteAllText($payloadFile.FullName, $body, [Text.UTF8Encoding]::new($false))
+    $result = curl.exe -k -sS --fail-with-body `
+      -H "osd-xsrf: true" -H "Content-Type: application/json" `
+      -X POST $endpoint --data-binary "@$($payloadFile.FullName)"
+  } finally {
+    Remove-Item -LiteralPath $payloadFile.FullName -Force -ErrorAction SilentlyContinue
+  }
   if ($LASTEXITCODE -ne 0) { throw "Failed to save $Type/$Id`: $result" }
   $saved = $result | ConvertFrom-Json
   Write-Host "saved $($saved.type)/$($saved.id)"
