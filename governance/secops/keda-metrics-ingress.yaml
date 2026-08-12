@@ -1,0 +1,27 @@
+# KEDA Namespace의 기본 Ingress 차단은 Operator의 동작에는 영향을 주지 않지만,
+# Monitoring Namespace에 있는 Prometheus의 metrics 수집도 함께 차단한다.
+# Operator Pod의 metrics Endpoint만 최소 범위로 허용한다.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-to-keda-metrics
+  namespace: keda
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keda-operator
+      app.kubernetes.io/instance: keda
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+              app.kubernetes.io/instance: monitoring-prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
