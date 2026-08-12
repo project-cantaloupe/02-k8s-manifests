@@ -25,6 +25,13 @@ The `steady`, `unexpected-burst`, and `scheduled-peak` profiles use the same
 deterministic WAV fixture set for baseline and candidate runs. The result
 collector persists each run with its `run_id`, `profile`, and `phase`.
 
+The Runner generates the eight deterministic WAV fixtures once before the
+measured Run starts, caches their immutable bytes and checksums in memory, and
+reuses them for concurrent uploads. This keeps local Python synthesis out of the
+measured interval and makes `unexpected-burst` describe concurrent Queue input
+rather than staggered fixture generation. Progress events for fixture creation,
+uploads, and terminal statuses are written immediately to the Job log.
+
 All profiles use the same production path as Audio uploads: the Runner obtains
 a short-lived `audio-finops` Client-Credentials token, calls the internal Audio
 API, uploads the returned presigned URL to S3, and then follows the shared
@@ -54,10 +61,18 @@ must start with zero Burst replicas and zero Karpenter Nodes and use the same
 queue workload. The `scheduled-peak` profile is a separate forecast-based
 readiness scenario and starts after the prewarm window has requested capacity.
 
-The `steady`, `scheduled-peak`, and `unexpected-burst` profiles create private
-audio records. They are intentionally absent from the public `/discover` page.
-Only the one-item `web-validation` profile uses `AUDIO_VISIBILITY=public` and is
-expected to appear in the Web UI.
+All controlled profiles set `AUDIO_VISIBILITY=public` so the presentation can
+correlate the Run log and metrics with tracks that reached `READY` in the public
+`/discover` catalog. Titles include the `run_id`, fixture number, and item number
+so test records remain attributable. The catalog shows twenty records per page
+and exposes the remaining records through `Load more`. This is an experiment
+visibility choice, not a public S3 policy: source and artifact buckets remain
+private and playback continues to use signed URLs.
+
+Deleting Kubernetes Jobs does not remove these public database records or their
+versioned S3 objects. Keep the experiment CronJobs suspended, execute only
+approved one-off Jobs, and treat a consistent database-and-object cleanup flow as
+a required follow-up before this profile is reused beyond the presentation.
 
 ## Result validity
 

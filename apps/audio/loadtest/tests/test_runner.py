@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import io
 import unittest
 from pathlib import Path
@@ -60,6 +62,63 @@ class RunnerAuthTest(unittest.TestCase):
         self.assertEqual(result, {"status": "ok"})
         self.assertEqual(calls[0][1], self.runner["API"] + "/v1/audios?scope=public")
         self.assertEqual(calls[0][3], {"Authorization": "Bearer token-2"})
+
+
+class RunnerFixtureTest(unittest.TestCase):
+    def setUp(self):
+        self.runner = load_runner()
+
+    def test_prepare_fixtures_generates_each_fixture_once(self):
+        generated = []
+
+        def make_wav(index):
+            generated.append(index)
+            return f"wav-{index}".encode(), index + 1
+
+        self.runner["make_wav"] = make_wav
+        with mock.patch("builtins.print"):
+            cache = self.runner["prepare_fixtures"]()
+
+        self.assertEqual(generated, list(range(len(self.runner["FIXTURES"]))))
+        self.assertEqual(len(cache), len(self.runner["FIXTURES"]))
+        for index, (wav_bytes, seconds, checksum) in enumerate(cache):
+            expected = f"wav-{index}".encode()
+            self.assertEqual(wav_bytes, expected)
+            self.assertEqual(seconds, index + 1)
+            self.assertEqual(
+                checksum,
+                base64.b64encode(hashlib.sha256(expected).digest()).decode(),
+            )
+
+    def test_upload_one_reuses_cached_fixture(self):
+        fixture_cache = ((b"cached-wav", 15, "cached-checksum"),)
+        requests = []
+
+        def api_request_json(method, path, body=None, timeout=60):
+            requests.append((method, path, body, timeout))
+            if path == "/v1/audios/uploads":
+                return {
+                    "audio_id": "audio-1",
+                    "upload_url": "https://upload.example.test/audio-1",
+                    "upload_headers": {},
+                }
+            return {"status": "SCAN_PENDING"}
+
+        response = mock.MagicMock()
+        response.__enter__.return_value.status = 200
+        response.__exit__.return_value = False
+        self.runner["api_request_json"] = api_request_json
+        self.runner["make_wav"] = mock.Mock(
+            side_effect=AssertionError("unexpected WAV generation")
+        )
+
+        with mock.patch("urllib.request.urlopen", return_value=response):
+            item = self.runner["upload_one"](0, fixture_cache)
+
+        self.assertEqual(item["audio_id"], "audio-1")
+        self.assertEqual(item["source_seconds"], 15)
+        self.assertEqual(requests[0][2]["checksum_sha256"], "cached-checksum")
+        self.runner["make_wav"].assert_not_called()
 
 
 if __name__ == "__main__":
