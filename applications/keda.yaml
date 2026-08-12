@@ -67,6 +67,16 @@ spec:
             limits:
               memory: 256Mi
 
+        prometheus:
+          operator:
+            enabled: true
+            serviceMonitor:
+              enabled: true
+              interval: 15s
+              scrapeTimeout: 10s
+              additionalLabels:
+                release: monitoring
+
         # Control Plane의 예약 CPU가 높으므로 singleton 업데이트 중 이전 Pod와 새
         # Pod의 request가 동시에 잡히지 않게 한다.
         upgradeStrategy:
