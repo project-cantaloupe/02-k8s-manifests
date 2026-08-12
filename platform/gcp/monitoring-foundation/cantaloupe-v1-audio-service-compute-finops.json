@@ -645,7 +645,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(cantaloupe:aws_sqs_messages_visible{queue_name=\"cntlp-aws-queue-transcode\"}) or vector(0)",
+          "expr": "max(keda_scaler_metrics_value{namespace=\"apps\",scaledObject=\"audio-transcode-burst\",metric=\"s1-aws-sqs-cntlp-aws-queue-transcode\"}) or max(kube_horizontalpodautoscaler_status_target_metric{namespace=\"apps\",horizontalpodautoscaler=\"keda-hpa-audio-transcode-burst\",metric_name=\"s1-aws-sqs-cntlp-aws-queue-transcode\"}) or vector(0)",
           "format": "time_series",
           "instant": false,
           "range": true,
