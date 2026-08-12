@@ -1307,7 +1307,7 @@
           },
           "options": {
             "mode": "markdown",
-            "content": "### 수집 계약 — Audio 앱 무변경\n- Istio Web/API 요청·응답·지연시간\n- 기존 Worker 완료·시도 실패·재시도·처리 중·처리시간\n- SQS backlog/in-flight/oldest age/DLQ (CloudWatch 1분, 약 2분 지연)\n- Kubernetes CPU/Memory/Replica와 OpenCost 직접비용\n\n### Right-sizing A/B\n동일 오디오 10개를 A(Request 2 CPU/2Gi), B(P95 근거 Request 1 CPU/1Gi)로 각각 처리한 시간 범위를 선택해 완료 수, P95, **시도 실패율**, Worker 비용/Track을 비교합니다. 비용 감소와 함께 P95·시도 실패율이 악화되지 않아야 합니다.\n\n기존 지표로는 최종 사용자 실패와 내부 S3/SQS SDK 오류를 직접 분리하지 않습니다. SQS/DLQ 상태와 `error_code`별 시도 실패로 진단합니다. S3 Lifecycle 7/37/120일 예측은 4번 대시보드가 단일 소유합니다."
+            "content": "### 수집 계약 — Audio 앱 무변경\n- Istio Web/API 요청·응답·지연시간\n- 기존 Worker 완료·시도 실패·재시도·처리 중·처리시간\n- SQS backlog/in-flight/oldest age/DLQ (CloudWatch 1분, 약 2분 지연)\n- Kubernetes CPU/Memory/Replica와 OpenCost 직접비용\n\n### Right-sizing A/B\n동일 부하를 A(`250m/256Mi`), B(`50m/224Mi` Candidate)로 각각 처리하고 완료 수, 처리 P95, OOM·Restart, Worker 비용/Track을 비교합니다. Request 감소만으로 절감이라 하지 않고 Karpenter Node 최대값과 Node-minute가 2대에서 1대로 감소했는지 확인합니다.\n\nCandidate는 READY·처리 P95·오류 안전 조건을 통과한 뒤에만 채택합니다. SQS/DLQ 상태와 `error_code`별 시도 실패로 원인을 진단합니다."
           }
         },
         {
@@ -1361,6 +1361,79 @@
             ]
           },
           "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 407,
+          "type": "bargauge",
+          "title": "실험별 최대 Karpenter Node",
+          "description": "각 통제 Run에서 동시에 관측된 Audio Burst Karpenter Node 최대값입니다.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "x": 0, "y": 66, "w": 12, "h": 7 },
+          "targets": [
+            {
+              "expr": "max by(phase,run_id) (cantaloupe_audio_finops_run_karpenter_nodes_max)",
+              "legendFormat": "{{phase}} / {{run_id}}",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "max": 2,
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 2 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "displayMode": "gradient",
+            "orientation": "horizontal",
+            "showUnfilled": true,
+            "valueMode": "color"
+          }
+        },
+        {
+          "id": 408,
+          "type": "bargauge",
+          "title": "실험별 Karpenter Node-minute",
+          "description": "Run 시작부터 종료 후 5분까지 15초 해상도로 적분한 동적 Node 사용시간입니다.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "x": 12, "y": 66, "w": 12, "h": 7 },
+          "targets": [
+            {
+              "expr": "max by(phase,run_id) (cantaloupe_audio_finops_run_karpenter_node_minutes)",
+              "legendFormat": "{{phase}} / {{run_id}}",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "m",
+              "min": 0,
+              "decimals": 2,
+              "color": { "mode": "continuous-GrYlRd" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "displayMode": "gradient",
+            "orientation": "horizontal",
+            "showUnfilled": true,
+            "valueMode": "color"
+          }
         }
       ],
       "gridPos": {

@@ -48,6 +48,10 @@ class CollectorTest(unittest.TestCase):
             "queue_visible_max": 4,
             "queue_inflight_max": 2,
             "queue_drained": 1,
+            "karpenter_nodes_max": 2,
+            "karpenter_node_minutes": 5.5,
+            "karpenter_nodes_final": 0,
+            "karpenter_node_cleanup_complete": 1,
             "queue_activity_missing": 0,
             "counter_mismatch": 0,
             "deployment_changed": 0,
@@ -69,6 +73,10 @@ class CollectorTest(unittest.TestCase):
             "queue_visible_max": 0,
             "queue_inflight_max": 0,
             "queue_drained": 1,
+            "karpenter_nodes_max": 1,
+            "karpenter_node_minutes": 3.0,
+            "karpenter_nodes_final": 0,
+            "karpenter_node_cleanup_complete": 1,
             "queue_activity_missing": 1,
             "counter_mismatch": 0,
             "deployment_changed": 0,
@@ -87,6 +95,31 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(samples["cantaloupe_audio_finops_run_queue_measurement_complete"], 1)
         self.assertEqual(samples["cantaloupe_audio_finops_run_info"], 1)
 
+    def test_node_cleanup_must_finish_for_a_valid_cost_sample(self):
+        metrics = {
+            "processing_p95_seconds": 3.5,
+            "transcode_completed": 10,
+            "transcode_failed": 0,
+            "transcode_retried": 0,
+            "queue_visible_max": 6,
+            "queue_inflight_max": 6,
+            "queue_drained": 1,
+            "karpenter_nodes_max": 2,
+            "karpenter_node_minutes": 7.5,
+            "karpenter_nodes_final": 1,
+            "karpenter_node_cleanup_complete": 0,
+            "queue_activity_missing": 0,
+            "counter_mismatch": 0,
+            "deployment_changed": 0,
+            "job_failed": 0,
+        }
+
+        samples = self.collector["result_samples"](self.result, metrics)
+
+        self.assertEqual(samples["cantaloupe_audio_finops_run_functional_success"], 1)
+        self.assertEqual(samples["cantaloupe_audio_finops_run_metrics_complete"], 0)
+        self.assertEqual(samples["cantaloupe_audio_finops_run_info"], 0)
+
     def test_collect_ignores_burst_replica_generation_and_rounds_counters(self):
         queries = []
 
@@ -104,7 +137,7 @@ class CollectorTest(unittest.TestCase):
                 return 0
             return 1
 
-        def prom_range(query, *_):
+        def prom_range(query, *_, **__):
             if "messages_visible" in query:
                 return [(100.0, 0.0), (160.0, 5.0), (220.0, 0.0)]
             return [(100.0, 0.0), (160.0, 2.0), (220.0, 0.0)]
@@ -127,6 +160,28 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(metrics["queue_inflight_max"], 2)
         self.assertEqual(metrics["queue_backlog_max"], 7)
         self.assertEqual(metrics["queue_drained"], 1)
+        self.assertEqual(metrics["karpenter_nodes_max"], 2)
+        self.assertEqual(metrics["karpenter_node_cleanup_complete"], 1)
+
+    def test_karpenter_node_metrics_integrates_node_minutes_and_cleanup(self):
+        start = dt.datetime(2026, 8, 11, 14, 0, tzinfo=dt.timezone.utc)
+        finish = dt.datetime(2026, 8, 11, 14, 1, tzinfo=dt.timezone.utc)
+
+        self.collector["prom_range"] = lambda *_args, **_kwargs: [
+            (start.timestamp(), 0.0),
+            (start.timestamp() + 15, 1.0),
+            (start.timestamp() + 45, 2.0),
+            (start.timestamp() + 75, 1.0),
+            (start.timestamp() + 105, 0.0),
+            (finish.timestamp() + 300, 0.0),
+        ]
+
+        metrics = self.collector["karpenter_node_metrics"](start, finish)
+
+        self.assertEqual(metrics["karpenter_nodes_max"], 2)
+        self.assertAlmostEqual(metrics["karpenter_node_minutes"], 2.0)
+        self.assertEqual(metrics["karpenter_nodes_final"], 0)
+        self.assertEqual(metrics["karpenter_node_cleanup_complete"], 1)
 
     def test_failed_job_without_result_log_gets_synthetic_result(self):
         job = {

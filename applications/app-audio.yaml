@@ -17,7 +17,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: apps
-  # KEDA owns the burst worker's replica count (0-1). Argo CD must reconcile
+  # KEDA owns the Burst Worker replica count (0-6). Argo CD must reconcile
   # the workload definition without fighting KEDA's runtime scaling decisions.
   ignoreDifferences:
     - group: apps

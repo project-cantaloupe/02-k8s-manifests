@@ -14,7 +14,9 @@ spec:
   pollingInterval: 15
   cooldownPeriod: 120
   minReplicaCount: 0
-  maxReplicaCount: 1
+  # FinOps 비교에서 동일한 Queue 부하로 Baseline 2개 Node와
+  # Right-sized Candidate 1개 Node의 실제 사용시간을 측정한다.
+  maxReplicaCount: 6
   advanced:
     restoreToOriginalReplicaCount: true
   triggers:
@@ -23,7 +25,8 @@ spec:
     - type: aws-sqs-queue
       metadata:
         # Base Worker가 처리하는 한 건은 확장하지 않고 Visible과 In-flight의 합이
-        # 2건 이상일 때 Burst Worker 한 개를 활성화한다.
+        # 2건 이상일 때 활성화한다. 활성화 후에는 합계 1건당 Burst Worker 한 개를
+        # 목표로 하되 위 maxReplicaCount를 넘지 않는다.
         queueURLFromEnv: TRANSCODE_QUEUE_URL
         queueLength: "1"
         activationQueueLength: "1"

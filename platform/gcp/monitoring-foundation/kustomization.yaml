@@ -78,3 +78,18 @@ configMapGenerator:
         cost-allocation: shared
       annotations:
         grafana-folder: Cantaloupe
+
+  - name: cantaloupe-v1-audio-service-compute-finops
+    namespace: monitoring
+    files:
+      - cantaloupe-v1-audio-service-compute-finops.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+        app: grafana
+        area: monitoring
+        platform: gcp
+        cost-allocation: shared
+      annotations:
+        grafana-folder: Cantaloupe

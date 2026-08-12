@@ -10,7 +10,12 @@ metadata:
 spec:
   restartPolicy: Never
   nodeSelector:
-    karpenter.sh/nodepool: aws-service
+    cantaloupe.io/node-purpose: audio-burst
+  tolerations:
+    - key: cantaloupe.io/audio-burst
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
   containers:
     - name: pause
       image: registry.k8s.io/pause:3.10.1

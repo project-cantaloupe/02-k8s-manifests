@@ -35,6 +35,14 @@ The KEDA cron prewarm is disabled while every load CronJob is suspended. Burst
 capacity is activated only by real transcode Queue backlog until scheduled-peak
 is deliberately resumed.
 
+KEDA may create up to six `audio-transcode-burst` Pods and the two
+`aws-audio-burst-*` Karpenter NodePools may create one `t3.small` Node each.
+These values are capacity ceilings, not permanently running capacity. With six simultaneous
+Burst Pods, the `250m/256Mi` baseline is expected to require two Nodes after
+DaemonSet overhead, while a validated candidate that fits all six Pods on one
+Node is expected to require one. Both runs must start with zero Burst replicas
+and zero Karpenter Nodes and must use the same queue workload.
+
 The `steady`, `scheduled-peak`, and `unexpected-burst` profiles create private
 audio records. They are intentionally absent from the public `/discover` page.
 Only the one-item `web-validation` profile uses `AUDIO_VISIBILITY=public` and is
@@ -72,6 +80,12 @@ VPA remains recommendation-only (`updateMode: Off`). Keep the memory limit as a
 safety boundary and do not introduce a CPU limit that would prevent FFmpeg from
 bursting.
 
+The prepared candidate Overlay is
+`overlays/audio/right-sized-candidate`. Keep the Argo CD source path at
+`apps/audio` for the baseline run, then change it to that Overlay in a reviewed
+Git commit for the candidate run. Do not mutate resources directly in the live
+cluster.
+
 ## Acceptance gates
 
 - completion rate remains at least 99 percent;
@@ -84,3 +98,7 @@ bursting.
 Request reduction is allocation efficiency, not automatically an equal AWS bill
 reduction. Any infrastructure bill claim must also use observed Karpenter node
 runtime.
+
+The expected two-to-one Node result is a scheduling hypothesis, not proof. Use
+the observed Node count, Node-minutes, queue drain, processing P95, restarts,
+OOM events, and READY tracks from each controlled run as the acceptance evidence.

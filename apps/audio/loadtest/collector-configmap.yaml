@@ -21,6 +21,10 @@ data:
     END_DATE = os.getenv("EXPERIMENT_END_DATE", "2026-08-14")
     COLLECTION_DELAY_SECONDS = int(os.getenv("COLLECTION_DELAY_SECONDS", "300"))
     QUEUE_NAME = "cntlp-aws-queue-transcode"
+    KARPENTER_NODE_QUERY = (
+        'count(max by(node) (kube_node_labels{job="opencost",'
+        'label_karpenter_sh_nodepool=~"aws-audio-burst-(98|99)"})) or vector(0)'
+    )
 
     def kube_get(path):
         with open(SA + "/token", encoding="utf-8") as handle:
@@ -81,6 +85,10 @@ data:
             "queue_visible_max",
             "queue_inflight_max",
             "queue_drained",
+            "karpenter_nodes_max",
+            "karpenter_node_minutes",
+            "karpenter_nodes_final",
+            "karpenter_node_cleanup_complete",
         )
         # Steady처럼 즉시 소비되는 Run은 Queue가 계속 0일 수 있다. 반면 Burst
         # replica가 실제로 1 이상이었는데 Queue 활동이 0이면 CloudWatch가 짧은
@@ -95,6 +103,7 @@ data:
             all(metrics.get(name) is not None for name in critical)
             and metrics.get("counter_mismatch") == 0
             and metrics.get("queue_drained") == 1
+            and metrics.get("karpenter_node_cleanup_complete") == 1
             and queue_measurement_complete == 1
         )
         valid = int(
@@ -195,6 +204,40 @@ data:
             return None
         return max(0, round(after - before))
 
+    def karpenter_node_metrics(start, finish):
+        # Queue 처리 종료 뒤 WhenEmpty 축소까지 같은 5분 관측 창에 포함한다.
+        evaluate = finish + dt.timedelta(seconds=COLLECTION_DELAY_SECONDS)
+        points = prom_range(
+            KARPENTER_NODE_QUERY,
+            start.timestamp(),
+            evaluate.timestamp(),
+            step=15,
+        )
+        if not points:
+            return {
+                "karpenter_nodes_max": None,
+                "karpenter_node_minutes": None,
+                "karpenter_nodes_final": None,
+                "karpenter_node_cleanup_complete": None,
+            }
+
+        node_minutes = 0.0
+        finish_timestamp = evaluate.timestamp()
+        for index, (timestamp, value) in enumerate(points):
+            next_timestamp = (
+                points[index + 1][0] if index + 1 < len(points) else finish_timestamp
+            )
+            interval = max(0.0, min(next_timestamp, finish_timestamp) - timestamp)
+            node_minutes += value * interval / 60.0
+
+        final_nodes = points[-1][1]
+        return {
+            "karpenter_nodes_max": max(value for _, value in points),
+            "karpenter_node_minutes": node_minutes,
+            "karpenter_nodes_final": final_nodes,
+            "karpenter_node_cleanup_complete": int(final_nodes == 0),
+        }
+
     def collect(result, job_failed=0):
         start = parse_time(result["started_at"])
         finish = parse_time(result["finished_at"])
@@ -260,6 +303,7 @@ data:
             "job_failed": int(job_failed),
         }
         metrics.update(queue_metrics(start, finish))
+        metrics.update(karpenter_node_metrics(start, finish))
         return metrics
 
     def job_env(job, name, default=""):

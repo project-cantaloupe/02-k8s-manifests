@@ -1,20 +1,20 @@
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: aws-service
+  name: aws-audio-burst-98
 spec:
   template:
     metadata:
       labels:
         platform: aws
         role: service
+        cantaloupe.io/node-purpose: audio-burst
     spec:
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: aws-service
-      # 이 NodePool은 Audio burst 용량 전용이다. 일반 platform=aws 서비스가
-      # 남으면 Queue drain 뒤에도 Node가 비지 않아 WhenEmpty 축소가 막힌다.
+        name: aws-audio-burst-98
+      # Audio Burst 외 일반 Service가 남아 WhenEmpty 축소를 막지 않게 한다.
       taints:
         - key: cantaloupe.io/audio-burst
           value: "true"
@@ -35,11 +35,61 @@ spec:
         - key: topology.kubernetes.io/zone
           operator: In
           values: [ap-northeast-2a]
-      # 검증 풀에는 자동 만료 미적용. 수명주기는 Empty 축소와 명시적 cleanup으로 관리
       expireAfter: Never
       terminationGracePeriod: 5m
 
-  # 고정 예약 이름 cntlp-aws-wk-99와 충돌하지 않도록 한 대만 허용
+  # 예약 이름 하나만 소유한다. Pending Pod가 없으면 Node를 유지하지 않는다.
+  limits:
+    nodes: 1
+
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 2m
+    budgets:
+      - nodes: "1"
+        reasons: [Empty]
+      - nodes: "0"
+        reasons: [Drifted, Underutilized]
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: aws-audio-burst-99
+spec:
+  template:
+    metadata:
+      labels:
+        platform: aws
+        role: service
+        cantaloupe.io/node-purpose: audio-burst
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: aws-audio-burst-99
+      taints:
+        - key: cantaloupe.io/audio-burst
+          value: "true"
+          effect: NoSchedule
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: [amd64]
+        - key: kubernetes.io/os
+          operator: In
+          values: [linux]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: [on-demand]
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: [t3.small]
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values: [ap-northeast-2a]
+      expireAfter: Never
+      terminationGracePeriod: 5m
+
   limits:
     nodes: 1
 
