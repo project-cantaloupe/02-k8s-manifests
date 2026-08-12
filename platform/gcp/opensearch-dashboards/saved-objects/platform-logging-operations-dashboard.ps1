@@ -177,61 +177,12 @@ $ingestTrend = @{ title = "시간대별 원본 로그 용량(근사치)"; type =
   @{ id = "2"; enabled = $true; type = "date_histogram"; schema = "segment"; params = @{ field = "@timestamp"; interval = "auto"; min_doc_count = 1; extended_bounds = @{ min = ""; max = "" } } }
 ); params = @{ type = "line"; addTooltip = $true; addLegend = $false; seriesParams = @(@{ show = "true"; type = "line"; mode = "normal"; data = @{ id = "1"; label = "용량" }; valueAxis = "ValueAxis-1"; drawLines = $true; showCircles = $false; lineWidth = 2; interpolation = "linear" }) } }
 Save-Visualization "platform-ops-ingest-trend" "시간대별 원본 로그 용량(근사치)" "시간대별 SUM(ingest_bytes)이며 크기에 따라 B/KB/MB/GB로 표시합니다." $ingestTrend
-$usageSpec = @{
-  '$schema' = "https://vega.github.io/schema/vega/v5.json"
-  autosize = @{ type = "fit"; contains = "padding" }
-  padding = 4
-  data = @(
-  @{
-    name = "totals"
-    url = @{
-      index = "cantaloupe-platform-logs-v2*"
-      body = @{
-        size = 0
-        query = @{ bool = @{ must = @("%dashboard_context-must_clause%"); filter = @("%dashboard_context-filter_clause%", @{ range = @{ "@timestamp" = @{ "%timefilter%" = $true } } }); must_not = @("%dashboard_context-must_not_clause%") } }
-        aggs = @{ total_bytes = @{ sum = @{ field = "ingest_bytes" } } }
-      }
-    }
-    format = @{ property = "aggregations" }
-    transform = @(
-      @{ type = "formula"; as = "constant"; expr = "1" },
-      @{ type = "formula"; as = "source_bytes"; expr = "datum.total_bytes.value" }
-    )
-  },
-  @{
-    name = "rows"
-    url = @{
-      index = "cantaloupe-platform-logs-v2*"
-      body = @{
-        size = 0
-        query = @{ bool = @{ must = @("%dashboard_context-must_clause%"); filter = @("%dashboard_context-filter_clause%", @{ range = @{ "@timestamp" = @{ "%timefilter%" = $true } } }); must_not = @("%dashboard_context-must_not_clause%") } }
-        aggs = @{ namespaces = @{ terms = @{ field = "namespace"; size = 1000; order = @{ bytes = "desc" } }; aggs = @{ bytes = @{ sum = @{ field = "ingest_bytes" } } } } }
-      }
-    }
-    format = @{ property = "aggregations.namespaces.buckets" }
-    transform = @(
-      @{ type = "formula"; as = "source_bytes"; expr = "datum.bytes.value" },
-      @{ type = "formula"; as = "constant"; expr = "1" },
-      @{ type = "lookup"; from = "totals"; key = "constant"; fields = @("constant"); values = @("source_bytes"); as = @("total_bytes") },
-      @{ type = "formula"; as = "ratio"; expr = "datum.total_bytes > 0 ? datum.source_bytes / datum.total_bytes * 100 : 0" },
-      @{ type = "window"; ops = @("row_number"); as = @("row_number") }
-    )
-  })
-  scales = @(@{ name = "rowY"; type = "band"; domain = @{ data = "rows"; field = "row_number" }; range = @(@{ signal = "28" }, @{ signal = "height" }); padding = 0.12 })
-  marks = @(
-    @{ type = "rule"; encode = @{ enter = @{ x = @{ value = 0 }; x2 = @{ signal = "width" }; y = @{ value = 24 }; stroke = @{ value = "#d3dae6" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.01" }; y = @{ value = 17 }; text = @{ value = "네임스페이스" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.34" }; y = @{ value = 17 }; text = @{ value = "로그 수" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.52" }; y = @{ value = 17 }; text = @{ value = "원본 로그 용량(근사치)" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
-    @{ type = "text"; encode = @{ enter = @{ x = @{ signal = "width*0.80" }; y = @{ value = 17 }; text = @{ value = "원본 로그 용량 비율" }; fontSize = @{ value = 13 }; fontWeight = @{ value = "bold" } } } },
-    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.01" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ field = "key" }; fontSize = @{ value = 13 }; limit = @{ signal = "width*0.31" }; ellipsis = @{ value = "..." } } } },
-    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.34" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "format(datum.doc_count, ',')" }; fontSize = @{ value = 13 } } } },
-    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.52" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "datum.source_bytes >= 1073741824 ? format(datum.source_bytes/1073741824, '.2f') + ' GB' : datum.source_bytes >= 1048576 ? format(datum.source_bytes/1048576, '.1f') + ' MB' : datum.source_bytes >= 1024 ? format(datum.source_bytes/1024, '.1f') + ' KB' : format(datum.source_bytes, ',') + ' B'" }; fontSize = @{ value = 13 } } } },
-    @{ type = "text"; from = @{ data = "rows" }; encode = @{ enter = @{ x = @{ signal = "width*0.80" }; y = @{ scale = "rowY"; field = "row_number"; band = 0.65 }; text = @{ signal = "format(datum.ratio, '.1f') + '%'" }; fontSize = @{ value = 13 } } } }
-  )
-}
-$usageState = @{ title = "네임스페이스별 원본 로그 용량"; type = "vega"; aggs = @(); params = @{ spec = Json $usageSpec; enableExternalUrls = $false } }
-Save-Visualization "platform-ops-usage-by-namespace" "네임스페이스별 원본 로그 용량" "네임스페이스별 로그 수, SUM(ingest_bytes), 전체 SUM 대비 비율입니다." $usageState
+$usage = @{ title = "네임스페이스별 원본 로그 용량"; type = "table"; aggs = @(
+  @{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{ customLabel = "로그 수" } },
+  @{ id = "2"; enabled = $true; type = "sum"; schema = "metric"; params = @{ field = "ingest_bytes"; customLabel = "원본 로그 용량(근사치)" } },
+  @{ id = "3"; enabled = $true; type = "terms"; schema = "bucket"; params = @{ field = "namespace"; size = 30; order = "desc"; orderBy = "2"; otherBucket = $false; missingBucket = $false } }
+); params = @{ type = "table"; perPage = 15; showPartialRows = $false; showMetricsAtAllLevels = $false; sort = @{ columnIndex = 2; direction = "desc" }; showTotal = $false; totalFunc = "sum" } }
+Save-Visualization "platform-ops-usage-by-namespace" "네임스페이스별 원본 로그 용량" "네임스페이스별 로그 수와 원본 로그 용량의 근사치입니다." $usage
 
 $panels = @()
 function Panel([string]$Index, [string]$Ref, [int]$X, [int]$Y, [int]$W, [int]$H, $Config = @{}) { @{ gridData = @{ x=$X; y=$Y; w=$W; h=$H; i=$Index }; panelIndex=$Index; version="7.10.0"; panelRefName=$Ref; embeddableConfig=$Config } }
