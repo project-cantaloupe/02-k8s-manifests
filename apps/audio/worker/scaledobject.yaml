@@ -20,8 +20,15 @@ spec:
   advanced:
     restoreToOriginalReplicaCount: true
   triggers:
-    # 예약 부하 CronJob이 모두 suspend인 동안에는 시간 기반 prewarm도 하지
-    # 않는다. 실제 scheduled-peak를 재개하는 리뷰에서 함께 복원한다.
+    # 화~목 21시의 예측 가능한 Peak보다 15분 먼저 Burst Worker 6개를 요청한다.
+    # Baseline은 Karpenter Node 2대, Right-sized Candidate는 1대가 준비되는지
+    # 확인한다. 실험 종료 뒤에는 반복 비용을 막기 위해 이 Trigger를 제거한다.
+    - type: cron
+      metadata:
+        timezone: Asia/Seoul
+        start: 45 20 * * 2-4
+        end: 30 21 * * 2-4
+        desiredReplicas: "6"
     - type: aws-sqs-queue
       metadata:
         # Base Worker가 처리하는 한 건은 확장하지 않고 Visible과 In-flight의 합이
