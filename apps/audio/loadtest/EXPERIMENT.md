@@ -51,7 +51,7 @@ terminal. FinOps per-Track denominators therefore use the run-scoped submitted
 or READY metrics, while Istio metrics describe HTTP volume, errors, and latency.
 
 The KEDA cron prewarm requests six Burst Workers from 20:45 through 21:30 KST
-on Tuesday through Thursday. This gives the self-managed Karpenter Nodes fifteen
+on Tuesday through Thursday. This gives the self-managed Karpenter Node fifteen
 minutes to boot, join Tailscale and kubeadm, and become Ready before the assumed
 21:00 peak. The load CronJobs remain suspended until a reviewed run is approved;
 prewarming capacity does not generate Audio requests by itself.
@@ -65,10 +65,19 @@ does not create idle EC2 cost.
 
 KEDA may create up to six `audio-transcode-burst` Pods and the two
 `aws-audio-burst-*` Karpenter NodePools may create one `t3.small` Node each.
-These values are capacity ceilings, not permanently running capacity. With six simultaneous
-Burst Pods, the `250m/256Mi` baseline is expected to require two Nodes after
-DaemonSet overhead, while a validated candidate that fits all six Pods on one
-Node is expected to require one. Reactive `unexpected-burst` comparison runs
+The first `50m/224Mi` candidate kept six Pods, but live Karpenter scheduling
+showed two independent constraints: predicted allocatable memory of approximately
+1432 MiB minus 408 MiB of DaemonSet requests, and an incorrect 11-Pod prediction
+derived from the AWS VPC CNI ENI limit. The live Calico kubelet actually reports
+110 allocatable Pods.
+
+The corrected candidate keeps six Burst Pods, lowers the memory request to
+`160Mi`, keeps the `512Mi` safety limit, and sets both EC2NodeClasses to
+`kubelet.maxPods=110`. The six requests plus DaemonSet requests fit Karpenter's
+conservative memory calculation with approximately 64 MiB of scheduling margin, while the live
+Node has additional allocatable memory. This candidate is accepted only if the
+same workload passes actual memory, MemoryPressure, OOM, queue drain, processing
+latency, restart, and READY gates. Reactive `unexpected-burst` comparison runs
 must start with zero Burst replicas and zero Karpenter Nodes and use the same
 queue workload. The `scheduled-peak` profile is a separate forecast-based
 readiness scenario and starts after the prewarm window has requested capacity.

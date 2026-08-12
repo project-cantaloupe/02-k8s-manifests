@@ -43,8 +43,12 @@ KEDA는 `audio-transcode-burst`를 0~6개로 조정한다. 두 NodePool은 평�
 유지하지 않고 Pending Burst Pod가 있을 때만 각각 최대 한 대를 만든다.
 
 - Baseline `250m/256Mi`: Burst 6개와 DaemonSet Request가 한 `t3.small`에
-  들어가지 않아 Node 두 대가 필요할 것으로 예상한다.
-- Candidate `50m/224Mi`: 동일 Burst 6개가 Node 한 대에 들어갈 것으로 예상한다.
+  들어가지 않아 Node 두 대가 필요하며 실제 150건 Run에서도 확인됐다.
+- First Candidate `50m/224Mi`, Burst 6개: Karpenter의 보수적인 Memory 계산과
+  VPC CNI 기준 11-Pod 예측 때문에 Node 두 대가 생성됐다.
+- Corrected Candidate `50m/160Mi`, Burst 6개: Calico kubelet과 동일한
+  `maxPods=110`을 EC2NodeClass에 명시해 한 Node 배치를 목표로 한다. 동일 150건의
+  실제 Memory, MemoryPressure, OOM, Queue Drain과 Processing P95를 함께 검증한다.
 
 이 값은 Scheduler Request 계산에 따른 가설이다. 실제 Node 수, Node-minute,
 READY Track, 처리 P95, OOM·Restart·MemoryPressure를 같은 부하에서 확인한 뒤에만
