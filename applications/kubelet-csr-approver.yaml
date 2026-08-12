@@ -15,8 +15,8 @@ spec:
     helm:
       releaseName: kubelet-csr-approver
       values: |
-        # 현재 Karpenter 검증 풀의 예약 Node 이름 하나만 허용한다.
-        providerRegex: "^cntlp-aws-wk-99$"
+        # Audio Burst 전용 Karpenter Node 두 개의 예약 이름만 허용한다.
+        providerRegex: "^cntlp-aws-wk-(98|99)$"
         providerIpPrefixes:
           - 100.64.0.0/10
         maxExpirationSeconds: "31536000"

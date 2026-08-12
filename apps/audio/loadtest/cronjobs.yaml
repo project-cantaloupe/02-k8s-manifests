@@ -39,6 +39,8 @@ spec:
               env:
                 - name: LOAD_PROFILE
                   value: steady
+                - name: EXPERIMENT_PHASE
+                  value: baseline
                 - name: LOAD_COUNT
                   value: "48"
                 - name: LOAD_CONCURRENCY
@@ -115,6 +117,8 @@ spec:
               env:
                 - name: LOAD_PROFILE
                   value: scheduled-peak
+                - name: EXPERIMENT_PHASE
+                  value: baseline
                 - name: LOAD_COUNT
                   value: "60"
                 - name: LOAD_CONCURRENCY
@@ -191,6 +195,8 @@ spec:
               env:
                 - name: LOAD_PROFILE
                   value: unexpected-burst
+                - name: EXPERIMENT_PHASE
+                  value: baseline
                 - name: LOAD_COUNT
                   value: "60"
                 - name: LOAD_CONCURRENCY
@@ -269,6 +275,8 @@ spec:
               env:
                 - name: LOAD_PROFILE
                   value: web-validation
+                - name: EXPERIMENT_PHASE
+                  value: baseline
                 - name: LOAD_COUNT
                   value: "1"
                 - name: LOAD_CONCURRENCY

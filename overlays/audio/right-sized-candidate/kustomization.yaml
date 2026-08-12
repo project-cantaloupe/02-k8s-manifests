@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Baseline 측정 뒤에만 Argo CD source path를 이 Overlay로 전환한다.
+resources:
+  - ../../../apps/audio
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: "audio-transcode(-burst)?"
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/cantaloupe.io~1finops-profile
+        value: candidate
+      - op: replace
+        path: /metadata/annotations/cantaloupe.io~1finops-request
+        value: cpu=50m,memory=224Mi
+      - op: replace
+        path: /metadata/annotations/cantaloupe.io~1finops-rationale
+        value: vpa-upper-bound-with-controlled-load-headroom
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 50m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 224Mi
+  - target:
+      group: batch
+      version: v1
+      kind: CronJob
+      labelSelector: app=audio-finops-load-runner
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/1/value
+        value: candidate

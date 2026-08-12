@@ -1,9 +1,9 @@
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: aws-service
+  name: aws-audio-burst-98
 spec:
-  # kubeadm·Calico·Tailscale이 준비된 Cantaloupe Golden AMI 사용
+  # kubeadm·Calico·Tailscale이 준비된 동일 Golden AMI를 두 NodeClass가 재사용한다.
   amiFamily: Custom
   amiSelectorTerms:
     - name: cntlp-aws-cicd-k8s-worker-63539f2
@@ -45,10 +45,70 @@ spec:
       --aws-region ap-northeast-2 \
       --tailscale-oauth-secret-id cntlp-aws-cicd-tailscale-bootstrap \
       --kubeadm-join-secret-id cntlp-aws-cicd-kubeadm-bootstrap \
-      --node-name cntlp-aws-wk-99 \
+      --node-name cntlp-aws-wk-98 \
       --karpenter-node
 
     # AWS service Worker는 On-Prem Harbor의 MagicDNS 이름을 해석해야 한다.
+    tailscale set --accept-dns=true
+
+  tags:
+    Name: cntlp-aws-wk-98
+    org: cntlp
+    owner: team-platform
+    managed-by: karpenter
+    lifecycle: permanent
+    platform: aws
+    component: transcode
+    role: service
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: aws-audio-burst-99
+spec:
+  # 두 번째 Node도 같은 Golden AMI와 Cloud 경계를 사용하고 이름만 고유하게 둔다.
+  amiFamily: Custom
+  amiSelectorTerms:
+    - name: cntlp-aws-cicd-k8s-worker-63539f2
+
+  subnetSelectorTerms:
+    - tags:
+        Name: cntlp-aws-subnet-private-01
+  securityGroupSelectorTerms:
+    - tags:
+        Name: cntlp-aws-sg-cluster
+    - tags:
+        Name: cntlp-aws-wk-sg
+  instanceProfile: cntlp-aws-worker-node
+
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+
+  blockDeviceMappings:
+    - deviceName: /dev/sda1
+      ebs:
+        volumeSize: 30Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+
+  associatePublicIPAddress: false
+  detailedMonitoring: false
+
+  userData: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    /usr/local/sbin/cntlp-worker-bootstrap \
+      --aws-region ap-northeast-2 \
+      --tailscale-oauth-secret-id cntlp-aws-cicd-tailscale-bootstrap \
+      --kubeadm-join-secret-id cntlp-aws-cicd-kubeadm-bootstrap \
+      --node-name cntlp-aws-wk-99 \
+      --karpenter-node
+
     tailscale set --accept-dns=true
 
   tags:
@@ -58,5 +118,5 @@ spec:
     managed-by: karpenter
     lifecycle: permanent
     platform: aws
-    component: cicd
+    component: transcode
     role: service

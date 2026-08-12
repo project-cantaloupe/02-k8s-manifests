@@ -104,14 +104,15 @@ spec:
 
         # ⚠️ externalTrafficPolicy: Local 과 한 벌이다. 따로 떼지 않는다.
         #
-        # role=service 노드는 세 대인데 NLB 타겟그룹에는 **두 대만** 있다.
-        # wk-99 는 Karpenter 가 만든 노드라 terraform 이 모르고, 따라서
-        # 타겟으로 등록되지 않는다. Local 정책에서 파드가 wk-99 에 뜨면
+        # role=service 노드는 동적으로 늘 수 있지만 NLB 타겟그룹에는 Terraform이
+        # 만든 두 대만 있다. wk-98·wk-99는 Karpenter가 만든 노드라 Terraform이
+        # 모르고, 따라서 타겟으로 등록되지 않는다. Local 정책에서 파드가 동적 Node에 뜨면
         # 그 파드는 외부 트래픽을 0건 받는다 — Running 이고 Ready 라서
         # 겉으로는 정상으로 보인다.
         #
         #   cntlp-aws-wk-01  terraform  → NLB 타겟 ✓
         #   cntlp-aws-wk-02  terraform  → NLB 타겟 ✓
+        #   cntlp-aws-wk-98  Karpenter  → 타겟 아님 ✗  (karpenter.sh/nodepool 보유)
         #   cntlp-aws-wk-99  Karpenter  → 타겟 아님 ✗  (karpenter.sh/nodepool 보유)
         #
         # 노드 이름이 아니라 `karpenter.sh/nodepool` 유무로 가른다.

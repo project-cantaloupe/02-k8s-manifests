@@ -39,7 +39,7 @@ worker/               audio-transcode Base·Burst와 SQS ScaledObject
 | `audio-api` | O | Gateway에서 오는 트래픽 수신 |
 | `audio-events` | O | Namespace 기본값. 빼도 이득이 없어 그대로 둔다 |
 | `audio-transcode` | X | Pod 라벨 `istio.io/dataplane-mode: none`. S3·SQS만 쓰고, 트랙당 처리 비용에 Mesh 비용을 섞지 않는다 |
-| `audio-transcode-burst` | X | KEDA가 0~1개로 관리하고 Karpenter `aws-service` NodePool에서만 실행한다 |
+| `audio-transcode-burst` | X | KEDA가 0~6개로 관리하고 `audio-burst` 목적의 Karpenter NodePool에서만 실행한다 |
 
 ⚠️ **ztunnel은 L4까지만 집행한다.** HTTP 메서드·경로 조건이 붙은
 AuthorizationPolicy나 DestinationRule의 트래픽 정책은 waypoint 프록시를 세우기

@@ -1,4 +1,4 @@
-# SQS 적체가 Base Worker 한 대의 처리량을 넘을 때만 KEDA가 0개에서 1개로
+# SQS 적체가 Base Worker 한 대의 처리량을 넘을 때만 KEDA가 0개에서 최대 6개로
 # 확장한다. Pod는 Karpenter NodePool만 선택하므로 Pending 상태가 Node 증설을
 # 유발하고 Queue가 줄면 다시 0개가 된다.
 apiVersion: apps/v1
@@ -7,8 +7,9 @@ metadata:
   name: audio-transcode-burst
   namespace: apps
   annotations:
-    cantaloupe.io/finops-baseline: "cpu=250m,memory=256Mi"
-    cantaloupe.io/finops-baseline-rationale: conservative-initial-sizing-before-controlled-load
+    cantaloupe.io/finops-profile: baseline
+    cantaloupe.io/finops-request: "cpu=250m,memory=256Mi"
+    cantaloupe.io/finops-rationale: conservative-initial-sizing-before-controlled-load
   labels:
     app: audio-transcode-burst
     area: apps
