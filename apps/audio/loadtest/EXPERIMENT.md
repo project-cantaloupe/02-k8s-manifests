@@ -32,6 +32,11 @@ measured interval and makes `unexpected-burst` describe concurrent Queue input
 rather than staggered fixture generation. Progress events for fixture creation,
 uploads, and terminal statuses are written immediately to the Job log.
 
+The Runner caps one Job at 200 tracks and upload concurrency at 20. These are
+safety boundaries against an accidental unbounded S3, SQS, EC2, and public test
+data increase, not default load targets. Every cost-incurring one-off Job still
+requires a reviewed count, visibility, and unique Run ID before execution.
+
 All profiles use the same production path as Audio uploads: the Runner obtains
 a short-lived `audio-finops` Client-Credentials token, calls the internal Audio
 API, uploads the returned presigned URL to S3, and then follows the shared
