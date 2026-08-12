@@ -9,3 +9,11 @@ helmCharts:
     version: 2.18.0
     releaseName: opensearch-dashboards
     valuesFile: values.yaml
+
+resources:
+  - dashboard-import-job.yaml
+
+configMapGenerator:
+  - name: trivy-dashboard-ndjson
+    files:
+      - trivy-dashboard.ndjson
