@@ -527,12 +527,12 @@ extraManifests:
                 name: alertmanager-slack-kyverno-webhook
                 key: api-url
               sendResolved: true
-              # Keep the attachment title empty and render one compact message,
-              # matching the readable Slack layout used by the WAF notifier.
-              title: ""
+              # AlertmanagerConfig requires a non-empty Slack attachment title.
+              # Keep it to one concise line and put the operational flow in text.
+              title: >-
+                {{ `{{ if eq .Status "firing" }}` }}⚖️ [리소스 정책 거부]{{ `{{ else }}` }}✅ [리소스 정책 해소]{{ `{{ end }}` }} require-resource-limits
               text: >-
-                {{ `{{ if eq .Status "firing" }}` }}⚖️ *[리소스 정책 거부]* `require-resource-limits`{{ `{{ else }}` }}✅ *[리소스 정책 해소]* `require-resource-limits`{{ `{{ end }}` }}
-                \n\n최근 5분간 *{{ `{{ len .Alerts }}` }}개 대상에서 정책 거부 감지* — Enforce
+                최근 5분간 *{{ `{{ len .Alerts }}` }}개 대상에서 정책 거부 감지* — Enforce
                 \n\n*영향 대상*
                 {{ `{{ range .Alerts }}` }}\n• `{{ `{{ .Labels.resource_namespace }}` }}` / `{{ `{{ .Labels.resource_kind }}` }}`{{ `{{ end }}` }}
                 {{ `{{ if eq .Status "firing" }}` }}\n\n*필수 선언값*\n• CPU request\n• Memory request\n• Memory limit
