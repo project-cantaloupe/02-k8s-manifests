@@ -166,7 +166,10 @@ spec:
   volumeName: harbor-v2-trivy-pv
   resources:
     requests:
-      storage: 10Gi
+      # This statically bound PVC was originally created with a 5Gi request.
+      # The backing hostPath PV still provides 10Gi; raising this request would
+      # be treated as an unsupported resize because no StorageClass provisions it.
+      storage: 5Gi
 ---
 # hostPath DirectoryOrCreate makes directories root-owned. Harbor components run
 # unprivileged, so initialize ownership once before the Helm Application starts.
