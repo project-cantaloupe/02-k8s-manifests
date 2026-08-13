@@ -19,6 +19,3 @@ patches:
         value:
           platform: onp
           role: devops
-
-resources:
-  - harbor
