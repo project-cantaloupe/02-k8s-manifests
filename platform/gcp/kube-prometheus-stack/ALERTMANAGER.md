@@ -73,6 +73,9 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
   이 상태 알림은 동기화될 때까지 30분마다 반복되고, `Synced` 복구 시 해소된다.
   Argo CD 메트릭만으로 Kyverno가 원인이라고 단정할 수 없으므로 두 알림은
   원인 이벤트와 지속 상태로 분리한다.
+- Kyverno 이벤트가 Prometheus에서 resolved되는 것은 최근 5분간 새 거부가 없다는
+  뜻일 뿐 실제 배포 복구가 아니므로 Slack resolved 메시지를 보내지 않는다. 실제
+  복구 알림은 Argo CD Application이 `Synced`로 돌아올 때만 전송한다.
 - 항상 firing 상태인 Watchdog은 별도 heartbeat 서비스가 없으므로 비활성화한다.
 - Alertmanager UI는 외부에 공개하지 않고 Grafana 데이터소스로 조회한다.
 
