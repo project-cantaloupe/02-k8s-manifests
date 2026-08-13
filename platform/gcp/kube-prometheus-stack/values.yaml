@@ -297,6 +297,10 @@ kube-state-metrics:
                       rule: [rule]
                       result: [result]
                       source: [source]
+                      # Keep the failed JSON path (containers/initContainers,
+                      # requests/limits) available to the FinOps investigation
+                      # table so an operator can see what is actually missing.
+                      message: [message]
   rbac:
     extraRules:
       - apiGroups: ["security.istio.io"]
