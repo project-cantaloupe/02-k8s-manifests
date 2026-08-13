@@ -1,0 +1,71 @@
+name: FinOps resource policy feedback
+
+on:
+  workflow_run:
+    workflows: ["FinOps resource policy"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  report:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.pull_requests[0].number != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      LABEL: finops-policy-violation
+      MARKER: <!-- finops-resource-policy-feedback -->
+    steps:
+      - name: Update violation label and comment
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          comments="$(gh api --paginate "repos/${repo}/issues/${PR_NUMBER}/comments")"
+          comment_id="$(jq -r --arg marker "${MARKER}" \
+            '[.[] | select(.body | contains($marker))] | last | .id // empty' \
+            <<<"${comments}")"
+
+          if [[ "${CONCLUSION}" == "success" ]]; then
+            gh api --method DELETE \
+              "repos/${repo}/issues/${PR_NUMBER}/labels/${LABEL}" >/dev/null 2>&1 || true
+            if [[ -n "${comment_id}" ]]; then
+              body="${MARKER}
+          ✅ FinOps 리소스 정책 검사가 통과했습니다. 위반 라벨을 제거했습니다.
+
+          [검사 실행 보기](${RUN_URL})"
+              gh api --method PATCH "repos/${repo}/issues/comments/${comment_id}" \
+                -f body="${body}" >/dev/null
+            fi
+            exit 0
+          fi
+
+          gh api --method POST "repos/${repo}/labels" \
+            -f name="${LABEL}" -f color="B60205" \
+            -f description="CPU/Memory resource policy check failed" >/dev/null 2>&1 || true
+          gh api --method POST "repos/${repo}/issues/${PR_NUMBER}/labels" \
+            -f "labels[]=${LABEL}" >/dev/null
+
+          body="${MARKER}
+          ❌ FinOps 리소스 정책 검사가 실패했습니다.
+
+          모든 container와 initContainer에 CPU request, Memory request, Memory limit을 선언해야 합니다.
+
+          [실패 로그에서 대상 확인](${RUN_URL}) 후 Helm values 또는 Kustomize 원본을 수정해 주세요. 정책을 우회하거나 생성된 YAML을 직접 수정하면 안 됩니다."
+          if [[ -n "${comment_id}" ]]; then
+            gh api --method PATCH "repos/${repo}/issues/comments/${comment_id}" \
+              -f body="${body}" >/dev/null
+          else
+            gh api --method POST "repos/${repo}/issues/${PR_NUMBER}/comments" \
+              -f body="${body}" >/dev/null
+          fi
