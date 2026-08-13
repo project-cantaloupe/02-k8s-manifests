@@ -43,7 +43,9 @@ serviceMonitor:
   enabled: true
   namespace: monitoring
   interval: 30s
-  timeout: 45s
+  # Prometheus requires scrapeTimeout <= scrapeInterval. Keep a small margin
+  # so a slow CloudWatch response cannot overlap the next 30-second scrape.
+  timeout: 25s
   labels:
     release: monitoring
 
