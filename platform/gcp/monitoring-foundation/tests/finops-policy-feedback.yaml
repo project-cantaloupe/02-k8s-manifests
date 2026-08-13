@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: finops-policy-feedback-test
+  namespace: monitoring
+spec:
+  containers:
+    - name: missing-resources
+      image: registry.k8s.io/pause:3.10
+      resources:
+        requests:
+          cpu: 1m
+          memory: 4Mi
+        limits:
+          memory: 8Mi

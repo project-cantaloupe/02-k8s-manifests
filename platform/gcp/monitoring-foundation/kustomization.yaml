@@ -2,6 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  - tests/finops-policy-feedback.yaml
   - keda-operator-podmonitor.yaml
   - kyverno-servicemonitor.yaml
   # ⚠️ **opencost-ui-nodeport.yaml · prometheus-ui-nodeport.yaml 을
