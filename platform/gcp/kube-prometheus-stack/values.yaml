@@ -469,6 +469,12 @@ extraManifests:
             matchType: =~
             value: warning|critical
         routes:
+          - receiver: slack-prometheus-alerts
+            matchers:
+              - name: alertname
+                matchType: =~
+                value: KubeNodeNotReady|KubeNodeUnreachable|KubePodCrashLooping|KubeDeploymentRolloutStuck|KubeStatefulSetUpdateNotRolledOut|KubeDaemonSetRolloutStuck|KubePersistentVolumeErrors|KubePersistentVolumeFillingUp|KubePersistentVolumeInodesFillingUp|KubeAPIDown|KubeAPIErrorBudgetBurn|KubeAPIInstanceUnreachable|KubeAggregatedAPIDown|KubeletDown|KubeClientCertificateExpiration|KubeletClientCertificateExpiration|KubeletServerCertificateExpiration|PrometheusBadConfig|PrometheusRuleFailures|PrometheusNotIngestingSamples|PrometheusNotConnectedToAlertmanagers|PrometheusErrorSendingAlertsToAnyAlertmanager|PrometheusTargetSyncFailure|AlertmanagerClusterDown|AlertmanagerClusterCrashlooping|AlertmanagerClusterFailedToSendAlerts|AlertmanagerConfigInconsistent|AlertmanagerFailedReload
+            continue: false
           - receiver: slack-argocd-alerts
             repeatInterval: 30m
             matchers:
@@ -516,16 +522,40 @@ extraManifests:
                 key: api-url
               sendResolved: true
               title: >-
-                {{ `{{ if eq .Status "firing" }}` }}[발생]{{ `{{ else }}` }}[해소]{{ `{{ end }}` }}
-                {{ `{{ if eq .CommonLabels.severity "critical" }}` }}[긴급]{{ `{{ else }}` }}[주의]{{ `{{ end }}` }}
-                [AUDIO] {{ `{{ .CommonLabels.alertname }}` }}
-              text: >-
-                *요약:* {{ `{{ .CommonAnnotations.summary }}` }}
-                {{ `{{ if .CommonAnnotations.description }}` }}\n*영향·원인:* {{ `{{ .CommonAnnotations.description }}` }}{{ `{{ end }}` }}
-                {{ `{{ if .CommonAnnotations.action }}` }}\n*권장 조치:* {{ `{{ .CommonAnnotations.action }}` }}{{ `{{ end }}` }}
-                \n*영향 대상 ({{ `{{ len .Alerts }}` }}건)*
-                {{ `{{ range .Alerts }}` }}\n•{{ `{{ if .Labels.component }}` }} Component `{{ `{{ .Labels.component }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.deployment }}` }} · Deployment `{{ `{{ .Labels.deployment }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.pod }}` }} · Pod `{{ `{{ .Labels.pod }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.queue_name }}` }} · Queue `{{ `{{ .Labels.queue_name }}` }}`{{ `{{ end }}` }}{{ `{{ end }}` }}
-                \n*최초 발생:* {{ `{{ (index .Alerts 0).StartsAt }}` }}
+                {{ `{{ if eq .Status "firing" }}` }}🚨 [Audio 장애]{{ `{{ else }}` }}✅ [Audio 복구]{{ `{{ end }}` }} {{ `{{ .CommonLabels.alertname }}` }}
+              text: |-
+                *{{ `{{ .CommonAnnotations.summary }}` }}*
+                {{ `{{ if .CommonAnnotations.description }}` }}
+                *상세*
+                {{ `{{ .CommonAnnotations.description }}` }}{{ `{{ end }}` }}
+
+                *영향 대상*
+                {{ `{{ range .Alerts }}` }}•{{ `{{ if .Labels.component }}` }} `{{ `{{ .Labels.component }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.deployment }}` }} / Deployment `{{ `{{ .Labels.deployment }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.pod }}` }} / Pod `{{ `{{ .Labels.pod }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.container }}` }} / Container `{{ `{{ .Labels.container }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.queue_name }}` }} / Queue `{{ `{{ .Labels.queue_name }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.namespace }}` }} — Namespace `{{ `{{ .Labels.namespace }}` }}`{{ `{{ end }}` }}
+                {{ `{{ end }}` }}{{ `{{ if eq .Status "firing" }}` }}
+                *조치*
+                {{ `{{ .CommonAnnotations.action }}` }}
+
+                <https://cntlp-gcp-wk-01.tail270b85.ts.net/grafana/d/cantaloupe-v1-audio-service-finops|Audio 대시보드에서 확인>{{ `{{ end }}` }}
+              color: >-
+                {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
+        - name: slack-prometheus-alerts
+          slackConfigs:
+            - apiURL:
+                name: alertmanager-slack-webhook
+                key: api-url
+              sendResolved: true
+              title: >-
+                {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}🚨 [긴급]{{ `{{ else }}` }}⚠️ [주의]{{ `{{ end }}` }}{{ `{{ else }}` }}✅ [복구]{{ `{{ end }}` }} {{ `{{ .CommonLabels.alertname }}` }}
+              text: |-
+                *{{ `{{ .CommonAnnotations.summary }}` }}*
+                {{ `{{ if .CommonAnnotations.description }}` }}
+                *상세*
+                {{ `{{ .CommonAnnotations.description }}` }}{{ `{{ end }}` }}
+
+                *영향 대상 ({{ `{{ len .Alerts }}` }}건)*
+                {{ `{{ range .Alerts }}` }}•{{ `{{ if .Labels.node }}` }} Node `{{ `{{ .Labels.node }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.namespace }}` }} Namespace `{{ `{{ .Labels.namespace }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.deployment }}` }} / Deployment `{{ `{{ .Labels.deployment }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.statefulset }}` }} / StatefulSet `{{ `{{ .Labels.statefulset }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.daemonset }}` }} / DaemonSet `{{ `{{ .Labels.daemonset }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.pod }}` }} / Pod `{{ `{{ .Labels.pod }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.instance }}` }} Instance `{{ `{{ .Labels.instance }}` }}`{{ `{{ end }}` }}
+                {{ `{{ end }}` }}{{ `{{ if eq .Status "firing" }}` }}
+                <https://cntlp-gcp-wk-01.tail270b85.ts.net/grafana/d/cantaloupe-v1-platform-overview/cantaloupe-v1-platform-overview|Platform Overview에서 확인>{{ `{{ end }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
         - name: slack-argocd-alerts
