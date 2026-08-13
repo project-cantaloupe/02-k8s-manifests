@@ -42,7 +42,7 @@ containerSecurityContext:
 serviceMonitor:
   enabled: true
   namespace: monitoring
-  interval: 1m
+  interval: 30s
   timeout: 45s
   labels:
     release: monitoring
@@ -90,7 +90,7 @@ config: |-
       aws_statistics: [Average]
       period_seconds: 60
       range_seconds: 600
-      delay_seconds: 120
+      delay_seconds: 60
       set_timestamp: true
 
     - aws_namespace: AWS/SQS
@@ -104,7 +104,7 @@ config: |-
       aws_statistics: [Average]
       period_seconds: 60
       range_seconds: 600
-      delay_seconds: 120
+      delay_seconds: 60
       set_timestamp: true
 
     - aws_namespace: AWS/SQS
@@ -114,7 +114,7 @@ config: |-
       aws_statistics: [Average]
       period_seconds: 60
       range_seconds: 600
-      delay_seconds: 120
+      delay_seconds: 60
       set_timestamp: true
 
     - aws_namespace: AWS/SQS
@@ -124,7 +124,7 @@ config: |-
       aws_statistics: [Sum]
       period_seconds: 60
       range_seconds: 600
-      delay_seconds: 120
+      delay_seconds: 60
       set_timestamp: true
 
     - aws_namespace: AWS/SQS
@@ -134,7 +134,7 @@ config: |-
       aws_statistics: [Sum]
       period_seconds: 60
       range_seconds: 600
-      delay_seconds: 120
+      delay_seconds: 60
       set_timestamp: true
 
     - aws_namespace: AWS/SQS
@@ -144,5 +144,5 @@ config: |-
       aws_statistics: [Sum]
       period_seconds: 60
       range_seconds: 600
-      delay_seconds: 120
+      delay_seconds: 60
       set_timestamp: true
