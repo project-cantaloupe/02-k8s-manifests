@@ -469,6 +469,12 @@ extraManifests:
             matchType: =~
             value: warning|critical
         routes:
+          - receiver: slack-kyverno-alerts
+            matchers:
+              - name: service
+                matchType: "="
+                value: kyverno
+            continue: false
           - receiver: slack-audio-alerts
             matchers:
               - name: service
@@ -512,6 +518,25 @@ extraManifests:
                 {{ `{{ if .CommonAnnotations.action }}` }}\n*권장 조치:* {{ `{{ .CommonAnnotations.action }}` }}{{ `{{ end }}` }}
                 \n*영향 대상 ({{ `{{ len .Alerts }}` }}건)*
                 {{ `{{ range .Alerts }}` }}\n•{{ `{{ if .Labels.component }}` }} Component `{{ `{{ .Labels.component }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.deployment }}` }} · Deployment `{{ `{{ .Labels.deployment }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.pod }}` }} · Pod `{{ `{{ .Labels.pod }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.queue_name }}` }} · Queue `{{ `{{ .Labels.queue_name }}` }}`{{ `{{ end }}` }}{{ `{{ end }}` }}
+                \n*최초 발생:* {{ `{{ (index .Alerts 0).StartsAt }}` }}
+              color: >-
+                {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
+        - name: slack-kyverno-alerts
+          slackConfigs:
+            - apiURL:
+                name: alertmanager-slack-kyverno-webhook
+                key: api-url
+              sendResolved: true
+              title: >-
+                {{ `{{ if eq .Status "firing" }}` }}[발생]{{ `{{ else }}` }}[해소]{{ `{{ end }}` }}
+                {{ `{{ if eq .CommonLabels.severity "critical" }}` }}[긴급]{{ `{{ else }}` }}[주의]{{ `{{ end }}` }}
+                [KYVERNO] {{ `{{ .CommonLabels.alertname }}` }}
+              text: >-
+                *요약:* {{ `{{ .CommonAnnotations.summary }}` }}
+                {{ `{{ if .CommonAnnotations.description }}` }}\n*원인:* {{ `{{ .CommonAnnotations.description }}` }}{{ `{{ end }}` }}
+                {{ `{{ if .CommonAnnotations.action }}` }}\n*권장 조치:* {{ `{{ .CommonAnnotations.action }}` }}{{ `{{ end }}` }}
+                \n*영향 대상 ({{ `{{ len .Alerts }}` }}건)*
+                {{ `{{ range .Alerts }}` }}\n•{{ `{{ if .Labels.resource_namespace }}` }} Namespace `{{ `{{ .Labels.resource_namespace }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.resource_kind }}` }} · Kind `{{ `{{ .Labels.resource_kind }}` }}`{{ `{{ end }}` }}{{ `{{ end }}` }}
                 \n*최초 발생:* {{ `{{ (index .Alerts 0).StartsAt }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}

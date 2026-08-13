@@ -24,6 +24,11 @@ kubectl -n monitoring create secret generic alertmanager-slack-audio-webhook \
 unset SLACK_AUDIO_WEBHOOK
 ```
 
+Kyverno Enforce 거부 알림은 AWS Secrets Manager의
+`cntlp/alertmanager/slack/kyverno`에서 `api_url` 속성만 ExternalSecret으로
+동기화한다. 값은 AWS UI에서 수동 등록하며 Git과 Terraform state에는 넣지 않는다.
+생성되는 Kubernetes Secret 이름은 `alertmanager-slack-kyverno-webhook`이다.
+
 Secret 확인 시 `.data` 또는 `api-url`을 출력하지 않는다. 존재 여부만 다음처럼
 확인한다.
 
@@ -46,6 +51,8 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
 - `warning`, `critical`만 `#cantaloupe-platform-alerts`로 전송한다.
 - 그중 `service=audio` 알람은 `#cantaloupe-audio-alerts`로 분기하고 플랫폼
   채널에는 중복 전송하지 않는다.
+- `service=kyverno` 알람은 Kyverno 전용 채널로 분기하고 플랫폼 채널에는
+  중복 전송하지 않는다.
 - 동일한 namespace/alertname/severity 알림은 한 메시지로 묶는다.
 - 최초 대기 30초, 신규 그룹 갱신 5분, 미복구 반복 알림 4시간이다.
 - 복구 시 resolved 메시지를 보낸다.
