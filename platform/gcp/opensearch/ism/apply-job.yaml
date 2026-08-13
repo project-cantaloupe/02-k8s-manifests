@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: opensearch-ism-apply
+  namespace: logging
   labels:
     app: opensearch-ism-apply
     area: logging
