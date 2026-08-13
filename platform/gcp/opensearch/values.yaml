@@ -17,6 +17,16 @@ securityConfig:
 sysctlInit:
   enabled: true
 
+# The chart applies initResources to configfile, fsgroup-volume, and sysctl.
+# These short-lived setup containers still need scheduling inputs for the
+# FinOps resource policy.
+initResources:
+  requests:
+    cpu: "25m"
+    memory: "64Mi"
+  limits:
+    memory: "128Mi"
+
 persistence:
   enabled: true
   enableInitChown: true

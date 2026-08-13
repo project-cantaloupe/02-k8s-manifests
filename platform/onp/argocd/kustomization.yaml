@@ -267,6 +267,35 @@ patches:
                 limits:
                   memory: 256Mi
 
+  # argocd-dex-server와 copyutil initContainer 리소스 설정
+  - target:
+      kind: Deployment
+      name: argocd-dex-server
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-dex-server
+      spec:
+        template:
+          spec:
+            initContainers:
+            - name: copyutil
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 64Mi
+            containers:
+            - name: dex
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  memory: 128Mi
+
   # argocd-server 리소스 설정
   - target:
       kind: Deployment
@@ -300,6 +329,14 @@ patches:
       spec:
         template:
           spec:
+            initContainers:
+            - name: copyutil
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 64Mi
             containers:
             - name: argocd-repo-server
               resources:

@@ -62,18 +62,78 @@ spec:
                 memory: "512Mi"
           portal:
             nodeSelector: *onpNode
+            resources:
+              requests:
+                cpu: "25m"
+                memory: "32Mi"
+              limits:
+                memory: "128Mi"
           core:
             nodeSelector: *onpNode
+            resources:
+              requests:
+                cpu: "50m"
+                memory: "128Mi"
+              limits:
+                memory: "512Mi"
           jobservice:
             nodeSelector: *onpNode
+            resources:
+              requests:
+                cpu: "25m"
+                memory: "64Mi"
+              limits:
+                memory: "256Mi"
           registry:
             nodeSelector: *onpNode
+            registry:
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  memory: "256Mi"
+            controller:
+              resources:
+                requests:
+                  cpu: "25m"
+                  memory: "64Mi"
+                limits:
+                  memory: "256Mi"
           database:
             internal:
               nodeSelector: *onpNode
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  memory: "1Gi"
+              initContainer:
+                permissions:
+                  resources:
+                    requests:
+                      cpu: "10m"
+                      memory: "16Mi"
+                    limits:
+                      memory: "64Mi"
           redis:
             internal:
               nodeSelector: *onpNode
+              resources:
+                requests:
+                  cpu: "25m"
+                  memory: "32Mi"
+                limits:
+                  memory: "128Mi"
+          nginx:
+            nodeSelector: *onpNode
+            resources:
+              requests:
+                cpu: "25m"
+                memory: "32Mi"
+              limits:
+                memory: "128Mi"
           exporter:
             nodeSelector: *onpNode
   destination:
