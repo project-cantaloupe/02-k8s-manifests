@@ -527,14 +527,16 @@ extraManifests:
                 name: alertmanager-slack-kyverno-webhook
                 key: api-url
               sendResolved: true
-              title: >-
-                {{ `{{ if eq .Status "firing" }}` }}:warning: 리소스 정책 위반으로 배포가 거부됐습니다{{ `{{ else }}` }}:white_check_mark: 리소스 정책 위반 알림이 해소됐습니다{{ `{{ end }}` }}
+              # Keep the attachment title empty and render one compact message,
+              # matching the readable Slack layout used by the WAF notifier.
+              title: ""
               text: >-
-                *정책*\n`require-resource-limits` · Enforce
-                \n\n*대상 ({{ `{{ len .Alerts }}` }}건)*
+                {{ `{{ if eq .Status "firing" }}` }}⚖️ *[리소스 정책 거부]* `require-resource-limits`{{ `{{ else }}` }}✅ *[리소스 정책 해소]* `require-resource-limits`{{ `{{ end }}` }}
+                \n\n최근 5분간 *{{ `{{ len .Alerts }}` }}개 대상에서 정책 거부 감지* — Enforce
+                \n\n*영향 대상*
                 {{ `{{ range .Alerts }}` }}\n• `{{ `{{ .Labels.resource_namespace }}` }}` / `{{ `{{ .Labels.resource_kind }}` }}`{{ `{{ end }}` }}
-                {{ `{{ if eq .Status "firing" }}` }}\n\n*필수 선언값*\n`CPU Request` · `Memory Request` · `Memory Limit`
-                \n\n*확인 및 조치*\n최근 PR의 정책 검사 결과 또는 Argo CD OutOfSync 리소스를 확인한 뒤, 모든 `containers`와 `initContainers`에 필수 선언값을 추가하세요.
-                {{ `{{ end }}` }}\n\n*발생 시각*\n{{ `{{ (index .Alerts 0).StartsAt.Format "2006-01-02 15:04:05 MST" }}` }}
+                {{ `{{ if eq .Status "firing" }}` }}\n\n*필수 선언값*\n• CPU request\n• Memory request\n• Memory limit
+                \n\n*확인 순서*\n1. <https://github.com/project-cantaloupe/02-k8s-manifests/actions/workflows/finops-resource-policy.yaml|GitHub PR 정책 검사>에서 위반 커밋과 리소스 확인\n2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 OutOfSync 리소스 확인\n3. 모든 `containers`와 `initContainers`에 필수값 선언
+                \n\n_커밋 번호는 admission 메트릭에 없으므로 PR 검사에서 정확히 확인합니다._{{ `{{ end }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
