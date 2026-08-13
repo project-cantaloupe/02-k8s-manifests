@@ -270,10 +270,40 @@ kube-state-metrics:
                   info:
                     labelsFromPath:
                       name: [metadata, name]
+          # PolicyReport is the current-state source for the manually imported
+          # Grafana Kyverno dashboard. Unlike kyverno_policy_results_total,
+          # this metric disappears when the report or result is removed and
+          # therefore represents current violations rather than scan events.
+          - groupVersionKind:
+              group: wgpolicyk8s.io
+              version: v1alpha2
+              kind: PolicyReport
+            metricNamePrefix: kyverno
+            labelsFromPath:
+              exported_namespace: [metadata, namespace]
+              report: [metadata, name]
+              scope_api_version: [scope, apiVersion]
+              scope_kind: [scope, kind]
+              scope_name: [scope, name]
+            metrics:
+              - name: policyreport_result
+                help: Current result stored in a Kubernetes PolicyReport.
+                each:
+                  type: Info
+                  info:
+                    path: [results]
+                    labelsFromPath:
+                      policy: [policy]
+                      rule: [rule]
+                      result: [result]
+                      source: [source]
   rbac:
     extraRules:
       - apiGroups: ["security.istio.io"]
         resources: ["authorizationpolicies"]
+        verbs: ["list", "watch"]
+      - apiGroups: ["wgpolicyk8s.io"]
+        resources: ["policyreports"]
         verbs: ["list", "watch"]
   nodeSelector:
     platform: gcp
