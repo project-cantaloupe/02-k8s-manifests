@@ -53,6 +53,10 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
   채널에는 중복 전송하지 않는다.
 - `service=kyverno` 알람은 Kyverno 전용 채널로 분기하고 플랫폼 채널에는
   중복 전송하지 않는다.
+- Kyverno 알림에는 정책, Namespace/Kind, 필수 리소스 선언값과 확인 절차를
+  표시한다. Kyverno admission 메트릭에는 Git commit 정보가 없으므로 커밋을
+  추정해 표시하지 않는다. 원인 커밋은 PR 정책 검사 결과 또는 Argo CD revision에서
+  확인한다.
 - 동일한 namespace/alertname/severity 알림은 한 메시지로 묶는다.
 - 최초 대기 30초, 신규 그룹 갱신 5분, 미복구 반복 알림 4시간이다.
 - 복구 시 resolved 메시지를 보낸다.
