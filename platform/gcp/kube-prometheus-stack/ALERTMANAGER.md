@@ -53,6 +53,8 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
   채널에는 중복 전송하지 않는다.
 - `service=kyverno` 알람은 Kyverno 전용 채널로 분기하고 플랫폼 채널에는
   중복 전송하지 않는다.
+- `service=argocd` 지속 상태 알람은 플랫폼 채널을 유지하되, 앱과 대상
+  Namespace 및 GitHub/Argo CD 확인 링크가 포함된 전용 메시지 형식을 사용한다.
 - Kyverno 알림에는 정책, Namespace/Kind, 필수 리소스 선언값과 확인 절차를
   표시한다. Kyverno admission 메트릭에는 Git commit 정보가 없으므로 커밋을
   추정해 표시하지 않는다. 원인 커밋은 PR 정책 검사 결과 또는 Argo CD revision에서
