@@ -1,0 +1,58 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-application-controller
+  namespace: monitoring
+  labels:
+    app: argocd
+    area: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - devops
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-metrics
+  endpoints:
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argocd-deployment-alerts
+  namespace: monitoring
+  labels:
+    app: argocd
+    area: monitoring
+    category: platform
+spec:
+  groups:
+    - name: argocd.deployment-state
+      rules:
+        # This deliberately does not claim Kyverno as the root cause. Argo CD
+        # does not expose a causal link between an OutOfSync app and an
+        # admission denial. The preceding Kyverno alert provides that context.
+        - alert: ArgoCDApplicationOutOfSyncPersistent
+          expr: >-
+            argocd_app_info{
+              autosync_enabled="true",
+              sync_status="OutOfSync"
+            } == 1
+          for: 15m
+          labels:
+            severity: warning
+            category: platform
+            service: argocd
+            component: deployment-state
+          annotations:
+            summary: Argo CD 자동 배포 애플리케이션이 15분 이상 미동기화 상태입니다.
+            description: >-
+              {{ $labels.name }} 애플리케이션의 대상 Namespace
+              {{ $labels.dest_namespace }}가 OutOfSync 상태로 남아 있습니다.
+            action: >-
+              Argo CD Sync 오류와 최근 변경을 확인하세요. 직전에 Kyverno 리소스 정책
+              거부 알림이 있었다면 모든 container와 initContainer의 CPU request,
+              Memory request, Memory limit 선언을 우선 확인하세요.
+            dashboard_url: https://cntlp-onp-wk-01.tail270b85.ts.net/argocd
