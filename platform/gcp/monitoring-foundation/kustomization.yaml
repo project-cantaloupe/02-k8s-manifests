@@ -12,6 +12,7 @@ resources:
   - monitoring-gateway.yaml
   - finops-recording-rules.yaml
   - finops-policy-alerts.yaml
+  - argocd-deployment-alerts.yaml
   - kyverno-slack-secret.yaml
   - onprem-rightsizing-rules.yaml
   - gcp-recommender-collector.yaml
