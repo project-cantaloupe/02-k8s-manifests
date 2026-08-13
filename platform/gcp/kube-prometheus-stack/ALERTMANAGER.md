@@ -53,6 +53,8 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
   채널에는 중복 전송하지 않는다.
 - `service=kyverno` 알람은 Kyverno 전용 채널로 분기하고 플랫폼 채널에는
   중복 전송하지 않는다.
+- `service=argocd` 지속 상태 알람은 플랫폼 채널을 유지하되, 앱과 대상
+  Namespace 및 GitHub/Argo CD 확인 링크가 포함된 전용 메시지 형식을 사용한다.
 - Kyverno 알림에는 정책, Namespace/Kind, 필수 리소스 선언값과 확인 절차를
   표시한다. Kyverno admission 메트릭에는 Git commit 정보가 없으므로 커밋을
   추정해 표시하지 않는다. 원인 커밋은 PR 정책 검사 결과 또는 Argo CD revision에서
@@ -63,7 +65,7 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
 - Kyverno admission 거부는 최근 5분의 이벤트를 즉시 알린다. 원인이 해소되지 않아
   자동 동기화 Argo CD Application이 15분 이상 `OutOfSync`이면
   `ArgoCDApplicationOutOfSyncPersistent` 상태 알림이 플랫폼 채널에 발생한다.
-  이 상태 알림은 동기화될 때까지 4시간마다 반복되고, `Synced` 복구 시 해소된다.
+  이 상태 알림은 동기화될 때까지 30분마다 반복되고, `Synced` 복구 시 해소된다.
   Argo CD 메트릭만으로 Kyverno가 원인이라고 단정할 수 없으므로 두 알림은
   원인 이벤트와 지속 상태로 분리한다.
 - 항상 firing 상태인 Watchdog은 별도 heartbeat 서비스가 없으므로 비활성화한다.

@@ -469,6 +469,13 @@ extraManifests:
             matchType: =~
             value: warning|critical
         routes:
+          - receiver: slack-argocd-alerts
+            repeatInterval: 30m
+            matchers:
+              - name: service
+                matchType: "="
+                value: argocd
+            continue: false
           - receiver: slack-kyverno-alerts
             matchers:
               - name: service
@@ -521,6 +528,22 @@ extraManifests:
                 \n*최초 발생:* {{ `{{ (index .Alerts 0).StartsAt }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
+        - name: slack-argocd-alerts
+          slackConfigs:
+            - apiURL:
+                name: alertmanager-slack-webhook
+                key: api-url
+              sendResolved: true
+              title: >-
+                {{ `{{ if eq .Status "firing" }}` }}🔄 [배포 미복구]{{ `{{ else }}` }}✅ [배포 복구]{{ `{{ end }}` }} Argo CD
+              text: >-
+                {{ `{{ if eq .Status "firing" }}` }}자동 동기화 애플리케이션 *{{ `{{ len .Alerts }}` }}개가 15분 이상 OutOfSync* 상태입니다.{{ `{{ else }}` }}자동 동기화 애플리케이션이 다시 *Synced* 상태로 복구됐습니다.{{ `{{ end }}` }}
+                \n\n*영향 대상*
+                {{ `{{ range .Alerts }}` }}\n• `{{ `{{ .Labels.name }}` }}` — Namespace `{{ `{{ .Labels.dest_namespace }}` }}`{{ `{{ end }}` }}
+                {{ `{{ if eq .Status "firing" }}` }}\n\n*확인 순서*\n1. <https://github.com/project-cantaloupe/02-k8s-manifests|GitHub 저장소>에서 최근 변경 확인\n2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 Sync 오류와 실패 리소스 확인\n3. 직전에 리소스 정책 거부가 있었다면 CPU request, Memory request, Memory limit 확인
+                \n\n_복구되지 않으면 30분마다 다시 알립니다._{{ `{{ end }}` }}
+              color: >-
+                {{ `{{ if eq .Status "firing" }}` }}warning{{ `{{ else }}` }}good{{ `{{ end }}` }}
         - name: slack-kyverno-alerts
           slackConfigs:
             - apiURL:
@@ -536,7 +559,6 @@ extraManifests:
                 \n\n*영향 대상*
                 {{ `{{ range .Alerts }}` }}\n• `{{ `{{ .Labels.resource_namespace }}` }}` / `{{ `{{ .Labels.resource_kind }}` }}`{{ `{{ end }}` }}
                 {{ `{{ if eq .Status "firing" }}` }}\n\n*필수 선언값*\n• CPU request\n• Memory request\n• Memory limit
-                \n\n*확인 순서*\n1. <https://github.com/project-cantaloupe/02-k8s-manifests/actions/workflows/finops-resource-policy.yaml|GitHub PR 정책 검사>에서 위반 커밋과 리소스 확인\n2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 OutOfSync 리소스 확인\n3. 모든 `containers`와 `initContainers`에 필수값 선언
-                \n\n_커밋 번호는 admission 메트릭에 없으므로 PR 검사에서 정확히 확인합니다._{{ `{{ end }}` }}
+                \n\n*확인 순서*\n1. <https://github.com/project-cantaloupe/02-k8s-manifests|GitHub 저장소>에서 최근 변경 확인\n2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 OutOfSync 리소스 확인\n3. 모든 `containers`와 `initContainers`에 필수값 선언{{ `{{ end }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
