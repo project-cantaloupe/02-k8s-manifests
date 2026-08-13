@@ -536,12 +536,18 @@ extraManifests:
               sendResolved: true
               title: >-
                 {{ `{{ if eq .Status "firing" }}` }}🔄 [배포 미복구]{{ `{{ else }}` }}✅ [배포 복구]{{ `{{ end }}` }} Argo CD
-              text: >-
+              text: |-
                 {{ `{{ if eq .Status "firing" }}` }}자동 동기화 애플리케이션 *{{ `{{ len .Alerts }}` }}개가 15분 이상 OutOfSync* 상태입니다.{{ `{{ else }}` }}자동 동기화 애플리케이션이 다시 *Synced* 상태로 복구됐습니다.{{ `{{ end }}` }}
-                \n\n*영향 대상*
-                {{ `{{ range .Alerts }}` }}\n• `{{ `{{ .Labels.name }}` }}` — Namespace `{{ `{{ .Labels.dest_namespace }}` }}`{{ `{{ end }}` }}
-                {{ `{{ if eq .Status "firing" }}` }}\n\n*확인 순서*\n1. <https://github.com/project-cantaloupe/02-k8s-manifests|GitHub 저장소>에서 최근 변경 확인\n2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 Sync 오류와 실패 리소스 확인\n3. 직전에 리소스 정책 거부가 있었다면 CPU request, Memory request, Memory limit 확인
-                \n\n_복구되지 않으면 30분마다 다시 알립니다._{{ `{{ end }}` }}
+
+                *영향 대상*
+                {{ `{{ range .Alerts }}` }}• `{{ `{{ .Labels.name }}` }}` — Namespace `{{ `{{ .Labels.dest_namespace }}` }}`
+                {{ `{{ end }}` }}{{ `{{ if eq .Status "firing" }}` }}
+                *확인 순서*
+                1. <https://github.com/project-cantaloupe/02-k8s-manifests|GitHub 저장소>에서 최근 변경 확인
+                2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 Sync 오류와 실패 리소스 확인
+                3. 직전에 리소스 정책 거부가 있었다면 CPU request, Memory request, Memory limit 확인
+
+                _복구되지 않으면 30분마다 다시 알립니다._{{ `{{ end }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}warning{{ `{{ else }}` }}good{{ `{{ end }}` }}
         - name: slack-kyverno-alerts
@@ -554,11 +560,20 @@ extraManifests:
               # Keep it to one concise line and put the operational flow in text.
               title: >-
                 {{ `{{ if eq .Status "firing" }}` }}⚖️ [리소스 정책 거부]{{ `{{ else }}` }}✅ [리소스 정책 해소]{{ `{{ end }}` }} require-resource-limits
-              text: >-
+              text: |-
                 최근 5분간 *{{ `{{ len .Alerts }}` }}개 대상에서 정책 거부 감지* — Enforce
-                \n\n*영향 대상*
-                {{ `{{ range .Alerts }}` }}\n• `{{ `{{ .Labels.resource_namespace }}` }}` / `{{ `{{ .Labels.resource_kind }}` }}`{{ `{{ end }}` }}
-                {{ `{{ if eq .Status "firing" }}` }}\n\n*필수 선언값*\n• CPU request\n• Memory request\n• Memory limit
-                \n\n*확인 순서*\n1. <https://github.com/project-cantaloupe/02-k8s-manifests|GitHub 저장소>에서 최근 변경 확인\n2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 OutOfSync 리소스 확인\n3. 모든 `containers`와 `initContainers`에 필수값 선언{{ `{{ end }}` }}
+
+                *영향 대상*
+                {{ `{{ range .Alerts }}` }}• `{{ `{{ .Labels.resource_namespace }}` }}` / `{{ `{{ .Labels.resource_kind }}` }}`
+                {{ `{{ end }}` }}{{ `{{ if eq .Status "firing" }}` }}
+                *필수 선언값*
+                • CPU request
+                • Memory request
+                • Memory limit
+
+                *확인 순서*
+                1. <https://github.com/project-cantaloupe/02-k8s-manifests|GitHub 저장소>에서 최근 변경 확인
+                2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 OutOfSync 리소스 확인
+                3. 모든 `containers`와 `initContainers`에 필수값 선언{{ `{{ end }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
