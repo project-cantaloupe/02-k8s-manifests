@@ -528,15 +528,13 @@ extraManifests:
                 key: api-url
               sendResolved: true
               title: >-
-                {{ `{{ if eq .Status "firing" }}` }}[발생]{{ `{{ else }}` }}[해소]{{ `{{ end }}` }}
-                {{ `{{ if eq .CommonLabels.severity "critical" }}` }}[긴급]{{ `{{ else }}` }}[주의]{{ `{{ end }}` }}
-                [KYVERNO] {{ `{{ .CommonLabels.alertname }}` }}
+                {{ `{{ if eq .Status "firing" }}` }}:warning: 리소스 정책 위반으로 배포가 거부됐습니다{{ `{{ else }}` }}:white_check_mark: 리소스 정책 위반 알림이 해소됐습니다{{ `{{ end }}` }}
               text: >-
-                *요약:* {{ `{{ .CommonAnnotations.summary }}` }}
-                {{ `{{ if .CommonAnnotations.description }}` }}\n*원인:* {{ `{{ .CommonAnnotations.description }}` }}{{ `{{ end }}` }}
-                {{ `{{ if .CommonAnnotations.action }}` }}\n*권장 조치:* {{ `{{ .CommonAnnotations.action }}` }}{{ `{{ end }}` }}
-                \n*영향 대상 ({{ `{{ len .Alerts }}` }}건)*
-                {{ `{{ range .Alerts }}` }}\n•{{ `{{ if .Labels.resource_namespace }}` }} Namespace `{{ `{{ .Labels.resource_namespace }}` }}`{{ `{{ end }}` }}{{ `{{ if .Labels.resource_kind }}` }} · Kind `{{ `{{ .Labels.resource_kind }}` }}`{{ `{{ end }}` }}{{ `{{ end }}` }}
-                \n*최초 발생:* {{ `{{ (index .Alerts 0).StartsAt }}` }}
+                *정책*\n`require-resource-limits` · Enforce
+                \n\n*대상 ({{ `{{ len .Alerts }}` }}건)*
+                {{ `{{ range .Alerts }}` }}\n• `{{ `{{ .Labels.resource_namespace }}` }}` / `{{ `{{ .Labels.resource_kind }}` }}`{{ `{{ end }}` }}
+                {{ `{{ if eq .Status "firing" }}` }}\n\n*필수 선언값*\n`CPU Request` · `Memory Request` · `Memory Limit`
+                \n\n*확인 및 조치*\n최근 PR의 정책 검사 결과 또는 Argo CD OutOfSync 리소스를 확인한 뒤, 모든 `containers`와 `initContainers`에 필수 선언값을 추가하세요.
+                {{ `{{ end }}` }}\n\n*발생 시각*\n{{ `{{ (index .Alerts 0).StartsAt.Format "2006-01-02 15:04:05 MST" }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}{{ `{{ if eq .CommonLabels.severity "critical" }}` }}danger{{ `{{ else }}` }}warning{{ `{{ end }}` }}{{ `{{ else }}` }}good{{ `{{ end }}` }}
