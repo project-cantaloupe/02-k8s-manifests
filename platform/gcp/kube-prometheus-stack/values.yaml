@@ -585,11 +585,15 @@ extraManifests:
             - apiURL:
                 name: alertmanager-slack-kyverno-webhook
                 key: api-url
-              sendResolved: true
+              # This alert is a five-minute admission-denial event, not a
+              # persistent resource state. Its Prometheus resolution only means
+              # that no new denial occurred, so do not report it as remediation.
+              # Actual recovery is reported when the Argo CD app becomes Synced.
+              sendResolved: false
               # AlertmanagerConfig requires a non-empty Slack attachment title.
               # Keep it to one concise line and put the operational flow in text.
               title: >-
-                {{ `{{ if eq .Status "firing" }}` }}⚖️ [리소스 정책 거부]{{ `{{ else }}` }}✅ [리소스 정책 해소]{{ `{{ end }}` }} require-resource-limits
+                ⚖️ [리소스 정책 거부] require-resource-limits
               text: |-
                 최근 5분간 *{{ `{{ len .Alerts }}` }}개 대상에서 정책 거부 감지* — Enforce
 
