@@ -561,7 +561,9 @@ extraManifests:
         - name: slack-argocd-alerts
           slackConfigs:
             - apiURL:
-                name: alertmanager-slack-webhook
+                # Keep policy denial, persistent deployment block, and recovery
+                # in one operational timeline in cntlp-alerts-kyverno.
+                name: alertmanager-slack-kyverno-webhook
                 key: api-url
               sendResolved: true
               title: >-

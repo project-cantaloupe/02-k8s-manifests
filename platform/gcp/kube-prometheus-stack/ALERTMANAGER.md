@@ -53,8 +53,9 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
   채널에는 중복 전송하지 않는다.
 - `service=kyverno` 알람은 Kyverno 전용 채널로 분기하고 플랫폼 채널에는
   중복 전송하지 않는다.
-- `service=argocd` 지속 상태 알람은 플랫폼 채널을 유지하되, 앱과 대상
-  Namespace 및 GitHub/Argo CD 확인 링크가 포함된 전용 메시지 형식을 사용한다.
+- `service=argocd` 정책 배포 지속 상태 알람은 Kyverno 채널로 보내 거부,
+  미복구, 복구를 한 타임라인에서 확인한다. 앱과 대상 Namespace 및
+  GitHub/Argo CD 확인 링크가 포함된 전용 메시지 형식을 사용한다.
 - `service=audio` 앱 알람은 Audio 전용 채널과 실제 줄바꿈 기반 전용 형식을 사용한다.
 - Slack 허용 목록에 포함된 kube-prometheus 기본 운영 알람은 alertname으로만
   `slack-prometheus-alerts`에 분기해 Platform Overview 링크를 제공한다.
