@@ -100,9 +100,15 @@ S3 CloudWatch Exporter는 사용하지 않는다.
 Admission** 이 `governance/namespaces/` 의 네임스페이스 라벨로 걸고,
 그 밖의 전부는 **Kyverno** 가 맡는다. 나눈 이유는 `governance/README.md`.
 
-`governance/secops/`와 `governance/finops/`는 공통 강제 정책,
+`governance/secops/`와 `governance/finops/`는 공통 ClusterPolicy,
 `governance/exceptions/`는 승인된 임시 예외다. 예외에는 사유·승인자·
 재검토일을 기록한다.
+
+Resource Audit 대상은 `apps`, `devops`, `monitoring`, `logging`, `secops`,
+`audio-ingress`, `harbor-system` 일곱 곳이다. `require-resource-limits`는
+배포 차단 규칙이 아니라 Grafana 사용량과 PolicyReport를 함께 보는 Audit 신호다.
+FinOps 구성요소는 `monitoring`에서 실행하므로 별도 `finops` Namespace를 만들지
+않고, 실제 메시징 플랫폼이 없는 동안 `messaging` Namespace도 만들지 않는다.
 
 **적용 순서가 있다.** `governance/` 가 `platform/`·`apps/` 보다 먼저다.
 네임스페이스가 없으면 그 안에 넣는 자원이 전부 실패하고, PSA 라벨은

@@ -10,7 +10,7 @@
 | 경로 | 하는 일 | 집행 |
 |---|---|---|
 | `namespaces/` | 네임스페이스별 **파드 하드닝 등급** | PSA (API 서버 내장) |
-| `secops/`, `finops/` | 전체에 **강제** (ClusterPolicy) | Kyverno |
+| `secops/`, `finops/` | 공통 검증·관측 정책 (ClusterPolicy) | Kyverno |
 | `exceptions/` | 특정 대상만 **면제** (PolicyException) | Kyverno |
 | `platform/*/policies/`, `apps/*/policies/` | 특정 대상에만 **추가** | Kyverno |
 
@@ -53,27 +53,22 @@ PSA 는 네임스페이스 라벨 세 줄이고 설치할 것도 유지할 것�
 | `secops/disallow-default-namespace` | `default` | 파드 생성 금지 | **Audit** |
 | `finops/require-resource-limits` | 운영 비용 대상 ns 7개 | CPU·Mem requests, Mem limit | **Audit** |
 
-### Audit 로 남아 있는 것 — 미완료 목록
+### Audit 정책을 읽는 법
 
-**2026-08-06 착지 시점 실측.** 네 정책 전부 Audit 이고, 아래가 각각의
-Enforce 전환 조건이다. 이 표가 비면 완료다.
+PolicyReport 건수는 ReplicaSet·Job의 생성과 정리에 따라 계속 변하므로 문서에
+고정하지 않는다. 현재 값은 `kubectl get polr -A`로 확인한다.
 
-| 정책 | 위반 | Enforce 전환 조건 |
+| 정책 | 현재 의미 | 다음 판단 |
 |---|---|---|
-| `require-resource-limits` | PolicyReport 참조 — Argo CD·Harbor·OpenSearch 등 | Grafana·PolicyReport로 관찰하고 필요할 때만 조정 |
-| `require-image-registry` | 4건 — `apps` 파드 **전부** | **결정이 필요하다** — 아래 |
-| `disallow-latest-tag` | 3건 — Harbor·OpenSearch 보조 컨테이너 | 차트 values 로 태그 고정 |
-| `disallow-default-namespace` | **0건** | 나머지 셋과 같이 올린다 |
+| `require-resource-limits` | 실제 사용량과 선언값 차이를 찾는 관측 신호 | Grafana와 함께 검토하며 Audit 유지 |
+| `require-image-registry` | 기존 ECR-only 결정과 현재 Harbor SHA 배포의 차이를 기록 | 런타임 Registry 결정을 다시 확정하기 전 Enforce 금지 |
+| `disallow-latest-tag` | 태그 누락·`latest` 사용을 기록 | 배포 경로별 고정 태그 지원 여부 확인 |
+| `disallow-default-namespace` | `default` 업무 Pod 생성을 기록 | 기본 Namespace의 시스템 객체와 구분해 판단 |
 
-`require-image-registry` 만 성격이 다르다. 나머지 셋은 위 규칙이 허용하는
-**"아직 안 세운 서드파티 스택"** 이지만, **이건 우리 앱이 걸린 것이다.**
-지금 오디오 이미지는 GHCR 에 있고 `ghcr-pull` Secret 으로 당긴다
-(`apps/audio/README.md`). ECR 로 옮길지, GHCR 을 허용 목록에 넣을지가
-정해져야 Enforce 로 갈 수 있다. **정책과 현실 중 어느 쪽이 틀렸는지의
-문제라서 예외로 덮을 일이 아니다.**
-
-이 정책이 Enforce 로 쓰였던 것은 작성 당시 `apps` 가 비어 있어 대조할
-워크로드가 없었기 때문이다. 워크로드가 생기자 4건이 나왔다.
+현재 오디오 CI는 Harbor에 커밋 SHA 이미지를 Push하고 `03-app-audio`가
+`02-k8s-manifests`의 이미지 태그를 갱신한다. 따라서 ECR만 허용하는
+`require-image-registry`는 현재 배포 현실과 일치하지 않으며, Audit 결과는
+예상된 설계 차이다. 이를 리소스 제한 위반과 한 묶음으로 보고 강제 전환하지 않는다.
 
 대상 범위는 규약 7절을 따른다 — 실제 비용이 발생하고 배포 설정을 소유하는
 서비스 네임스페이스 일곱. 클러스터 핵심 시스템 네임스페이스와 `kyverno`는 제외한다
@@ -102,7 +97,7 @@ PSA 쪽은 `enforce`를 안전한 등급에 두고 `warn`/`audit`을 한 단계 
 `background: true` 인 정책은 이미 존재하는 자원도 주기적으로 스캔한다.
 결과는 `kubectl get polr -A` 와 `kubectl get cpolr` 로 본다.
 
-현재 FinOps 정책은 팀 Namespace의 container와 initContainer에
+현재 FinOps 정책은 운영 비용 대상 7개 Namespace의 container와 initContainer에
 CPU·Memory requests와 Memory limit이 있는지 검사한다. CPU limit은 전역
 강제하지 않는다.
 
