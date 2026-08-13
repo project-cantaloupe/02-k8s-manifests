@@ -65,7 +65,7 @@ kubectl -n monitoring get secret alertmanager-slack-webhook \
 - Kyverno admission 거부는 최근 5분의 이벤트를 즉시 알린다. 원인이 해소되지 않아
   자동 동기화 Argo CD Application이 15분 이상 `OutOfSync`이면
   `ArgoCDApplicationOutOfSyncPersistent` 상태 알림이 플랫폼 채널에 발생한다.
-  이 상태 알림은 동기화될 때까지 4시간마다 반복되고, `Synced` 복구 시 해소된다.
+  이 상태 알림은 동기화될 때까지 30분마다 반복되고, `Synced` 복구 시 해소된다.
   Argo CD 메트릭만으로 Kyverno가 원인이라고 단정할 수 없으므로 두 알림은
   원인 이벤트와 지속 상태로 분리한다.
 - 항상 firing 상태인 Watchdog은 별도 heartbeat 서비스가 없으므로 비활성화한다.

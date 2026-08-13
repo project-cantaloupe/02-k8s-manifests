@@ -470,6 +470,7 @@ extraManifests:
             value: warning|critical
         routes:
           - receiver: slack-argocd-alerts
+            repeatInterval: 30m
             matchers:
               - name: service
                 matchType: "="
@@ -540,7 +541,7 @@ extraManifests:
                 \n\n*영향 대상*
                 {{ `{{ range .Alerts }}` }}\n• `{{ `{{ .Labels.name }}` }}` — Namespace `{{ `{{ .Labels.dest_namespace }}` }}`{{ `{{ end }}` }}
                 {{ `{{ if eq .Status "firing" }}` }}\n\n*확인 순서*\n1. <https://github.com/project-cantaloupe/02-k8s-manifests|GitHub 저장소>에서 최근 변경 확인\n2. <https://cntlp-onp-wk-01.tail270b85.ts.net/argocd|Argo CD>에서 Sync 오류와 실패 리소스 확인\n3. 직전에 리소스 정책 거부가 있었다면 CPU request, Memory request, Memory limit 확인
-                \n\n_복구되지 않으면 4시간마다 다시 알립니다._{{ `{{ end }}` }}
+                \n\n_복구되지 않으면 30분마다 다시 알립니다._{{ `{{ end }}` }}
               color: >-
                 {{ `{{ if eq .Status "firing" }}` }}warning{{ `{{ else }}` }}good{{ `{{ end }}` }}
         - name: slack-kyverno-alerts
