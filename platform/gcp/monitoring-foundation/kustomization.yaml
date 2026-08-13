@@ -11,6 +11,7 @@ resources:
   # 서고 UI 는 ClusterIP 로만 닿는다 → tasks/.../015_sso-loose-ends.md
   - monitoring-gateway.yaml
   - finops-recording-rules.yaml
+  - finops-policy-alerts.yaml
   - onprem-rightsizing-rules.yaml
   - gcp-recommender-collector.yaml
   - pushgateway-network-policy.yaml

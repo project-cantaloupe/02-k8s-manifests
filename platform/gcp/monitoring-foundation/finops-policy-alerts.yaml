@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: finops-policy-alerts
+  namespace: monitoring
+  labels:
+    app: kyverno
+    area: monitoring
+    category: finops
+spec:
+  groups:
+    - name: finops.policy-enforcement
+      rules:
+        - alert: FinOpsResourcePolicyDenied
+          expr: >-
+            sum by (resource_namespace, resource_kind)
+              (increase(kyverno_policy_results_total{
+                policy_name="require-resource-limits",
+                rule_result=~"(?i:fail)",
+                rule_execution_cause="admission_request"
+              }[5m])) > 0
+          labels:
+            severity: warning
+            category: finops
+            service: kyverno
+            component: resource-policy
+          annotations:
+            summary: FinOps 리소스 정책이 Kubernetes 배포를 거부했습니다.
+            description: >-
+              {{ $labels.resource_namespace }} Namespace의
+              {{ $labels.resource_kind }} 생성 또는 갱신이
+              require-resource-limits Enforce 정책에 의해 거부됐습니다.
+            action: >-
+              Argo CD OutOfSync 리소스와 최근 PR을 확인하고 모든 container와
+              initContainer에 CPU request, Memory request, Memory limit을 선언하세요.
