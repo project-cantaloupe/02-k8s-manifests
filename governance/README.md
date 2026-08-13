@@ -46,12 +46,12 @@ PSA 는 네임스페이스 라벨 세 줄이고 설치할 것도 유지할 것�
 
 | 정책 | 대상 | 하는 일 | 집행 |
 |---|---|---|---|
-| `namespaces/` | 14개 네임스페이스 | PSA 등급 (파드 하드닝) | enforce |
+| `namespaces/` | 16개 네임스페이스 | PSA 등급 (파드 하드닝) | enforce |
 | `secops/generate-default-network-policies` | 새 네임스페이스 | default-deny + 같은 ns 허용 생성 | generate |
 | `secops/require-image-registry` | `apps` | ECR 에서만 당긴다 | **Audit** |
-| `secops/disallow-latest-tag` | 팀 ns 7개 | 태그 필수, `latest` 금지 | **Audit** |
+| `secops/disallow-latest-tag` | 운영 비용 대상 ns 7개 | 태그 필수, `latest` 금지 | **Audit** |
 | `secops/disallow-default-namespace` | `default` | 파드 생성 금지 | **Audit** |
-| `finops/require-resource-limits` | 팀 ns 7개 | CPU·Mem requests, Mem limit | **Audit** |
+| `finops/require-resource-limits` | 운영 비용 대상 ns 7개 | CPU·Mem requests, Mem limit | **Audit** |
 
 ### Audit 로 남아 있는 것 — 미완료 목록
 
@@ -60,7 +60,7 @@ Enforce 전환 조건이다. 이 표가 비면 완료다.
 
 | 정책 | 위반 | Enforce 전환 조건 |
 |---|---|---|
-| `require-resource-limits` | 9건 — Argo CD·Harbor·OpenSearch | 차트 values 로 limits 를 채우거나 `exceptions/` |
+| `require-resource-limits` | PolicyReport 참조 — Argo CD·Harbor·OpenSearch 등 | Grafana·PolicyReport로 관찰하고 필요할 때만 조정 |
 | `require-image-registry` | 4건 — `apps` 파드 **전부** | **결정이 필요하다** — 아래 |
 | `disallow-latest-tag` | 3건 — Harbor·OpenSearch 보조 컨테이너 | 차트 values 로 태그 고정 |
 | `disallow-default-namespace` | **0건** | 나머지 셋과 같이 올린다 |
@@ -75,14 +75,16 @@ Enforce 전환 조건이다. 이 표가 비면 완료다.
 이 정책이 Enforce 로 쓰였던 것은 작성 당시 `apps` 가 비어 있어 대조할
 워크로드가 없었기 때문이다. 워크로드가 생기자 4건이 나왔다.
 
-대상 범위는 규약 7절을 따른다 — 팀 네임스페이스 일곱. 시스템 네임스페이스와
-`kyverno` 는 제외한다
+대상 범위는 규약 7절을 따른다 — 실제 비용이 발생하고 배포 설정을 소유하는
+서비스 네임스페이스 일곱. 클러스터 핵심 시스템 네임스페이스와 `kyverno`는 제외한다
 (`00-cantaloupe-resources/k8s-labeling-convention.md`).
 
-## 정책은 Enforce로 쓴다
+## 정책 집행 모드는 목적에 맞춘다
 
-`validationFailureAction: Audit`은 위반을 기록만 하고 통과시킨다.
-그건 규칙이 아니라 통계다. 새 정책을 넣을 때 이유 없이 Audit 로 두지 않는다.
+`validationFailureAction: Audit`은 위반을 기록만 하고 통과시킨다. 이미지 출처와
+배포 금지처럼 반드시 막아야 하는 규칙은 검증 후 Enforce로 전환한다. 반면
+`require-resource-limits`는 Grafana의 실제 사용량과 함께 보는 FinOps 관측
+신호이므로 Audit를 유지하고 숫자를 억지로 채우기 위한 변경은 하지 않는다.
 
 **이유가 있는 경우가 하나 있다 — 아직 안 세운 서드파티 스택.**
 Harbor·ArgoCD·Prometheus 같은 차트는 위반 목록을 미리 알 수 없다.
@@ -93,9 +95,9 @@ Harbor·ArgoCD·Prometheus 같은 차트는 위반 목록을 미리 알 수 없�
 Audit 배포 → PolicyReport 확인 → exceptions/ 작성 → Enforce 전환
 ```
 
-**Enforce 전환이 그 정책의 완료 조건이다.** Audit 로 남아 있는 정책은
-미완료로 본다. PSA 쪽도 같은 구조다 — `enforce` 는 안전한 등급에 두고
-`warn`/`audit` 을 한 단계 높게 둬서 격차가 계속 보이게 한다.
+PSA 쪽은 `enforce`를 안전한 등급에 두고 `warn`/`audit`을 한 단계 높게 둬서
+격차가 계속 보이게 한다. Kyverno 정책은 차단 목적과 관측 목적을 문서에
+명시해 Audit가 단순 미완료 상태로 오해되지 않게 한다.
 
 `background: true` 인 정책은 이미 존재하는 자원도 주기적으로 스캔한다.
 결과는 `kubectl get polr -A` 와 `kubectl get cpolr` 로 본다.

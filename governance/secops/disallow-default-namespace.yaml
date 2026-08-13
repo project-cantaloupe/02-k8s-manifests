@@ -46,7 +46,7 @@ spec:
         message: >-
           `default` 네임스페이스에는 배포하지 않는다.
           여기는 PSA 등급도 NetworkPolicy 도 비용 귀속도 걸리지 않는다.
-          알맞은 네임스페이스를 쓴다 (apps · devops · monitoring ·
-          messaging · logging · finops).
+          알맞은 네임스페이스를 쓴다 (apps · devops · monitoring · logging ·
+          secops · audio-ingress · harbor-system).
         # 조건 없는 deny. 매치된 것을 전부 거부한다.
         deny: {}
