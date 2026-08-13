@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/project-cantaloupe/02-k8s-manifests.git
-    targetRevision: codex/security-log-parsing
+    targetRevision: main
     path: platform/gcp/logging-stack
   destination:
     server: https://kubernetes.default.svc
