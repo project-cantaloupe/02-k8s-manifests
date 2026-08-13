@@ -24,13 +24,27 @@ data:
   # Alertmanager 쪽 Secret 과 같은 원칙으로 **클러스터에서 직접 먼저 만든다** —
   # 만들기 전에는 이 Job 이 실패한다(조용히 넘어가지 않는 편이 낫다).
   # → references/20260812_waf-slack-alerting.md
+  #
+  # ⚠️ 알람 주기를 정하는 것은 action 의 `throttle` 이 아니라 `schedule` 이다.
+  # OpenSearch 의 throttle 은 **그 alert 인스턴스가 ACTIVE 인 동안**만 센다.
+  # 스캐너 트래픽은 띄엄띄엄 와서 조건이 창마다 참↔거짓을 오가고, 거짓이 되는
+  # 순간 alert 가 COMPLETED 로 죽는다. 다음 차단은 **새 alert** 라 throttle 을
+  # 처음부터 다시 시작하고 즉시 발송된다.
+  #
+  # 실측(2026-08-13): schedule 5분 + throttle 30분인데 알림 간격이
+  # 10·15·20분으로 나왔다. 이력 18건이 전부 COMPLETED 였고 수명이 딱 한 창
+  # (~300초)이었다. throttle 값을 올려도 안 고쳐진다 — 창 자체를 넓혀야 한다.
+  #
+  # 그래서 schedule = 검색 창 = 30분으로 맞춘다. 창이 붙어 있어 겹침도 공백도
+  # 없다. throttle 은 schedule 보다 **낮게** 둔다 — 같은 값이면 경계에서
+  # "아직 30분이 안 지났다"로 한 번씩 걸러져 알람이 조용히 60분마다 온다.
   waf-blocked-monitor.json: |
     {
       "type": "monitor",
       "name": "waf-coraza-blocked",
       "monitor_type": "query_level_monitor",
       "enabled": true,
-      "schedule": { "period": { "interval": 5, "unit": "MINUTES" } },
+      "schedule": { "period": { "interval": 30, "unit": "MINUTES" } },
       "inputs": [
         {
           "search": {
@@ -41,7 +55,7 @@ data:
                 "bool": {
                   "filter": [
                     { "term": { "security_event_type": "waf_rule_match" } },
-                    { "range": { "@timestamp": { "gte": "now-5m", "lte": "now" } } }
+                    { "range": { "@timestamp": { "gte": "now-30m", "lte": "now" } } }
                   ]
                 }
               },
@@ -86,10 +100,10 @@ data:
                 "name": "slack-security",
                 "destination_id": "waf-slack-security",
                 "throttle_enabled": true,
-                "throttle": { "value": 30, "unit": "MINUTES" },
+                "throttle": { "value": 15, "unit": "MINUTES" },
                 "message_template": {
                   "lang": "mustache",
-                  "source": "🛡️ *[WAF 차단]* audio-ingress\n\n최근 5분간 *{{ctx.results.0.aggregations.blocked.doc_count}}건 차단* — 룰 발화 {{ctx.results.0.hits.total.value}}회\n\n*공격 유형* _(탐지 전체 기준)_\n{{#ctx.results.0.aggregations.families.buckets}}• {{key}} — {{doc_count}}회\n{{/ctx.results.0.aggregations.families.buckets}}\n*공격 출발 IP*\n{{#ctx.results.0.aggregations.attackers.buckets}}• `{{key}}` — {{doc_count}}회\n{{/ctx.results.0.aggregations.attackers.buckets}}\n*표적 경로*\n{{#ctx.results.0.aggregations.paths.buckets}}• `{{key}}`\n{{/ctx.results.0.aggregations.paths.buckets}}\n<https://cntlp-gcp-wk-02.tail270b85.ts.net/app/dashboards#/view/waf-coraza-overview-v1|WAF 대시보드에서 보기>\n\n_차단 자체는 정상 동작이다. 확인할 것은 표적 경로에 정상 앱 경로가 섞였는가다._"
+                  "source": "🛡️ *[WAF 차단]* audio-ingress\n\n최근 30분간 *{{ctx.results.0.aggregations.blocked.doc_count}}건 차단* — 룰 발화 {{ctx.results.0.hits.total.value}}회\n\n*공격 유형* _(탐지 전체 기준)_\n{{#ctx.results.0.aggregations.families.buckets}}• {{key}} — {{doc_count}}회\n{{/ctx.results.0.aggregations.families.buckets}}\n*공격 출발 IP*\n{{#ctx.results.0.aggregations.attackers.buckets}}• `{{key}}` — {{doc_count}}회\n{{/ctx.results.0.aggregations.attackers.buckets}}\n*표적 경로*\n{{#ctx.results.0.aggregations.paths.buckets}}• `{{key}}`\n{{/ctx.results.0.aggregations.paths.buckets}}\n<https://cntlp-gcp-wk-02.tail270b85.ts.net/app/dashboards#/view/waf-coraza-overview-v1|WAF 대시보드에서 보기>\n\n_차단 자체는 정상 동작이다. 확인할 것은 표적 경로에 정상 앱 경로가 섞였는가다._"
                 }
               }
             ]
