@@ -166,7 +166,7 @@ Save-Object "search" "platform-ops-scaling-events" @{
   kibanaSavedObjectMeta = @{ searchSourceJSON = SearchSource 'app : kubernetes-events and (event_reason : SuccessfulRescale or event_kind : NodeClaim or event_reason : (DisruptionBlocked or Disrupted or Registered or NodeReady or Scheduled))' }
 } $indexReference @{ search = "7.9.3" }
 Save-Count "platform-ops-argocd" "Argo CD 경고/오류" 'app : argocd* and level : (warning or error)' "Argo CD의 경고 및 오류 로그입니다."
-Save-Terms "platform-ops-core-components" "핵심 컴포넌트 경고/오류" 'level : (warning or error) and app : (keycloak or oauth2-proxy or opensearch or opensearch-dashboards or cert-manager or external-secrets)' "app" "핵심 플랫폼 컴포넌트의 경고 및 오류입니다." 12
+Save-Terms "platform-ops-core-components" "핵심 컴포넌트 경고/오류" 'level : (warning or error) and app : (jenkins or keycloak or oauth2-proxy or opensearch or opensearch-dashboards or cert-manager or external-secrets)' "app" "핵심 플랫폼 컴포넌트의 경고 및 오류입니다." 12
 
 # 4. Logging platform health and approximate source ingest
 Save-Count "platform-ops-logging-error" "로깅 스택 오류" 'namespace : logging and level : error' "로깅 스택에서 발생한 오류 로그입니다." -Risk
