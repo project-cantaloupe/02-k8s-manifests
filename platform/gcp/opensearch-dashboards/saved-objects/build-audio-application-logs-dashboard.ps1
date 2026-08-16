@@ -38,14 +38,14 @@ Add-Metric "audio-output-volume-completed" "완료 작업 출력 용량" "output
 Add-Visualization "audio-input-size-distribution" "완료 오디오 입력 크기 분포" "완료 작업의 input_bytes를 운영상 의미 있는 크기 구간으로 나눕니다." @{ title = "완료 오디오 입력 크기 분포"; type = "histogram"; params = @{ addLegend = $false; addTooltip = $true; scale = "linear"; categoryAxes = @(@{ id = "CategoryAxis-1"; type = "category"; position = "bottom"; show = $true }); valueAxes = @(@{ id = "ValueAxis-1"; name = "ValueAxis-1"; type = "value"; position = "left"; show = $true }) }; aggs = @(@{ id = "1"; enabled = $true; type = "count"; schema = "metric"; params = @{ customLabel = "완료 작업 수" } }, @{ id = "2"; enabled = $true; type = "range"; schema = "segment"; params = @{ field = "input_bytes"; ranges = @(@{ from = 0; to = 10485760; label = "0-10 MB" }, @{ from = 10485760; to = 52428800; label = "10-50 MB" }, @{ from = 52428800; to = 104857600; label = "50-100 MB" }, @{ from = 104857600; to = 524288000; label = "100-500 MB" }, @{ from = 524288000; label = "500 MB 이상" }) } }) } 'event_type : "transcode_completed" and status : "success" and input_bytes : *'
 
 Add-Header "audio-group-errors" "2. 오류 원인 분석"
-Add-TermsTable "audio-errors-by-code" "오류 코드 Top 10" "error_code" "error_code : *" "error_code별 실패 빈도를 보여줍니다." 10
+Add-TermsTable "audio-errors-by-code" "오류 코드 Top 5" "error_code" "error_code : *" "error_code별 실패 빈도를 보여줍니다." 5
 Add-TermsTable "audio-errors-by-app" "컴포넌트별 오류" "app" 'level : "error" or error_code : * or status : ("failure" or "failed" or "rejected")' "오류 신호가 기록된 로그를 app별로 집계합니다." 10
 Add-TermsTable "audio-retryable-errors" "재시도 가능 여부" "retryable" "retryable : *" "실패 로그의 retryable=true/false 분포입니다." 2
 Add-Search "audio-top-retried-jobs" "재시도 상위 작업" "retry_count가 기록된 작업을 재시도 횟수 내림차순으로 확인합니다." "retry_count : *" @("@timestamp", "app", "job_id", "audio_id", "attempt", "retry_count", "error_code", "retryable") "retry_count"
 Add-Search "audio-recent-failed-requests" "최근 실패 작업" "Transcode 실패, 실패 상태 또는 error_code가 기록된 최신 작업입니다." 'event_type : "transcode_failed" or status : ("failure" or "failed" or "rejected") or error_code : *' @("@timestamp", "app", "event_type", "status", "job_id", "audio_id", "attempt", "retry_count", "error_code", "message")
 
 Add-Header "audio-group-demand" "3. HTTP 오류 분석"
-Add-TermsTable "audio-http-error-routes" "HTTP 오류 경로 Top 10" "http_route" "http_status >= 400" "HTTP 4xx/5xx가 발생한 경로를 빈도순으로 보여줍니다." 10
+Add-TermsTable "audio-http-error-routes" "HTTP 오류 경로 Top 5" "http_route" "http_status >= 400" "HTTP 4xx/5xx가 발생한 경로를 빈도순으로 보여줍니다." 5
 Add-TermsTable "audio-http-errors-over-time" "HTTP 오류 상태 코드" "http_status" "http_status >= 400" "HTTP 오류를 실제 상태 코드별로 집계합니다." 10
 Add-Search "audio-recent-http-errors" "최근 HTTP 오류" "최근 HTTP 4xx/5xx 요청의 추적 근거입니다." "http_status >= 400" @("@timestamp", "app", "request_id", "http_method", "http_route", "http_status", "upstream_service", "response_code_details", "message")
 
