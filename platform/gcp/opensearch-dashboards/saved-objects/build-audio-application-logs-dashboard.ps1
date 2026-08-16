@@ -40,7 +40,6 @@ Add-Visualization "audio-input-size-distribution" "완료 오디오 입력 크�
 Add-Header "audio-group-errors" "2. 오류 원인 분석"
 Add-TermsTable "audio-errors-by-code" "오류 코드 Top 5" "error_code" "error_code : *" "error_code별 실패 빈도를 보여줍니다." 5
 Add-TermsTable "audio-errors-by-app" "컴포넌트별 오류" "app" 'level : "error" or error_code : * or status : ("failure" or "failed" or "rejected")' "오류 신호가 기록된 로그를 app별로 집계합니다." 10
-Add-TermsTable "audio-retryable-errors" "재시도 가능 여부" "retryable" "retryable : *" "실패 로그의 retryable=true/false 분포입니다." 2
 Add-Search "audio-top-retried-jobs" "재시도 상위 작업" "retry_count가 기록된 작업을 재시도 횟수 내림차순으로 확인합니다." "retry_count : *" @("@timestamp", "app", "job_id", "audio_id", "attempt", "retry_count", "error_code", "retryable") "retry_count"
 Add-Search "audio-recent-failed-requests" "최근 실패 작업" "Transcode 실패, 실패 상태 또는 error_code가 기록된 최신 작업입니다." 'event_type : "transcode_failed" or status : ("failure" or "failed" or "rejected") or error_code : *' @("@timestamp", "app", "event_type", "status", "job_id", "audio_id", "attempt", "retry_count", "error_code", "message")
 
@@ -58,7 +57,7 @@ $panelSpecs = @(
   @("visualization", "audio-group-health", 0, 5, 48, 2),
   @("visualization", "audio-input-volume", 0, 7, 12, 8), @("visualization", "audio-output-volume-completed", 12, 7, 12, 8), @("visualization", "audio-input-size-distribution", 24, 7, 24, 8),
   @("visualization", "audio-group-errors", 0, 15, 48, 2),
-  @("visualization", "audio-errors-by-code", 0, 17, 16, 10), @("visualization", "audio-errors-by-app", 16, 17, 16, 10), @("visualization", "audio-retryable-errors", 32, 17, 16, 10),
+  @("visualization", "audio-errors-by-code", 0, 17, 24, 10), @("visualization", "audio-errors-by-app", 24, 17, 24, 10),
   @("search", "audio-top-retried-jobs", 0, 27, 24, 11), @("search", "audio-recent-failed-requests", 24, 27, 24, 11),
   @("visualization", "audio-group-demand", 0, 38, 48, 2),
   @("visualization", "audio-http-error-routes", 0, 40, 16, 10), @("visualization", "audio-http-errors-over-time", 16, 40, 16, 10), @("search", "audio-recent-http-errors", 32, 40, 16, 10),
