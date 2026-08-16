@@ -6,3 +6,5 @@ kind: Kustomization
 # 하나여야 ArgoCD 두 Application 이 서로를 되돌리지 않는다.
 resources:
   - wasm-plugin.yaml
+  # 여기 안 적으면 ArgoCD 가 파일을 **그냥 무시한다.** 에러가 안 난다
+  - local-ratelimit.yaml
