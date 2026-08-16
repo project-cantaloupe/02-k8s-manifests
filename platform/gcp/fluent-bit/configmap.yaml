@@ -426,7 +426,161 @@ data:
       return true
     end
 
+    -- Harbor posts SCANNING_COMPLETED / SCANNING_FAILED to the HTTP input on
+    -- :9880. Those records never pass the kube tail, so they carry no pod
+    -- metadata and no `log` line. That is why they landed as empty documents
+    -- for three days: normalize() builds a fresh table from an allowlist, and
+    -- Harbor's payload matched none of it. Twelve documents, every field
+    -- "unknown", and a green pipeline the whole time.
+    --
+    -- Payload shape — 2026-08-15 실측, Harbor 2.x + Trivy v0.72.0, taken from
+    -- the webhook execution record rather than assumed from the docs:
+    --   type        "SCANNING_COMPLETED"
+    --   operator    "robot$library+github-actions"  ← CI robot, not a person
+    --   event_data.repository.name          "worker"
+    --   event_data.resources[1].digest      "sha256:9bd914bb…"
+    --   event_data.resources[1].tag         "9201c867…" (커밋 SHA)
+    --   event_data.resources[1].scan_overview[<mime>]
+    --     .scan_status  "Success"    ← 스캔이 돌았다는 뜻일 뿐이다
+    --     .severity     "Critical"   ← 발견된 최고 심각도
+    --     .summary.total / .fixable
+    --     .summary.summary.{Critical,High,Medium,Low,Unknown}
+    local function harbor_scan_report(record)
+      local event_data = record["event_data"] or {}
+      local resource = (event_data["resources"] or {})[1]
+      if resource == nil then
+        return nil, nil, nil
+      end
+
+      -- scan_overview is keyed by the report's MIME type — today
+      -- "application/vnd.security.vulnerability.report; version=1.1".
+      -- Harbor has shipped both `v=1.1` and `version=1.1` spellings, so the
+      -- single value is read by iteration instead of by name. Hardcoding the
+      -- key turns a scanner-adapter upgrade into a silently empty dashboard,
+      -- which is the same failure mode as a WasmPlugin selector that stops
+      -- matching: no error, no log line, just nothing.
+      local report = nil
+      for _, value in pairs(resource["scan_overview"] or {}) do
+        report = value
+        break
+      end
+
+      return resource, report, event_data
+    end
+
+    local function parse_harbor_scan(normalized, record)
+      local resource, report, event_data = harbor_scan_report(record)
+      if resource == nil then
+        return false
+      end
+
+      local repository = event_data["repository"] or {}
+      local summary = (report or {})["summary"] or {}
+      local counts = summary["summary"] or {}
+
+      -- Identity of the scanned artifact. The digest is what Harbor's pull
+      -- policy actually gates on; the tag is the commit SHA the CI pushed, so
+      -- it is the join key back to a GitHub Actions run.
+      -- SCANNING_FAILED carries the same envelope with no usable report. It
+      -- gets its own event type because an image that could not be scanned is
+      -- an image nothing has judged, and the dashboard must never read that as
+      -- a clean result.
+      local failed = record["type"] == "SCANNING_FAILED"
+      normalized["security_event_type"] = failed and "image_scan_failed" or "image_scan_completed"
+      normalized["area"] = "supply-chain"
+      normalized["namespace"] = "harbor-system"
+      normalized["app"] = repository["name"] or "unknown"
+      normalized["trivy_repository"] = repository["repo_full_name"]
+      normalized["trivy_tag"] = resource["tag"]
+      normalized["trivy_digest"] = resource["digest"]
+      normalized["trivy_operator"] = record["operator"]
+      normalized["trivy_scanner_version"] = ((report or {})["scanner"] or {})["version"]
+
+      -- ⚠️ `scan_status` and `severity` are independent. A scan that finished
+      -- cleanly reports Success while carrying eight Critical findings — that
+      -- confusion is exactly what kept the promotion alarm silent.
+      -- → findings/20260814_trivy-slack-alert-never-fired.md
+      normalized["trivy_scan_status"] = (report or {})["scan_status"] or "Unknown"
+
+      -- Harbor's severity map carries only non-zero entries: an image with no
+      -- Critical findings has no `Critical` key at all. Zero-filling a fixed
+      -- list keeps every document the same shape, so "Critical 0" is a fact in
+      -- the index rather than a hole the dashboard has to interpret. `sum`
+      -- looks right either way, which is what makes this easy to skip — it is
+      -- `avg` and "how many images are clean" that quietly go wrong.
+      local severity_counts = {
+        Critical = "trivy_critical", High = "trivy_high", Medium = "trivy_medium",
+        Low = "trivy_low", None = "trivy_none", Unknown = "trivy_unknown"
+      }
+      for name, field in pairs(severity_counts) do
+        normalized[field] = tonumber(counts[name]) or 0
+      end
+      normalized["trivy_total"] = tonumber(summary["total"]) or 0
+      normalized["trivy_fixable"] = tonumber(summary["fixable"]) or 0
+
+      -- `level` follows the highest severity found and nothing else. It is
+      -- deliberately not a copy of the blocking threshold: that lives in Harbor
+      -- (`deployment_security`) and in the CI check, and a third copy here would
+      -- drift the first time either is retuned — leaving a dashboard that
+      -- disagrees with the gate while looking authoritative.
+      local severity = (report or {})["severity"] or "Unknown"
+      normalized["trivy_severity"] = severity
+      if failed then
+        -- An unscanned image has been judged by no one. That is a worse state
+        -- than a scanned image with findings, not a neutral one.
+        normalized["level"] = "error"
+        normalized["level_source"] = "scan_failed"
+      else
+        -- An unrecognised severity string lands on `warning`, not `info`, for
+        -- the same reason `scan_blocks_promotion()` blocks on an unknown rank:
+        -- the failure mode of guessing low is an invisible one.
+        normalized["level"] = ({
+          Critical = "error", High = "error", Medium = "warning",
+          Low = "info", None = "info"
+        })[severity] or "warning"
+        normalized["level_source"] = "trivy_severity"
+      end
+
+      -- One line that stands on its own in Discover, where the numeric fields
+      -- are separate columns the reader would otherwise have to assemble.
+      if failed then
+        normalized["message"] = string.format("image scan failed — %s:%s",
+          normalized["app"], normalized["trivy_tag"] or "unknown")
+      else
+        normalized["message"] = string.format(
+          "image scan %s — %s:%s severity %s (Critical %d, High %d, total %d, fixable %d)",
+          normalized["trivy_scan_status"], normalized["app"],
+          normalized["trivy_tag"] or "unknown", severity,
+          normalized["trivy_critical"], normalized["trivy_high"],
+          normalized["trivy_total"], normalized["trivy_fixable"])
+      end
+
+      return true
+    end
+
     function normalize(tag, timestamp, record)
+      -- Harbor's scan webhook arrives on the HTTP input, not the kube tail.
+      -- It must branch out before the code below, which reads pod metadata
+      -- and a log line that this record does not have: every field would be
+      -- stamped "unknown" and the payload discarded by the allowlist.
+      if tag == "harbor.webhook" then
+        local scan = {}
+        scan["collector_platform"] = get_collector_platform()
+        scan["collector_node"] = record["collector_node"] or "unknown"
+        scan["log_category"] = "security"
+        if parse_harbor_scan(scan, record) then
+          return 1, timestamp, scan
+        end
+        -- Keep the record rather than dropping it. A payload we cannot read
+        -- is a change on Harbor's side, and a dashboard that goes quiet is
+        -- indistinguishable from an image estate that stopped being scanned.
+        scan["security_event_type"] = "image_scan_unparsed"
+        scan["level"] = "warning"
+        scan["level_source"] = "parser_failure"
+        scan["message"] = record["type"] or "harbor webhook payload not understood"
+        return 1, timestamp, scan
+      end
+
       local kubernetes = record["kubernetes"] or {}
       local pod_labels = kubernetes["labels"] or {}
       local namespace_metadata = record["kubernetes_namespace"] or {}

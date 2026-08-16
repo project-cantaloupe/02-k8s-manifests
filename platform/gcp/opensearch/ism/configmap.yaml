@@ -211,3 +211,78 @@ data:
         }
       }
     }
+  security-retention-policy.json: |
+    {
+      "policy": {
+        "description": "Keep image scan events for ninety days. Unlike platform and app logs this index takes a handful of documents per CI push, so the disk cost of a long window is negligible while the value is the trend: whether the vulnerability count on an image is falling or an image has quietly stopped being scanned at all.",
+        "default_state": "hot",
+        "ism_template": [{"index_patterns": ["cantaloupe-security-v1"], "priority": 120}],
+        "states": [
+          {
+            "name": "hot",
+            "actions": [],
+            "transitions": [{"state_name": "delete", "conditions": {"min_index_age": "90d"}}]
+          },
+          {"name": "delete", "actions": [{"delete": {}}], "transitions": []}
+        ]
+      }
+    }
+  security-index-template.json: |
+    {
+      "index_patterns": ["cantaloupe-security-v1"],
+      "priority": 120,
+      "template": {
+        "settings": {"number_of_shards": 1, "number_of_replicas": 0},
+        "mappings": {
+          "dynamic": false,
+          "properties": {
+            "@timestamp": {"type": "date"},
+            "namespace": {"type": "keyword"},
+            "area": {"type": "keyword"},
+            "app": {"type": "keyword"},
+            "collector_platform": {"type": "keyword"},
+            "collector_node": {"type": "keyword"},
+            "log_category": {"type": "keyword"},
+            "level": {"type": "keyword"},
+            "level_source": {"type": "keyword"},
+            "message": {"type": "text"},
+            "security_event_type": {"type": "keyword"},
+            "trivy_repository": {"type": "keyword"},
+            "trivy_tag": {"type": "keyword"},
+            "trivy_digest": {"type": "keyword"},
+            "trivy_operator": {"type": "keyword"},
+            "trivy_scanner_version": {"type": "keyword"},
+            "trivy_scan_status": {"type": "keyword"},
+            "trivy_severity": {"type": "keyword"},
+            "trivy_total": {"type": "integer"},
+            "trivy_fixable": {"type": "integer"},
+            "trivy_critical": {"type": "integer"},
+            "trivy_high": {"type": "integer"},
+            "trivy_medium": {"type": "integer"},
+            "trivy_low": {"type": "integer"},
+            "trivy_none": {"type": "integer"},
+            "trivy_unknown": {"type": "integer"}
+          }
+        }
+      }
+    }
+  security-current-mapping.json: |
+    {
+      "properties": {
+        "trivy_repository": {"type": "keyword"},
+        "trivy_tag": {"type": "keyword"},
+        "trivy_digest": {"type": "keyword"},
+        "trivy_operator": {"type": "keyword"},
+        "trivy_scanner_version": {"type": "keyword"},
+        "trivy_scan_status": {"type": "keyword"},
+        "trivy_severity": {"type": "keyword"},
+        "trivy_total": {"type": "integer"},
+        "trivy_fixable": {"type": "integer"},
+        "trivy_critical": {"type": "integer"},
+        "trivy_high": {"type": "integer"},
+        "trivy_medium": {"type": "integer"},
+        "trivy_low": {"type": "integer"},
+        "trivy_none": {"type": "integer"},
+        "trivy_unknown": {"type": "integer"}
+      }
+    }
