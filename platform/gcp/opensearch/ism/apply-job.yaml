@@ -175,6 +175,73 @@ spec:
                 exit 1
               fi
 
+              policy=cantaloupe-security-retention
+              existing=$(mktemp)
+              status=$(curl --silent --output "$existing" --write-out '%{http_code}' \
+                "$endpoint/_plugins/_ism/policies/$policy")
+
+              if [ "$status" = "200" ]; then
+                sequence=$(sed -n 's/.*"_seq_no"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$existing" | head -n1)
+                primary=$(sed -n 's/.*"_primary_term"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$existing" | head -n1)
+                if [ -z "$sequence" ] || [ -z "$primary" ]; then
+                  echo "Failed to extract security ISM concurrency metadata" >&2
+                  cat "$existing" >&2
+                  exit 1
+                fi
+                response=$(mktemp)
+                status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X PUT \
+                  "$endpoint/_plugins/_ism/policies/$policy?if_seq_no=$sequence&if_primary_term=$primary" \
+                  -H 'Content-Type: application/json' \
+                  --data-binary @/policy/security-retention-policy.json)
+              elif [ "$status" = "404" ]; then
+                response=$(mktemp)
+                status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X PUT \
+                  "$endpoint/_plugins/_ism/policies/$policy" \
+                  -H 'Content-Type: application/json' \
+                  --data-binary @/policy/security-retention-policy.json)
+              else
+                echo "Failed to read security ISM policy: HTTP $status" >&2
+                cat "$existing" >&2
+                exit 1
+              fi
+              cat "$response"
+              echo
+              if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+                echo "Failed to apply security ISM policy: HTTP $status" >&2
+                exit 1
+              fi
+
+              echo "Applying index template: cantaloupe-security-v1"
+              response=$(mktemp)
+              status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X PUT \
+                "$endpoint/_index_template/cantaloupe-security-v1" \
+                -H 'Content-Type: application/json' \
+                --data-binary @/policy/security-index-template.json)
+              cat "$response"
+              echo
+              if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+                echo "Failed to apply security index template: HTTP $status" >&2
+                exit 1
+              fi
+
+              # An index template only governs indices created after it. The
+              # security index already exists, so the Trivy fields are also
+              # pushed onto the live mapping. That covers additive fields only;
+              # a field whose type was already guessed wrong by dynamic mapping
+              # cannot be corrected this way and needs a reindex.
+              echo "Applying Trivy fields to the current security index"
+              response=$(mktemp)
+              status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X PUT \
+                "$endpoint/cantaloupe-security-v1/_mapping" \
+                -H 'Content-Type: application/json' \
+                --data-binary @/policy/security-current-mapping.json)
+              cat "$response"
+              echo
+              if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+                echo "Failed to apply security index mapping: HTTP $status" >&2
+                exit 1
+              fi
+
               echo "Removing legacy index template: cantaloupe-platform-logs"
               response=$(mktemp)
               status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' -X DELETE \
