@@ -30,15 +30,14 @@ spec:
         spec:
           serviceAccountName: audio-finops-result-collector
           restartPolicy: Never
-          # `platform: aws` 라벨은 **설명일 뿐 스케줄링에 영향이 없다.**
-          # 이미지가 ECR 로 바뀌는 순간 이 nodeSelector 가 필수가 된다 —
-          # GCP·온프렘 노드는 ECR pull 권한이 없어 ImagePullBackOff 로 죽고,
-          # CronJob 이라 그 사실은 **다음 스케줄에야** 드러난다.
-          nodeSelector:
-            platform: aws
           containers:
             - name: collector
-              image: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/mirror-python:3.12-alpine
+              # **ECR 로 바꾸지 않는다.** 이 CronJob 은 monitoring 네임스페이스라
+              # Kyverno ECR-only 범위(apps) 밖이고, kustomization 이
+              # `platform: gcp / role: monitoring` 으로 보낸다. GCP 노드에는
+              # ECR pull 권한이 없다 (worker_ecr_pull 은 AWS 노드 롤 전용).
+              # 바꾸면 다음 스케줄에 ImagePullBackOff 로만 드러난다.
+              image: python:3.12-alpine
               imagePullPolicy: IfNotPresent
               command: [python, /opt/collector/collector.py]
               env:

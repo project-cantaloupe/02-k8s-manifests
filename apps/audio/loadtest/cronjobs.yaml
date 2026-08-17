@@ -31,12 +31,6 @@ spec:
         spec:
           serviceAccountName: default
           restartPolicy: Never
-          # `platform: aws` 라벨은 **설명일 뿐 스케줄링에 영향이 없다.**
-          # 이미지가 ECR 로 바뀌는 순간 이 nodeSelector 가 필수가 된다 —
-          # GCP·온프렘 노드는 ECR pull 권한이 없어 ImagePullBackOff 로 죽고,
-          # CronJob 이라 그 사실은 **다음 스케줄에야** 드러난다.
-          nodeSelector:
-            platform: aws
           containers:
             - name: runner
               image: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/mirror-python:3.12-alpine
@@ -117,12 +111,6 @@ spec:
         spec:
           serviceAccountName: default
           restartPolicy: Never
-          # `platform: aws` 라벨은 **설명일 뿐 스케줄링에 영향이 없다.**
-          # 이미지가 ECR 로 바뀌는 순간 이 nodeSelector 가 필수가 된다 —
-          # GCP·온프렘 노드는 ECR pull 권한이 없어 ImagePullBackOff 로 죽고,
-          # CronJob 이라 그 사실은 **다음 스케줄에야** 드러난다.
-          nodeSelector:
-            platform: aws
           containers:
             - name: runner
               image: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/mirror-python:3.12-alpine
@@ -203,12 +191,6 @@ spec:
         spec:
           serviceAccountName: default
           restartPolicy: Never
-          # `platform: aws` 라벨은 **설명일 뿐 스케줄링에 영향이 없다.**
-          # 이미지가 ECR 로 바뀌는 순간 이 nodeSelector 가 필수가 된다 —
-          # GCP·온프렘 노드는 ECR pull 권한이 없어 ImagePullBackOff 로 죽고,
-          # CronJob 이라 그 사실은 **다음 스케줄에야** 드러난다.
-          nodeSelector:
-            platform: aws
           containers:
             - name: runner
               image: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/mirror-python:3.12-alpine
@@ -290,12 +272,6 @@ spec:
         spec:
           serviceAccountName: default
           restartPolicy: Never
-          # `platform: aws` 라벨은 **설명일 뿐 스케줄링에 영향이 없다.**
-          # 이미지가 ECR 로 바뀌는 순간 이 nodeSelector 가 필수가 된다 —
-          # GCP·온프렘 노드는 ECR pull 권한이 없어 ImagePullBackOff 로 죽고,
-          # CronJob 이라 그 사실은 **다음 스케줄에야** 드러난다.
-          nodeSelector:
-            platform: aws
           containers:
             - name: runner
               image: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/mirror-python:3.12-alpine
