@@ -28,10 +28,12 @@
 # so an unmapped field aggregates to an empty bucket without any error.
 # → tasks/todo/023_waf-blocking-and-siem.md
 
-import json, sys
+import json, os, sys
 
 IP_ID = "cantaloupe-app-logs-v1"
-DASH_ID = "waf-coraza-overview-v1"
+V2 = os.getenv("WAF_DASHBOARD_VERSION") == "2"
+ID_SUFFIX = "-v2" if V2 else ""
+DASH_ID = "waf-coraza-overview-v2" if V2 else "waf-coraza-overview-v1"
 WAF_Q = 'security_event_type : "waf_rule_match"'
 INGRESS_Q = 'event_type : "ingress_request_completed"'
 
@@ -44,7 +46,7 @@ def ss(query):
                       separators=(",", ":"))
 
 def vis(vid, title, desc, state, query):
-    objs.append(("visualization", vid, {
+    objs.append(("visualization", vid + ID_SUFFIX, {
         "title": title, "description": desc, "version": 1, "uiStateJSON": "{}",
         "visState": json.dumps(state, separators=(",", ":"), ensure_ascii=False),
         "kibanaSavedObjectMeta": {"searchSourceJSON": ss(query)}}, IDX_REF))
@@ -82,8 +84,9 @@ def metric(vid, title, desc, query, label, agg=None, threshold=0):
                               "style": {"bgFill": "#000", "bgColor": False, "labelColor": False,
                                         "fontSize": 36, "subText": ""}}}}, query)
 
-metric("waf-total-detections", "WAF 탐지 총 건수",
-       "Coraza 룰이 발화한 전체 건수. 탐지 모드에서도 계속 증가한다.", WAF_Q, "탐지")
+metric("waf-total-detections", "WAF 룰 탐지 횟수" if V2 else "WAF 탐지 총 건수",
+       "요청 수가 아니라 Coraza 룰이 발화한 횟수다. 요청 하나가 여러 룰에 걸리면 여러 번 집계된다." if V2 else
+       "Coraza 룰이 발화한 전체 건수. 탐지 모드에서도 계속 증가한다.", WAF_Q, "룰 탐지")
 metric("waf-blocked-count", "실제 차단 건수",
        "SecRuleEngine On 에서만 증가한다. DetectionOnly 동안은 0 이 정상이며, 이 값이 오르는 순간이 차단 전환 시점이다.",
        WAF_Q + ' and waf_action : "blocked"', "차단", threshold=1)
@@ -91,22 +94,38 @@ metric("waf-blocked-count", "실제 차단 건수",
 # DetectionOnly 는 끝까지 평가해 둘 다 찍지만, SecRuleEngine On 은 임계값에
 # 닿는 phase 1 에서 즉시 거절하므로 949110 이 아예 실행되지 않는다.
 # 949110 만 세면 차단 전환 순간 이 타일이 멈춘 것처럼 보인다.
-metric("waf-threshold-exceeded", "이상점수 임계 초과",
+metric("waf-threshold-exceeded", "이상점수 임계 초과 판정 횟수" if V2 else "이상점수 임계 초과",
+       "CRS 차단 평가 룰(949110·949111)의 판정 횟수다. 룰 탐지 횟수와 실제 공격 요청 수를 구분하기 위한 보조 지표이며, DetectionOnly에서는 한 요청이 두 평가 룰에 기록될 수 있다." if V2 else
        "CRS 차단 평가 룰(949110·949111) 발화 건수. 탐지 모드에서는 「차단 모드였다면 403 이 되었을 요청」, 차단 모드에서는 실제로 거절된 요청을 뜻한다.",
-       'waf_rule_id : ("949110" or "949111")', "요청")
+       'waf_rule_id : ("949110" or "949111")', "판정")
 metric("waf-unique-attackers", "공격 출발 IP 수",
        "고유 클라이언트 IP 수. externalTrafficPolicy: Local 이 아니면 항상 노드 수만큼만 나온다.",
        WAF_Q, "IP", agg={"id": "1", "enabled": True, "type": "cardinality", "schema": "metric",
                           "params": {"field": "waf_client_ip", "customLabel": "IP"}})
 
 # --- 2. 무엇을 잡았나 -------------------------------------------------------
-vis("waf-attack-families", "공격 유형별 탐지 건수",
+attack_family_agg = ({"id": "2", "enabled": True, "type": "filters", "schema": "segment",
+                      "params": {"filters": [
+                          {"label": "SQL Injection", "input": {"query": 'waf_rule_group : "REQUEST-942-APPLICATION-ATTACK-SQLI"', "language": "kuery"}},
+                          {"label": "Cross-Site Scripting", "input": {"query": 'waf_rule_group : "REQUEST-941-APPLICATION-ATTACK-XSS"', "language": "kuery"}},
+                          {"label": "로컬 파일 접근", "input": {"query": 'waf_rule_group : "REQUEST-930-APPLICATION-ATTACK-LFI"', "language": "kuery"}},
+                          {"label": "원격 파일 접근", "input": {"query": 'waf_rule_group : "REQUEST-931-APPLICATION-ATTACK-RFI"', "language": "kuery"}},
+                          {"label": "원격 명령 실행", "input": {"query": 'waf_rule_group : "REQUEST-932-APPLICATION-ATTACK-RCE"', "language": "kuery"}},
+                          {"label": "PHP Injection", "input": {"query": 'waf_rule_group : "REQUEST-933-APPLICATION-ATTACK-PHP"', "language": "kuery"}},
+                          {"label": "일반 애플리케이션 공격", "input": {"query": 'waf_rule_group : "REQUEST-934-APPLICATION-ATTACK-GENERIC"', "language": "kuery"}},
+                          {"label": "비정상 HTTP 요청", "input": {"query": 'waf_rule_group : "REQUEST-920-PROTOCOL-ENFORCEMENT"', "language": "kuery"}},
+                          {"label": "HTTP 프로토콜 공격", "input": {"query": 'waf_rule_group : "REQUEST-921-PROTOCOL-ATTACK"', "language": "kuery"}},
+                          {"label": "보안 스캐너 탐지", "input": {"query": 'waf_rule_group : "REQUEST-913-SCANNER-DETECTION"', "language": "kuery"}}
+                      ]}} if V2 else
+                     {"id": "2", "enabled": True, "type": "terms", "schema": "segment",
+                      "params": {"field": "waf_rule_group", "size": 12, "order": "desc", "orderBy": "1",
+                                 "otherBucket": False, "missingBucket": False, "customLabel": "공격군"}})
+vis("waf-attack-families", "탐지된 공격 유형" if V2 else "공격 유형별 탐지 건수",
+    "이해하기 쉬운 공격명으로 묶으며 CRS 차단 평가 룰(949xxx)은 제외한다." if V2 else
     "CRS 룰 파일 기준 공격군. 룰 ID 로 묶으면 같은 공격의 변종이 흩어져 보인다.",
-    {"title": "공격 유형별 탐지 건수", "type": "horizontal_bar",
+    {"title": "탐지된 공격 유형" if V2 else "공격 유형별 탐지 건수", "type": "horizontal_bar",
      "aggs": [{"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
-              {"id": "2", "enabled": True, "type": "terms", "schema": "segment",
-               "params": {"field": "waf_rule_group", "size": 12, "order": "desc", "orderBy": "1",
-                          "otherBucket": False, "missingBucket": False, "customLabel": "공격군"}}],
+              attack_family_agg],
      "params": dict({"type": "histogram", "grid": {"categoryLines": False}, "addTooltip": True,
                      "addLegend": False, "legendPosition": "right", "seriesParams": series(bar=0.6),
                      "times": [], "addTimeMarker": False, "labels": {"show": False}},
@@ -149,13 +168,22 @@ vis("waf-target-paths", "표적 경로 Top 10",
                 "sort": {"columnIndex": 1, "direction": "desc"}, "showTotal": False,
                 "totalFunc": "sum", "percentageCol": ""}}, WAF_Q)
 
-vis("waf-anomaly-distribution", "이상점수 분포",
+risk_agg = ({"id": "2", "enabled": True, "type": "filters", "schema": "segment",
+             "params": {"filters": [
+                 {"label": "임계값 미만 (0~4)", "input": {"query": "waf_anomaly_score >= 0 and waf_anomaly_score < 5", "language": "kuery"}},
+                 {"label": "차단 기준 도달 (5~9)", "input": {"query": "waf_anomaly_score >= 5 and waf_anomaly_score < 10", "language": "kuery"}},
+                 {"label": "고위험 (10~14)", "input": {"query": "waf_anomaly_score >= 10 and waf_anomaly_score < 15", "language": "kuery"}},
+                 {"label": "매우 높은 위험 (15 이상)", "input": {"query": "waf_anomaly_score >= 15", "language": "kuery"}}
+             ]}} if V2 else
+            {"id": "2", "enabled": True, "type": "histogram", "schema": "segment",
+             "params": {"field": "waf_anomaly_score", "interval": 5, "extended_bounds": {},
+                        "customLabel": "이상점수"}})
+vis("waf-anomaly-distribution", "공격 위험도별 요청 분포" if V2 else "이상점수 분포",
+    "이상점수를 임계값 미만, 차단 기준 도달, 고위험, 매우 높은 위험으로 구간화한다." if V2 else
     "CRS 는 severity 로 점수를 더한다(critical 5 / error 4 / warning 3 / notice 2). 임계값 5 이상이 차단 대상이다.",
-    {"title": "이상점수 분포", "type": "histogram",
+    {"title": "공격 위험도별 요청 분포" if V2 else "이상점수 분포", "type": "histogram",
      "aggs": [{"id": "1", "enabled": True, "type": "count", "schema": "metric", "params": {}},
-              {"id": "2", "enabled": True, "type": "histogram", "schema": "segment",
-               "params": {"field": "waf_anomaly_score", "interval": 5, "extended_bounds": {},
-                          "customLabel": "이상점수"}}],
+              risk_agg],
      "params": dict({"type": "histogram", "grid": {"categoryLines": False}, "addTooltip": True,
                      "addLegend": False, "legendPosition": "right", "seriesParams": series(bar=0.8),
                      "times": [], "addTimeMarker": False, "labels": {"show": False}}, **axes())},
@@ -211,7 +239,7 @@ vis("waf-ingress-status", "게이트웨이 응답 코드 추이",
 # --- 6. 증거 ---------------------------------------------------------------
 EV_COLS = ["waf_action", "waf_rule_id", "waf_msg", "waf_client_ip", "waf_uri",
            "waf_anomaly_score", "waf_severity", "collector_node"]
-objs.append(("search", "waf-recent-events", {
+objs.append(("search", "waf-recent-events" + ID_SUFFIX, {
     "title": "최근 WAF 이벤트 상세",
     "description": "사건 조사용. waf_client_ip 는 마스킹하지 않은 공격 출발지다 — 차단 목록에 그대로 쓸 수 있다.",
     "columns": EV_COLS, "sort": ["@timestamp", "desc"], "hits": 0,
@@ -239,10 +267,10 @@ for vid, x, y, w, h, typ in LAYOUT:
     cfg = {"columns": EV_COLS, "sort": ["@timestamp", "desc"]} if typ == "search" else {}
     panels.append({"gridData": {"x": x, "y": y, "w": w, "h": h, "i": vid}, "panelIndex": vid,
                    "version": "7.10.0", "panelRefName": name, "embeddableConfig": cfg})
-    refs.append({"name": name, "id": vid, "type": typ})
+    refs.append({"name": name, "id": vid + ID_SUFFIX, "type": typ})
 
 objs.append(("dashboard", DASH_ID, {
-    "title": "WAF (Coraza) 보안 대시보드",
+    "title": "WAF 보안 대시보드 2" if V2 else "WAF (Coraza) 보안 대시보드",
     "description": "audio-ingress 게이트웨이 Envoy 안에서 도는 Coraza WAF 의 탐지·차단 현황. 기존 「보안 로그 대시보드」(Keycloak/OAuth2/Kyverno)와 분리돼 있으며 서로 영향을 주지 않는다.",
     "version": 1, "hits": 0, "timeRestore": True, "timeFrom": "now-24h", "timeTo": "now",
     "refreshInterval": {"pause": False, "value": 30000},
