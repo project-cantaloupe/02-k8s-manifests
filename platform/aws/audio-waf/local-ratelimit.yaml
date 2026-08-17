@@ -1,0 +1,91 @@
+# 오디오 인그레스 게이트웨이의 요청량 제한. Envoy 내장 필터다.
+#
+# 10(Coraza)이 요청 **하나의 내용**을 보고, 이건 요청의 **양**을 본다.
+# 무대에서 "WAF 규칙"이라고 말하지 않는다 — 프록시 레벨 카운터 기반 트래픽 제어다.
+#
+# ⚠️ 이 파일이 사는 곳은 `audio-ingress` 네임스페이스다. `istio-system` 에 두면
+# 셀렉터와 무관하게 클러스터 전체 프록시에 붙는다 (wasm-plugin.yaml 과 같은 주의).
+#
+# → references/20260816_secops-demo-take2-prerequisites.md 2절
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: audio-local-ratelimit
+  namespace: audio-ingress
+  labels:
+    app: audio-waf
+    area: apps
+    platform: aws
+spec:
+  # 게이트웨이 파드의 라벨이다. 안 맞으면 **에러 없이 조용히 무시된다** —
+  # WasmPlugin 셀렉터 불일치와 같은 종류의 침묵이고 배포 성공과 구분이 안 된다.
+  # 검증은 `kubectl get envoyfilter` 가 아니라 Envoy 설정 덤프다:
+  #   kubectl exec <gw-pod> -n audio-ingress -- pilot-agent request GET config_dump
+  # (istioctl 은 cp-01 에 설치돼 있지 않다 — 2026-08-16 실측)
+  workloadSelector:
+    labels:
+      app: audio-ingress
+
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+              subFilter:
+                name: envoy.filters.http.router
+      patch:
+        # router 바로 앞 = 필터 체인의 끝이다. Coraza(WasmPlugin, phase: AUTHN)
+        # 보다 **뒤**라서 플러드가 와도 WASM 이 먼저 다 돈다.
+        #
+        # 앞에 두면 싸게 떨궈 게이트웨이 CPU 를 아끼지만, WASM 필터의 실제 이름
+        # (`extensions.istio.io/wasmplugin/...`)에 patch 를 걸어야 해서 이름이
+        # 바뀌면 조용히 안 붙는다. **지금은 견고함을 택한다.**
+        # 게이트웨이 CPU 가 제약이 되면 그때 옮긴다 (replicas: 2 전환과 같은 시점).
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.local_ratelimit
+          typed_config:
+            "@type": type.googleapis.com/udpa.type.v1.TypedStruct
+            type_url: type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+            value:
+              stat_prefix: audio_http_local_rate_limiter
+
+              # ── 임계값 ────────────────────────────────────────
+              # 지속 60 req/min, 버스트 여유 30. 두 제약이 이 값을 정했다.
+              #
+              #  1. **너무 낮으면 실사용이 깨진다.** 이건 전역 버킷 하나라
+              #     모든 클라이언트가 공유한다. audio-web 페이지 한 번 여는 데
+              #     정적 자산까지 10~30요청이 나가므로 20/min 같은 값은
+              #     정상 브라우징을 429 로 만든다.
+              #  2. **너무 낮으면 다른 시나리오를 깬다.** 09(7요청)·10(4요청)이
+              #     같은 게이트웨이를 친다. 테이크를 연달아 다시 찍으면
+              #     그 요청들이 이 버킷을 먹는다.
+              #
+              # 데모는 `BURST=60` 으로 경계를 만든다 (앞 30 통과 → 나머지 429).
+              # **조정 손잡이는 BURST 가 아니라 이 세 줄이다.**
+              token_bucket:
+                max_tokens: 30        # 버킷 용량 = 버스트 허용치
+                tokens_per_fill: 30
+                fill_interval: 30s    # 촬영 대조군이 기다리는 시간이기도 하다
+
+              # ── 조용히 아무것도 안 하는 함정 ──────────────────
+              # **이 둘을 비우면 기본이 0% 다.** 필터는 로드되는데 한 건도
+              # 안 막고, 그 상태가 **배포 성공과 구분이 안 된다.**
+              filter_enabled:
+                runtime_key: local_rate_limit_enabled
+                default_value: { numerator: 100, denominator: HUNDRED }
+              filter_enforced:
+                # enabled 만 100 이고 enforced 가 0 이면 **세기만 하고 통과시킨다.**
+                runtime_key: local_rate_limit_enforced
+                default_value: { numerator: 100, denominator: HUNDRED }
+
+              # 데모 증거용. 09 가 "본문 0바이트"로 Istio RBAC 을 증명하듯,
+              # 이 헤더가 "429 를 낸 것이 이 필터"라는 증거가 된다.
+              response_headers_to_add:
+                - append_action: OVERWRITE_IF_EXISTS_OR_ADD
+                  header:
+                    key: x-local-rate-limit
+                    value: "true"
