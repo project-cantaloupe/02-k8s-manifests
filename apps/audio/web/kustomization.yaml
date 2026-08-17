@@ -6,8 +6,9 @@ resources:
   - deployment.yaml
   - service.yaml
 
-# 03-app-audio의 GitHub Actions가 Harbor에 이미지를 푸시한 뒤 커밋 SHA 태그로
-# 이 항목을 갱신한다. 이미지 이름 audio-web은 그 규약에 맞춘 자리표시자다.
+# 03-app-audio의 GitHub Actions가 이미지를 Harbor에 Push하고 Trivy 검사를 수행한다.
+# 검사를 통과한 이미지를 Amazon ECR로 승격한 뒤, 이 ECR 이미지의 태그를
+# 애플리케이션 커밋 SHA로 갱신한다.
 images:
   - name: audio-web
     newName: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/app-audio-web
