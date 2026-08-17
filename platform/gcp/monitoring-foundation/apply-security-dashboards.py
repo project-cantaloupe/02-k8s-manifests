@@ -99,6 +99,33 @@ def series(panel_id, title, description, expr, x, y, w=12, h=8,
     }
 
 
+def policy_violation_table(panel_id, x, y, w=24, h=8):
+    """Show current unique violating resources per Kyverno policy."""
+    expr = (
+        'count by(policy) (count by(policy, exported_namespace, scope_kind, scope_name) '
+        '(kyverno_policyreport_result{result="fail"}))'
+    )
+    return {
+        "id": panel_id, "title": "현재 정책별 위반 리소스 수",
+        "description": (
+            "Kyverno PolicyReport의 현재 fail 결과를 정책별 고유 리소스 수로 집계합니다. "
+            "Background Scan 반복 횟수가 아니며 같은 리소스의 중복 rule 결과는 한 번만 셉니다."
+        ),
+        "type": "table", "gridPos": {"x": x, "y": y, "w": w, "h": h},
+        "datasource": DATASOURCE,
+        "targets": [{"datasource": DATASOURCE, "editorMode": "code", "expr": expr,
+                     "format": "table", "instant": True, "range": False, "refId": "A"}],
+        "transformations": [{"id": "organize", "options": {
+            "excludeByName": {"Time": True},
+            "indexByName": {"policy": 0, "Value": 1},
+            "renameByName": {"policy": "정책", "Value": "위반 리소스 수"},
+        }}],
+        "fieldConfig": {"defaults": {"unit": "short", "noValue": "0"}, "overrides": []},
+        "options": {"showHeader": True, "cellHeight": "sm", "footer": {"show": False},
+                    "sortBy": [{"displayName": "위반 리소스 수", "desc": True}]},
+    }
+
+
 def dashboard():
     unavailable = lambda selector: (
         f"sum(clamp_min(kube_deployment_spec_replicas{{{selector}}} - "
@@ -153,10 +180,10 @@ def dashboard():
         series(310, "NetworkPolicy 적용 네임스페이스", "정책 생성 대상 Namespace의 정책 적용 상태입니다. 의도적 예외와 Calico 실제 차단 건수는 표시하지 않습니다.", f'count by(namespace) (kube_networkpolicy_created{{{network_policy_scoped_namespaces}}})', 12, 26, 12, 8, legend_format="{{namespace}}"),
 
         row(320, "4. Kyverno 정책 결과", 34),
-        stat(321, "최근 1시간 Kyverno 정책 위반", "최근 1시간 rule_result=fail로 기록된 Kyverno 정책 결과 수입니다. 상세 리소스와 원인은 OpenSearch 보안 로그에서 확인합니다.", 'sum(increase(kyverno_policy_results_total{rule_result=~"(?i:fail)"}[1h])) or vector(0)', 0, 35, w=8, danger_on_positive=True),
+        stat(321, "현재 Kyverno 위반 리소스", "Kyverno PolicyReport에서 현재 fail 상태인 고유 리소스의 총수입니다. 반복 검사 횟수는 제외합니다.", 'count(count by(policy, exported_namespace, scope_kind, scope_name) (kyverno_policyreport_result{result="fail"})) or vector(0)', 0, 35, w=8, danger_on_positive=True),
         stat(322, "Kyverno 메트릭 수집 이상", "Kyverno Prometheus Target이 Down이거나 Target 자체가 없으면 1 이상입니다.", '(sum(up{namespace="kyverno"} == 0) or vector(0)) + (absent(up{namespace="kyverno"}) or vector(0))', 8, 35, w=8, danger_on_positive=True),
-        stat(323, "최근 1시간 Admission 거부", "Admission 요청 처리 중 fail로 기록된 Kyverno 정책 결과 수입니다.", 'sum(increase(kyverno_policy_results_total{rule_result=~"(?i:fail)",rule_execution_cause="admission_request"}[1h])) or vector(0)', 16, 35, w=8, danger_on_positive=True),
-        series(324, "정책별 Kyverno 위반 추이", "위반 증가량을 policy_name별로 표시합니다. 상세 리소스와 메시지는 OpenSearch에서 확인합니다.", 'sum by(policy_name) (increase(kyverno_policy_results_total{rule_result=~"(?i:fail)"}[$__rate_interval]))', 0, 40, 24, 8, legend_format="{{policy_name}}"),
+        stat(323, "최근 1시간 Admission 실제 차단", "Enforce 정책이 Admission 요청을 실제로 거부한 횟수입니다. Audit 실패는 제외합니다.", 'round(sum(increase(kyverno_policy_results_total{rule_result=~"(?i:fail)",rule_execution_cause="admission_request",policy_validation_mode="enforce"}[1h]))) or vector(0)', 16, 35, w=8, danger_on_positive=True),
+        policy_violation_table(324, 0, 40, 24, 8),
 
         row(400, "5. 자격증명 / 인증서", 48),
         stat(401, "cert-manager 상태", "cert-manager 컴포넌트의 미가용 replica 수입니다.", unavailable('namespace="cert-manager",deployment=~"cert-manager|cert-manager-cainjector|cert-manager-webhook"'), 0, 49, danger_on_positive=True),
