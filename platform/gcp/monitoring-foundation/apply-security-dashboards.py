@@ -106,27 +106,36 @@ def dashboard():
     )
     security_unavailable = unavailable(SECURITY_COMPONENTS)
     scoped_namespaces = 'namespace!~"kube-system|kube-public|kube-node-lease|default"'
+    # These namespaces are deliberately excluded by
+    # governance/secops/generate-default-network-policies.yaml because a
+    # default deny would break gateways, admission webhooks, CNI, or mesh
+    # traffic. Keep dashboard coverage aligned with the policy's real scope.
+    network_policy_scoped_namespaces = (
+        'namespace!~"kube-system|kube-public|kube-node-lease|default|kyverno|'
+        'tigera-operator|calico-system|calico-apiserver|cert-manager|'
+        'istio-system|audio-ingress|istio-cni|ztunnel"'
+    )
     psa_scoped_namespaces = scoped_namespaces
     psa_unprotected = (
         f'count(kube_namespace_created{{{psa_scoped_namespaces}}}) - '
         f'count(kube_namespace_labels{{{psa_scoped_namespaces},'
-        f'label_pod_security_kubernetes_io_enforce=~"restricted|baseline"}})'
+        f'label_pod_security_kubernetes_io_enforce=~"restricted|baseline|privileged"}})'
     )
     namespace_without_policy = (
-        f'count(kube_namespace_created{{{scoped_namespaces}}}) - '
-        f'count(count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces}}}))'
+        f'count(kube_namespace_created{{{network_policy_scoped_namespaces}}}) - '
+        f'count(count by(namespace) (kube_networkpolicy_created{{{network_policy_scoped_namespaces}}}))'
     )
     default_deny_missing = (
-        f'count(kube_namespace_created{{{scoped_namespaces}}}) - '
-        f'count(count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces},networkpolicy=~"default-deny.*"}}))'
+        f'count(kube_namespace_created{{{network_policy_scoped_namespaces}}}) - '
+        f'count(count by(namespace) (kube_networkpolicy_created{{{network_policy_scoped_namespaces},networkpolicy=~"default-deny.*"}}))'
     )
 
     panels = [
         row(100, "1. 보안 상태 요약", 0),
         stat(101, "전체 보안 컴포넌트 이상", "Keycloak, OAuth2 Proxy, Kyverno, cert-manager, External Secrets의 미가용 replica 수입니다.", security_unavailable, 0, 1, danger_on_positive=True),
-        stat(102, "PSA 미적용 네임스페이스", "시스템 기본 네임스페이스를 제외하고 PSA enforce=restricted 또는 baseline이 아닌 네임스페이스 수입니다. privileged는 보호 적용으로 집계하지 않습니다.", psa_unprotected, 6, 1, danger_on_positive=True),
-        stat(103, "NetworkPolicy 미적용 네임스페이스", "시스템 기본 네임스페이스를 제외하고 NetworkPolicy가 하나도 없는 네임스페이스 수입니다.", namespace_without_policy, 12, 1, danger_on_positive=True),
-        stat(104, "Default Deny 누락 네임스페이스", "default-deny 이름의 정책이 없는 네임스페이스 수입니다. 실제 차단 건수가 아닙니다.", default_deny_missing, 18, 1, danger_on_positive=True),
+        stat(102, "PSA 미적용 네임스페이스", "시스템 기본 네임스페이스를 제외하고 PSA enforce 라벨이 없는 네임스페이스 수입니다. privileged는 적용된 예외 등급으로 별도 표시합니다.", psa_unprotected, 6, 1, danger_on_positive=True),
+        stat(103, "NetworkPolicy 미적용 네임스페이스", "정책 생성 범위에서 NetworkPolicy가 하나도 없는 네임스페이스 수입니다. Gateway·Webhook·CNI·Mesh 예외는 제외합니다.", namespace_without_policy, 12, 1, danger_on_positive=True),
+        stat(104, "Default Deny 누락 네임스페이스", "정책 생성 범위에서 default-deny 정책이 없는 네임스페이스 수입니다. 의도적 예외는 제외하며 실제 차단 건수는 아닙니다.", default_deny_missing, 18, 1, danger_on_positive=True),
 
         row(200, "2. 인증 / 접근 제어", 6),
         stat(201, "Keycloak 상태", "Keycloak Deployment의 desired 대비 available replica 차이입니다.", unavailable('namespace="secops",deployment="keycloak"'), 0, 7, danger_on_positive=True),
@@ -137,11 +146,11 @@ def dashboard():
 
         row(300, "3. Kubernetes 정책 보안", 20),
         stat(301, "Kyverno 상태", "Kyverno 컨트롤러의 미가용 replica 수입니다.", unavailable('namespace="kyverno",deployment=~"kyverno-.*"'), 0, 21, danger_on_positive=True),
-        bar_gauge(311, "PSA 적용 현황", "Restricted·Baseline·미적용은 같은 시스템 Namespace 제외 모집단을 사용합니다.", [("Restricted", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="restricted"}})'), ("Baseline", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="baseline"}})'), ("미적용", psa_unprotected)], 6, 21, 6),
-        bar_gauge(312, "NetworkPolicy 적용 현황", "시스템 기본 Namespace를 제외한 적용·미적용 수입니다.", [("적용", f'count(count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces}}}))'), ("미적용", namespace_without_policy)], 12, 21, 6),
-        bar_gauge(313, "Default Deny 적용 현황", "시스템 기본 Namespace를 제외한 default-deny 적용·누락 수입니다.", [("적용", f'count(count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces},networkpolicy=~"default-deny.*"}}))'), ("누락", default_deny_missing)], 18, 21, 6),
+        bar_gauge(311, "PSA 적용 현황", "Restricted·Baseline·Privileged 예외·미적용을 같은 모집단에서 비교합니다.", [("Restricted", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="restricted"}})'), ("Baseline", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="baseline"}})'), ("Privileged 예외", f'count(kube_namespace_labels{{{psa_scoped_namespaces},label_pod_security_kubernetes_io_enforce="privileged"}})'), ("미적용", psa_unprotected)], 6, 21, 6),
+        bar_gauge(312, "NetworkPolicy 적용 현황", "정책 생성 대상 Namespace의 적용·미적용 수입니다. 의도적 예외는 제외합니다.", [("적용", f'count(count by(namespace) (kube_networkpolicy_created{{{network_policy_scoped_namespaces}}}))'), ("미적용", namespace_without_policy)], 12, 21, 6),
+        bar_gauge(313, "Default Deny 적용 현황", "정책 생성 대상 Namespace의 default-deny 적용·누락 수입니다. 의도적 예외는 제외합니다.", [("적용", f'count(count by(namespace) (kube_networkpolicy_created{{{network_policy_scoped_namespaces},networkpolicy=~"default-deny.*"}}))'), ("누락", default_deny_missing)], 18, 21, 6),
         series(309, "Kyverno 컨트롤러 Available Replica", "정책 엔진의 가용 replica 추이입니다.", 'kube_deployment_status_replicas_available{namespace="kyverno",deployment=~"kyverno-.*"}', 0, 26, 12, 8),
-        series(310, "NetworkPolicy 적용 네임스페이스", "시스템 기본 네임스페이스를 제외한 정책 적용 상태입니다. Calico 실제 차단 건수는 표시하지 않습니다.", f'count by(namespace) (kube_networkpolicy_created{{{scoped_namespaces}}})', 12, 26, 12, 8, legend_format="{{namespace}}"),
+        series(310, "NetworkPolicy 적용 네임스페이스", "정책 생성 대상 Namespace의 정책 적용 상태입니다. 의도적 예외와 Calico 실제 차단 건수는 표시하지 않습니다.", f'count by(namespace) (kube_networkpolicy_created{{{network_policy_scoped_namespaces}}})', 12, 26, 12, 8, legend_format="{{namespace}}"),
 
         row(320, "4. Kyverno 정책 결과", 34),
         stat(321, "최근 1시간 Kyverno 정책 위반", "최근 1시간 rule_result=fail로 기록된 Kyverno 정책 결과 수입니다. 상세 리소스와 원인은 OpenSearch 보안 로그에서 확인합니다.", 'sum(increase(kyverno_policy_results_total{rule_result=~"(?i:fail)"}[1h])) or vector(0)', 0, 35, w=8, danger_on_positive=True),
