@@ -34,8 +34,10 @@ spec:
             - name: AWS_DEFAULT_REGION
               value: ap-northeast-2
           resources:
+            # KEDA Operator 재스케줄링을 위한 Control Plane CPU 예약 여유 확보
+            # CPU Limit은 두지 않아 Node 증설 중 Controller Burst 허용
             requests:
-              cpu: 200m
+              cpu: 100m
               memory: 256Mi
             limits:
               memory: 512Mi
