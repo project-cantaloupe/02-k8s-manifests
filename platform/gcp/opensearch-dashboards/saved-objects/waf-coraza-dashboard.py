@@ -86,7 +86,7 @@ def metric(vid, title, desc, query, label, agg=None, threshold=0):
 
 metric("waf-total-detections", "WAF 룰 탐지 횟수" if V2 else "WAF 탐지 총 건수",
        "요청 수가 아니라 Coraza 룰이 발화한 횟수다. 요청 하나가 여러 룰에 걸리면 여러 번 집계된다." if V2 else
-       "Coraza 룰이 발화한 전체 건수. 탐지 모드에서도 계속 증가한다.", WAF_Q, "룰 탐지")
+       "Coraza 룰이 발화한 전체 건수. 탐지 모드에서도 계속 증가한다.", WAF_Q, "룰 탐지" if V2 else "탐지")
 metric("waf-blocked-count", "실제 차단 건수",
        "SecRuleEngine On 에서만 증가한다. DetectionOnly 동안은 0 이 정상이며, 이 값이 오르는 순간이 차단 전환 시점이다.",
        WAF_Q + ' and waf_action : "blocked"', "차단", threshold=1)
@@ -97,7 +97,7 @@ metric("waf-blocked-count", "실제 차단 건수",
 metric("waf-threshold-exceeded", "이상점수 임계 초과 판정 횟수" if V2 else "이상점수 임계 초과",
        "CRS 차단 평가 룰(949110·949111)의 판정 횟수다. 룰 탐지 횟수와 실제 공격 요청 수를 구분하기 위한 보조 지표이며, DetectionOnly에서는 한 요청이 두 평가 룰에 기록될 수 있다." if V2 else
        "CRS 차단 평가 룰(949110·949111) 발화 건수. 탐지 모드에서는 「차단 모드였다면 403 이 되었을 요청」, 차단 모드에서는 실제로 거절된 요청을 뜻한다.",
-       'waf_rule_id : ("949110" or "949111")', "판정")
+       'waf_rule_id : ("949110" or "949111")', "판정" if V2 else "요청")
 metric("waf-unique-attackers", "공격 출발 IP 수",
        "고유 클라이언트 IP 수. externalTrafficPolicy: Local 이 아니면 항상 노드 수만큼만 나온다.",
        WAF_Q, "IP", agg={"id": "1", "enabled": True, "type": "cardinality", "schema": "metric",
