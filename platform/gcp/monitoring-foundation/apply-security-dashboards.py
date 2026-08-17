@@ -206,8 +206,14 @@ def main():
     parser.add_argument("--user")
     parser.add_argument("--password")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--output", help="Write the generated dashboard JSON to this file")
     args = parser.parse_args()
     result = dashboard()
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as output_file:
+            json.dump(result, output_file, ensure_ascii=False, indent=2)
+            output_file.write("\n")
+        return
     if args.dry_run:
         print(json.dumps(result, ensure_ascii=False))
         return
