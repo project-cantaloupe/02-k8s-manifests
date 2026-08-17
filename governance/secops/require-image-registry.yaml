@@ -30,21 +30,35 @@
 # 있다 — 어느 쪽이든 값이 어딘가에는 커밋된다.
 #
 # → references/20260803_secops-admission-and-network-policy.md 3절
-# ⚠️ **Audit 로 시작한다. 2026-08-06 실측에서 `apps` 파드 넷이 전부 위반한다.**
+# ── Audit → Enforce 로 전환했다 (2026-08-18) ────────────────────
 #
-#     apps/audio-api        ghcr.io/project-cantaloupe/audio-api:dev
-#     apps/audio-events     ghcr.io/project-cantaloupe/audio-api:dev
-#     apps/audio-transcode  ghcr.io/project-cantaloupe/audio-worker:dev
-#     apps/audio-web        ghcr.io/project-cantaloupe/audio-web:dev
+# 08-06 에 이 정책을 쓸 때 `apps` 파드 넷이 전부 GHCR 을 당기고 있어서
+# `Audit` 로 시작했다. 그 전제는 끝났다 — 실측 기준 `apps` 의 워크로드
+# 컨트롤러 **아홉 개가 전부 ECR** 이다.
 #
-# Enforce 로 두면 **오디오 앱이 재시작하는 순간 영구히 못 뜬다.** 어드미션은
-# 생성 시점에만 보므로 도는 파드는 살아 있고, 노드 드레인·이미지 재푸시·OOM
-# 같은 무관해 보이는 사건에서 터진다. 원인이 안 드러나는 종류의 고장이다.
+#     Deployment  audio-api · audio-events · audio-transcode ·
+#                 audio-transcode-burst · audio-web   → app-audio-*
+#     CronJob     audio-finops-{steady,scheduled-peak,
+#                 unexpected-burst,web-validation}    → mirror-python
 #
-# **Enforce 전환 전에 정해야 할 것** — ECR 로 옮길지, GHCR 을 허용 목록에
-# 넣을지. 지금 이미지는 GHCR 에 있고 `ghcr-pull` Secret 으로 당긴다
-# (apps/audio/README.md). 이 정책이 쓰일 때 `apps` 가 비어 있어서 대조할
-# 워크로드가 없었다 → governance/README.md 의 Audit 우선 절차
+# 마지막까지 남아 있던 것은 FinOps loadtest 의 `python:3.12-alpine` 이었고,
+# ECR 미러를 만들어 옮겼다 (`mirror-python`, IMMUTABLE, 8개 아키텍처 보존).
+#
+# ⚠️ **PolicyReport 는 아직 0 이 아니다.** 08-18 기준 14건이 남아 있다 —
+# 전부 **이미 끝난** Job 10개와 그 Pod 4개다 (`smoke-20260810*`,
+# `baseline-20260817*`). 어드미션은 **생성 시점에만** 보므로 템플릿을 고쳐도
+# 과거 객체는 소급해서 안 고쳐지고, 지워야 사라진다. FinOps 실험 기록이라
+# 여기서 지우지 않는다 → `tasks/todo/013_finops-actionable-scenarios.md`
+#
+# **그 14건은 Enforce 의 위험이 아니다.** 완료된 객체는 파드를 새로 만들지
+# 않는다. Enforce 가 거는 것은 앞으로의 생성뿐이고, 그것을 만드는 컨트롤러는
+# 위 아홉 개가 전부다.
+#
+# ⚠️ **진짜 위험은 여전히 "이미 도는 파드"다.** 어드미션은 생성 시점에만
+# 보므로 지금 도는 파드는 살아 있고, 규칙에 안 맞는 것이 섞여 있다면
+# **노드 드레인·OOM·이미지 재푸시 같은 무관해 보이는 사건에서** 터진다.
+# 원인이 안 드러나는 종류의 고장이라, 위의 아홉 개를 실측으로 확인한 것이
+# 전환의 근거다 → governance/README.md 의 Audit 우선 절차
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -54,7 +68,7 @@ metadata:
       apps 네임스페이스의 이미지는 ECR 에서만 온다.
       Harbor 는 빌드 경로 전용이고 런타임 pull 대상이 아니다.
 spec:
-  validationFailureAction: Audit
+  validationFailureAction: Enforce
   background: true
   rules:
     - name: images-from-ecr-only
