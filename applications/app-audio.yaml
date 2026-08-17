@@ -15,7 +15,7 @@ spec:
     targetRevision: main
     # FinOps Baseline은 보수적인 초기 Worker Request를 사용하는 기본 구성을 배포한다.
     # 동일 부하의 Baseline과 Candidate 결과를 분리해 비교한다.
-    path: overlays/audio/right-sized-candidate
+    path: apps/audio
   destination:
     server: https://kubernetes.default.svc
     namespace: apps
