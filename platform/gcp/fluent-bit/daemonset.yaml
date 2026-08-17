@@ -16,7 +16,7 @@ spec:
         # Bumped whenever configmap.yaml changes. The ConfigMap is mounted as
         # a volume, so Fluent Bit keeps running the old parsers until the pod
         # restarts — editing the config alone changes nothing.
-        checksum/fluent-bit-config: "waf-parsing-v6"
+        checksum/fluent-bit-config: "kyverno-parsing-v7"
       labels:
         app: fluent-bit
         area: logging

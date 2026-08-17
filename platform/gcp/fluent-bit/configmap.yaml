@@ -340,14 +340,28 @@ data:
         return false
       end
 
-      local policy = string.match(message, "policy=([^%s]+)")
+      -- Kyverno's console encoder emits ANSI colour sequences even when logs
+      -- are collected from the container runtime.  Strip them before reading
+      -- key/value fields; otherwise `policy=` is followed by ESC[0m and the
+      -- old parser stores the escape sequence instead of the policy name.
+      local plain = string.gsub(message, string.char(27) .. "%[[0-9;]*m", "")
+      local policy = string.match(plain, "policy=([^%s]+)")
       if policy == nil then
         return false
       end
 
       normalized["policy_name"] = policy
-      normalized["policy_result"] = string.lower(string.match(message, "result=([^%s]+)") or "unknown")
-      normalized["rule_name"] = string.match(message, "rule=([^%s]+)")
+      normalized["rule_name"] = string.match(plain, 'failed rules=%["([^"]+)"')
+        or string.match(plain, "rule=([^%s]+)")
+      normalized["policy_action"] = string.lower(string.match(plain, "action=([^%s]+)") or "unknown")
+
+      -- Current Kyverno (v1.15) validation logs do not include `result=fail`.
+      -- A failed decision is expressed by the stable message text
+      -- `validation failed`, followed by policy/action/failed-rules fields.
+      local explicit_result = string.lower(string.match(plain, "result=([^%s]+)") or "")
+      local validation_failed = string.find(string.lower(plain), "validation failed", 1, true) ~= nil
+      normalized["policy_result"] = validation_failed and "fail"
+        or (explicit_result ~= "" and explicit_result or "unknown")
 
       -- Successful policy evaluation is operational telemetry, not a security
       -- event. Only retain an event type when the log explicitly reports a
@@ -357,6 +371,11 @@ data:
         or result == "denied" or result == "block" or result == "blocked"
         or result == "error" then
         normalized["security_event_type"] = "kyverno_policy_violation"
+        normalized["auth_result"] = "failure"
+        normalized["error_code"] = "policy_validation_failed"
+        normalized["level"] = "error"
+        normalized["level_source"] = "kyverno_policy_result"
+        normalized["message"] = plain
         return true
       end
 
