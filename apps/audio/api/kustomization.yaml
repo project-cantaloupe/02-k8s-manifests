@@ -13,4 +13,4 @@ resources:
 images:
   - name: audio-api
     newName: 764553891928.dkr.ecr.ap-northeast-2.amazonaws.com/app-audio-api
-    newTag: 4a8f1e2d0f4b454b0feb2823f53371ea3bde4788
+    newTag: 6a2ddc17580b3ffc50505fd0a401ef5cd8b570eb
