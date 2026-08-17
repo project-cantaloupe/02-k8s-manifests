@@ -27,7 +27,18 @@ function Add-Search([string]$Id, [string]$Title, [string]$Description, [string]$
 
 Add-Object "index-pattern" $indexId @{ title = $indexId; timeFieldName = "@timestamp"; fieldFormatMap = Json @{ input_bytes = @{ id = "bytes"; params = @{ pattern = "0.0b" } }; output_bytes = @{ id = "bytes"; params = @{ pattern = "0.0b" } }; processing_duration_ms = @{ id = "number"; params = @{ pattern = "0,0.[00]" } } } }
 
-Add-Visualization "audio-id-filters" "작업 추적 필터" "request_id, job_id, audio_id로 관련 로그를 좁힙니다." @{ title = "작업 추적 필터"; type = "input_control_vis"; params = @{ controls = @(@{ id = "request-id"; fieldName = "request_id"; parent = ""; label = "Request ID"; type = "list"; options = @{ type = "terms"; multiselect = $true; dynamicOptions = $true; size = 10 } }, @{ id = "job-id"; fieldName = "job_id"; parent = ""; label = "Job ID"; type = "list"; options = @{ type = "terms"; multiselect = $true; dynamicOptions = $true; size = 10 } }, @{ id = "audio-id"; fieldName = "audio_id"; parent = ""; label = "Audio ID"; type = "list"; options = @{ type = "terms"; multiselect = $true; dynamicOptions = $true; size = 10 } }); updateFiltersOnChange = $true; useTimeFilter = $true; pinFilters = $false }; aggs = @() }
+$trackingControls = @(
+  @{ id = "request-id"; fieldName = "request_id"; parent = ""; label = "Request ID"; type = "list"; indexPatternRefName = "control_0_index_pattern"; options = @{ type = "terms"; multiselect = $true; dynamicOptions = $true; size = 10 } },
+  @{ id = "job-id"; fieldName = "job_id"; parent = ""; label = "Job ID"; type = "list"; indexPatternRefName = "control_1_index_pattern"; options = @{ type = "terms"; multiselect = $true; dynamicOptions = $true; size = 10 } },
+  @{ id = "audio-id"; fieldName = "audio_id"; parent = ""; label = "Audio ID"; type = "list"; indexPatternRefName = "control_2_index_pattern"; options = @{ type = "terms"; multiselect = $true; dynamicOptions = $true; size = 10 } }
+)
+$trackingReferences = @(
+  @{ name = "kibanaSavedObjectMeta.searchSourceJSON.index"; type = "index-pattern"; id = $indexId },
+  @{ name = "control_0_index_pattern"; type = "index-pattern"; id = $indexId },
+  @{ name = "control_1_index_pattern"; type = "index-pattern"; id = $indexId },
+  @{ name = "control_2_index_pattern"; type = "index-pattern"; id = $indexId }
+)
+Add-Object "visualization" "audio-id-filters" @{ title = "작업 추적 필터"; description = "request_id, job_id, audio_id로 관련 로그를 좁힙니다."; visState = Json @{ title = "작업 추적 필터"; type = "input_control_vis"; params = @{ controls = $trackingControls; updateFiltersOnChange = $true; useTimeFilter = $true; pinFilters = $false }; aggs = @() }; uiStateJSON = "{}"; kibanaSavedObjectMeta = @{ searchSourceJSON = SearchSource } } $trackingReferences
 
 Add-Header "audio-group-errors" "1. 오류 원인 분석"
 Add-TermsTable "audio-errors-by-code" "오류 코드 Top 5" "error_code" "error_code : *" "error_code별 실패 빈도를 보여줍니다." 5
