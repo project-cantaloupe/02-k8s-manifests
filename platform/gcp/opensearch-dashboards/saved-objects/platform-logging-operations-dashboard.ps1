@@ -23,11 +23,10 @@ function Save-Object([string]$Type, [string]$Id, $Attributes, [array]$References
   Write-Host "saved $Type/$Id"
 }
 
-function Ensure-DiscoverSampleSize([int]$Size = 10000) {
-  # Dashboard saved searches use the global Discover sample size. Keep it at
-  # OpenSearch's default max_result_window so every warning/error in ordinary
-  # selected periods is available to the embedded table, not only the first
-  # 500 documents. Rows are still rendered incrementally by the UI.
+function Ensure-DiscoverSampleSize([int]$Size = 1000) {
+  # Dashboard saved searches use the global Discover sample size. Raise the
+  # default 500-document cap to the operationally agreed 1,000 documents.
+  # Rows are still rendered incrementally by the UI.
   $body = Json @{ changes = @{ "discover:sampleSize" = $Size } }
   $endpoint = "$($DashboardsUrl.TrimEnd('/'))/api/opensearch-dashboards/settings"
   $response = curl.exe -k -sS --fail-with-body -H "osd-xsrf: true" -H "Content-Type: application/json" -X POST $endpoint --data-binary $body
@@ -116,7 +115,7 @@ function Save-GroupHeader([string]$Id, [string]$Title) {
 }
 
 Ensure-OperationalFields
-Ensure-DiscoverSampleSize 10000
+Ensure-DiscoverSampleSize 1000
 
 # Scope: Platform -> Namespace -> Area -> Workload/App.
 $controls = @{
@@ -164,7 +163,7 @@ Save-Terms "platform-ops-by-platform" "플랫폼별 로그 발생량" "" "collec
 Save-Terms "platform-ops-top-producers" "로그 발생량 상위 소스" "" "app" "로그를 가장 많이 발생시킨 워크로드/앱입니다." 5
 
 Save-Object "search" "platform-ops-recent-warning-error" @{
-  title = "선택 기간 경고/오류 로그 전체"; description = "선택한 범위의 경고 및 오류 로그를 최신순으로 제공합니다(최대 10,000건)."; hits = 0
+  title = "선택 기간 경고/오류 로그 전체"; description = "선택한 범위의 경고 및 오류 로그를 최신순으로 제공합니다(최대 1,000건)."; hits = 0
   columns = @("collector_platform", "namespace", "app", "level", "message")
   sort = @("@timestamp", "desc")
   kibanaSavedObjectMeta = @{ searchSourceJSON = SearchSource 'level : (warning or error)' }
