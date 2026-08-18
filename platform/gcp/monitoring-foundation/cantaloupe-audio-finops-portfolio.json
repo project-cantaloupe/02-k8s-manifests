@@ -1,0 +1,2232 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Audio Transcode 서비스의 처리 성능과 안정성, VPA 기반 리소스 최적화, KEDA·Karpenter 자동 확장, Track당 Kubernetes 비용을 통합 검증합니다. 실제 서비스 지표와 성능 검증 결과를 활용해 비용 절감이 처리 품질과 안정성에 미치는 영향을 함께 확인합니다.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 605,
+      "title": "1. 핵심 서비스 지표",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 구간 Audio API 전체 요청입니다. 실제 사용자와 부하테스트 요청을 모두 포함합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 101,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(\n  sum(\n    cantaloupe_audio_finops_run_ready{\n      job=\"audio_finops_experiment\"\n    }\n    and on(job, run_id)\n    topk(\n      1,\n      push_time_seconds{job=\"audio_finops_experiment\"}\n    )\n  )\n  and on()\n  (\n    time() -\n    max(push_time_seconds{job=\"audio_finops_experiment\"})\n    < 120\n  )\n) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "Audio API 요청",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "총 오디오 변환 요청 수",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 기간에 결과가 기록된 최신 성능 검증 실행의 완료 Track 수입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "id": 102,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "((sum(cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"} and on(job, run_id) topk(1, push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds}))) and on() ((time() - (max(push_time_seconds{job=\"audio_finops_experiment\"} >= ${__from:date:seconds} and push_time_seconds{job=\"audio_finops_experiment\"} <= ${__to:date:seconds}))) < 60)) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "Transcode 완료",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "완료 Track",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 구간 Audio API 서버 오류 응답입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "id": 103,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "round(sum(increase(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload=\"audio-api\",response_code=~\"5..\"}[$__range]))) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "API 5xx",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "실패",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 기간의 전체 Audio API 요청 중 2xx 응답 비율입니다. 업로드뿐 아니라 Audio API 전체 요청을 기준으로 계산합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "max": 100,
+          "min": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "id": 104,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * (sum(increase(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload=\"audio-api\",response_code=~\"2..\"}[$__range])) or vector(0)) / clamp_min(sum(increase(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload=\"audio-api\"}[$__range])), 1)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "API 2xx 성공률",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "성공률",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 시간 범위의 Audio Transcode 처리시간 P95입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "id": 105,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by(le) (increase(audio_transcode_duration_seconds_bucket{namespace=\"apps\"}[$__range])))",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "처리 속도(P95)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 DLQ 적재가 있거나, 선택 구간에 Transcode Restart·OOMKilled가 있으면 1입니다. 과거 DLQ 이력은 하단 DLQ 상세에서 별도로 확인합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "links": [
+            {
+              "targetBlank": false,
+              "title": "Run 실패·검증 상세",
+              "url": "/grafana/d/cantaloupe-audio-finops-operational-review/cantaloupe-audio-finops-operational-review?orgId=1&from=${__from}&to=${__to}&viewPanel=601"
+            },
+            {
+              "targetBlank": false,
+              "title": "Restart·OOM 상세",
+              "url": "/grafana/d/cantaloupe-audio-finops-operational-review/cantaloupe-audio-finops-operational-review?orgId=1&from=${__from}&to=${__to}&viewPanel=602"
+            },
+            {
+              "targetBlank": false,
+              "title": "DLQ 이력 상세",
+              "url": "/grafana/d/cantaloupe-audio-finops-operational-review/cantaloupe-audio-finops-operational-review?orgId=1&from=${__from}&to=${__to}&viewPanel=603"
+            }
+          ],
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "text": "정상"
+                },
+                "1": {
+                  "color": "red",
+                  "text": "확인 필요"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "id": 106,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 60
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "clamp_max(((round(sum(increase(kube_pod_container_status_restarts_total{namespace=\"apps\",container=\"transcode\"}[$__range]))) or vector(0)) + (sum(max_over_time(kube_pod_container_status_last_terminated_reason{namespace=\"apps\",container=\"transcode\",reason=\"OOMKilled\"}[$__range])) or vector(0)) + (((max(cantaloupe:aws_sqs_messages_visible{queue_name=\"cntlp-aws-queue-transcode-dlq\"}) or vector(0)) > bool 0))), 1)",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "현재 안전 상태",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "id": 606,
+      "title": "2. 처리 성능 및 안정성",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "실제 서비스 지표입니다. API 요청에는 사용자와 부하테스트가 모두 포함됩니다. Queue 제출은 Transcode 작업 등록의 운영 대체 지표이며 CloudWatch 1분 Sum이라 약 2~5분 늦을 수 있습니다. 완료는 Worker의 실제 완료 counter, 5xx는 API 서버 오류입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqpm"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      },
+      "id": 201,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload=\"audio-api\"}[5m])) * 60",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "API 요청/분",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(cantaloupe:aws_sqs_messages_sent_total{queue_name=\"cntlp-aws-queue-transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Queue 제출/분",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(audio_transcode_completed_total{namespace=\"apps\"}[5m])) * 60",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Transcode 완료/분",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload=\"audio-api\",response_code=~\"5..\"}[5m])) * 60",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "API 5xx/분",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "실제 처리 흐름 — 분당 API 요청·Queue 제출·완료·5xx",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Audio Transcode 처리시간 분포입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "id": 202,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(audio_transcode_duration_seconds_bucket{namespace=\"apps\"}[$__rate_interval])))",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "P50",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(audio_transcode_duration_seconds_bucket{namespace=\"apps\"}[$__rate_interval])))",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "P95",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "P50 / P95 처리시간",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "실제 API·Worker·Kubernetes·SQS 안전 신호입니다. 모두 0이면 현재 선택 구간의 운영 이상이 없습니다. 명시적 Transcode 실패 counter가 없어 Worker 재시도와 DLQ를 실패 안전 신호로 분리해 사용합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#ad46ff",
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "API 5xx"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": false,
+                    "title": "근거 상세 보기",
+                    "url": "/grafana/d/cantaloupe-audio-finops-operational-review/cantaloupe-audio-finops-operational-review?orgId=1&from=${__from}&to=${__to}&viewPanel=601"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Worker 재시도"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": false,
+                    "title": "근거 상세 보기",
+                    "url": "/grafana/d/cantaloupe-audio-finops-operational-review/cantaloupe-audio-finops-operational-review?orgId=1&from=${__from}&to=${__to}&viewPanel=604"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Restart"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": false,
+                    "title": "근거 상세 보기",
+                    "url": "/grafana/d/cantaloupe-audio-finops-operational-review/cantaloupe-audio-finops-operational-review?orgId=1&from=${__from}&to=${__to}&viewPanel=602"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "OOMKilled"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": false,
+                    "title": "근거 상세 보기",
+                    "url": "/grafana/d/cantaloupe-audio-finops-operational-review/cantaloupe-audio-finops-operational-review?orgId=1&from=${__from}&to=${__to}&viewPanel=602"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DLQ 현재 적재"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": false,
+                    "title": "근거 상세 보기",
+                    "url": "/grafana/d/cantaloupe-audio-finops-operational-review/cantaloupe-audio-finops-operational-review?orgId=1&from=${__from}&to=${__to}&viewPanel=603"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 203,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "round(sum(increase(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload=\"audio-api\",response_code=~\"5..\"}[$__range]))) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "API 5xx",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "round(sum(increase(audio_transcode_retried_total{namespace=\"apps\"}[$__range]))) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "Worker 재시도",
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "round(sum(increase(kube_pod_container_status_restarts_total{namespace=\"apps\",container=\"transcode\"}[$__range]))) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "Restart",
+          "range": false,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(max_over_time(kube_pod_container_status_last_terminated_reason{namespace=\"apps\",container=\"transcode\",reason=\"OOMKilled\"}[$__range])) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "OOMKilled",
+          "range": false,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(cantaloupe:aws_sqs_messages_visible{queue_name=\"cntlp-aws-queue-transcode-dlq\"}) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "DLQ 현재 적재",
+          "range": false,
+          "refId": "E"
+        }
+      ],
+      "title": "운영 이상 상세 — 숫자 클릭 시 근거 보기",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 607,
+      "title": "3. 자동 확장 동작",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Queue 유입, 전체 Transcode Worker, Pending Transcode, Karpenter Node의 발생 순서와 처리 종료 후 scale-in을 같은 시간축에서 확인합니다. SQS는 CloudWatch 수집 주기 때문에 짧은 Spike를 놓칠 수 있고, Pending은 Prometheus scrape 시점 사이에 생성·해소되면 포착되지 않을 수 있습니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "id": 301,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(\n  keda_scaler_metrics_value{\n    exported_namespace=\"apps\",\n    scaledObject=\"audio-transcode-burst\",\n    scaler=\"awsSqsQueueScaler\",\n    metric=\"s1-aws-sqs-cntlp-aws-queue-transcode\"\n  }\n) or vector(0)",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "SQS Queue",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"apps\",deployment=~\"audio-transcode|audio-transcode-burst\"}) or vector(0)",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Transcode Worker",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(kube_pod_status_phase{namespace=\"apps\",phase=\"Pending\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=~\"audio-transcode|audio-transcode-burst\"}) or vector(0)",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Pending Transcode",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(max by(node) (kube_node_labels{job=\"opencost\",label_karpenter_sh_nodepool=~\"aws-audio-burst-(98|99)\"})) or vector(0)",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Karpenter Node",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "SQS / Transcode / Pending / Karpenter 통합 타임라인",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 608,
+      "title": "4. 리소스 최적화",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "고정 Base audio-transcode workload만 비교합니다. Actual과 Request는 실행 중인 Base Pod 합계이고 VPA Target은 Pod 1개 기준 권고입니다. 현재 Base Pod가 1개이므로 동일 축에서 비교할 수 있습니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "cores"
+        }
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 401,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"apps\",container=\"transcode\"}[$__rate_interval]) * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Actual",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\",namespace=\"apps\",container=\"transcode\",resource=\"cpu\",unit=\"core\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Request",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(cantaloupe:workload_container_vpa_target_cpu_cores{namespace=\"apps\",workload=\"audio-transcode\",container=\"transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "VPA Target",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Base Transcode CPU — Actual / Request / VPA Target",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "고정 Base audio-transcode workload만 비교합니다. Actual·Request·Limit은 실행 중인 Base Pod 합계이고 VPA Target·Upper는 Pod 1개 기준 권고입니다. 현재 Base Pod가 1개이므로 동일 축에서 비교할 수 있습니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 402,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(container_memory_working_set_bytes{namespace=\"apps\",container=\"transcode\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Actual",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\",namespace=\"apps\",container=\"transcode\",resource=\"memory\",unit=\"byte\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Request",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(cantaloupe:workload_container_vpa_target_memory_bytes{namespace=\"apps\",workload=\"audio-transcode\",container=\"transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "VPA Target",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(cantaloupe:workload_container_vpa_upper_memory_bytes{namespace=\"apps\",workload=\"audio-transcode\",container=\"transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "VPA Upper",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(kube_pod_container_resource_limits{job=\"kube-state-metrics\",namespace=\"apps\",container=\"transcode\",resource=\"memory\",unit=\"byte\"} * on(namespace,pod) group_left(workload) namespace_workload_pod:kube_pod_owner:relabel{namespace=\"apps\",workload=\"audio-transcode\"})",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Limit",
+          "range": true,
+          "refId": "E"
+        }
+      ],
+      "title": "Base Transcode Memory — Actual / Request / VPA Target / Upper / Limit",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "id": 609,
+      "title": "5. Track당 비용 효율",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 기간의 Web·API·Events·Base/Burst Transcode Kubernetes 배분비용을 해당 기간에 기록된 최신 성능 검증의 완료 Track 수로 나눈 값입니다. S3 저장비, 일부 SQS 요청비, Data Transfer는 포함하지 않습니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "decimals": 2,
+          "noValue": "N/A",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 42
+      },
+      "id": 501,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 100
+        },
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "round(\r\n  (\r\n    (\r\n      sum(\r\n        sum_over_time(\r\n          cantaloupe:container_allocated_cost_per_hour{\r\n            namespace=\"apps\",\r\n            container=~\"web|api|events|transcode\"\r\n          }[$__range:1m]\r\n        )\r\n      ) / 60\r\n    )\r\n    /\r\n    sum(\r\n      cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"}\r\n      and on(job, run_id)\r\n      topk(\r\n        1,\r\n        push_time_seconds{job=\"audio_finops_experiment\"}\r\n          >= ${__from:date:seconds}\r\n        and\r\n        push_time_seconds{job=\"audio_finops_experiment\"}\r\n          <= ${__to:date:seconds}\r\n      )\r\n    )\r\n  ) * 100000,\r\n  0.01\r\n)\r\nand\r\n(\r\n  sum(\r\n    cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"}\r\n    and on(job, run_id)\r\n    topk(\r\n      1,\r\n      push_time_seconds{job=\"audio_finops_experiment\"}\r\n        >= ${__from:date:seconds}\r\n      and\r\n      push_time_seconds{job=\"audio_finops_experiment\"}\r\n        <= ${__to:date:seconds}\r\n    )\r\n  ) > 0\r\n)",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Audio K8s 비용(USD / 100kTrack)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 기간의 Base/Burst Transcode Worker Kubernetes 배분비용을 해당 기간에 기록된 최신 성능 검증의 완료 Track 수로 나눈 값입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "decimals": 2,
+          "noValue": "N/A",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 42
+      },
+      "id": 503,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "titleSize": 0,
+          "valueSize": 100
+        },
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "round(\r\n  (\r\n    (\r\n      sum(\r\n        sum_over_time(\r\n          cantaloupe:container_allocated_cost_per_hour{\r\n            namespace=\"apps\",\r\n            container=\"transcode\"\r\n          }[$__range:1m]\r\n        )\r\n      ) / 60\r\n    )\r\n    /\r\n    sum(\r\n      cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"}\r\n      and on(job, run_id)\r\n      topk(\r\n        1,\r\n        push_time_seconds{job=\"audio_finops_experiment\"}\r\n          >= ${__from:date:seconds}\r\n        and\r\n        push_time_seconds{job=\"audio_finops_experiment\"}\r\n          <= ${__to:date:seconds}\r\n      )\r\n    )\r\n  ) * 100000,\r\n  0.01\r\n)\r\nand\r\n(\r\n  sum(\r\n    cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"}\r\n    and on(job, run_id)\r\n    topk(\r\n      1,\r\n      push_time_seconds{job=\"audio_finops_experiment\"}\r\n        >= ${__from:date:seconds}\r\n      and\r\n      push_time_seconds{job=\"audio_finops_experiment\"}\r\n        <= ${__to:date:seconds}\r\n    )\r\n  ) > 0\r\n)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Transcode 비용(USD/ 100kTrack)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 기간의 Karpenter 추가 노드 비용을 해당 기간에 기록된 최신 성능 검증의 완료 Track 수로 나눈 값입니다. Audio K8s 비용과 합산하는 별도 추가비용이 아니라 확장 노드 비용을 보는 독립적인 관점입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "decimals": 2,
+          "noValue": "N/A",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 42
+      },
+      "id": 504,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 100
+        },
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "round(\r\n  (\r\n    (\r\n      sum(\r\n        sum_over_time(\r\n          (\r\n            cantaloupe:node_total_cost_per_hour\r\n            * on(node) group_left()\r\n            max by(node) (\r\n              kube_node_labels{\r\n                job=\"opencost\",\r\n                label_karpenter_sh_nodepool=~\"aws-audio-burst-(98|99)\"\r\n              }\r\n            )\r\n          )[$__range:1m]\r\n        )\r\n      ) / 60\r\n    )\r\n    /\r\n    sum(\r\n      cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"}\r\n      and on(job, run_id)\r\n      topk(\r\n        1,\r\n        push_time_seconds{job=\"audio_finops_experiment\"}\r\n          >= ${__from:date:seconds}\r\n        and\r\n        push_time_seconds{job=\"audio_finops_experiment\"}\r\n          <= ${__to:date:seconds}\r\n      )\r\n    )\r\n  ) * 100000,\r\n  0.01\r\n)\r\nand\r\n(\r\n  sum(\r\n    cantaloupe_audio_finops_run_ready{job=\"audio_finops_experiment\"}\r\n    and on(job, run_id)\r\n    topk(\r\n      1,\r\n      push_time_seconds{job=\"audio_finops_experiment\"}\r\n        >= ${__from:date:seconds}\r\n      and\r\n      push_time_seconds{job=\"audio_finops_experiment\"}\r\n        <= ${__to:date:seconds}\r\n    )\r\n  ) > 0\r\n)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "추가 VM 비용 (USD/100k Track)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 기간의 Karpenter Node-minute를 해당 기간에 기록된 최신 성능 검증의 완료 Track 수로 나눈 값입니다. 비용이 아니라 Track당 추가 인프라 소비량입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "decimals": 2,
+          "noValue": "N/A",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "suffix: node-min / Track"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 42
+      },
+      "id": 502,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(\r\n  (\r\n    sum_over_time(\r\n      (\r\n        count(\r\n          max by(node) (\r\n            kube_node_labels{\r\n              job=\"opencost\",\r\n              label_karpenter_sh_nodepool=~\"aws-audio-burst-(98|99)\"\r\n            }\r\n          )\r\n        )\r\n      )[$__range:1m]\r\n    ) or vector(0)\r\n  )\r\n  /\r\n  sum(\r\n    cantaloupe_audio_finops_run_ready{\r\n      job=\"audio_finops_experiment\"\r\n    }\r\n    and on(job, run_id)\r\n    topk(\r\n      1,\r\n      push_time_seconds{\r\n        job=\"audio_finops_experiment\"\r\n      } >= ${__from:date:seconds}\r\n      and\r\n      push_time_seconds{\r\n        job=\"audio_finops_experiment\"\r\n      } <= ${__to:date:seconds}\r\n    )\r\n  )\r\n)\r\nand\r\n(\r\n  sum(\r\n    cantaloupe_audio_finops_run_ready{\r\n      job=\"audio_finops_experiment\"\r\n    }\r\n    and on(job, run_id)\r\n    topk(\r\n      1,\r\n      push_time_seconds{\r\n        job=\"audio_finops_experiment\"\r\n      } >= ${__from:date:seconds}\r\n      and\r\n      push_time_seconds{\r\n        job=\"audio_finops_experiment\"\r\n      } <= ${__to:date:seconds}\r\n    )\r\n  ) > 0\r\n)",
+          "format": "time_series",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Karpenter Node-minute / Track",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 49
+      },
+      "id": 610,
+      "title": "6. 장애 원인 상세",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 구간 Audio API 4xx·5xx를 응답 코드별 시간축으로 표시합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqpm"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 50
+      },
+      "id": 601,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by(response_code) (rate(istio_requests_total{reporter=\"source\",source_workload=\"audio-ingress\",destination_workload=\"audio-api\",response_code=~\"4..|5..\"}[5m])) * 60",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "HTTP {{response_code}}/분",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "API 오류 응답 상세",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Worker가 실제로 기록한 Transcode 재시도 발생 추이입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqpm"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 50
+      },
+      "id": 604,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(audio_transcode_retried_total{namespace=\"apps\"}[5m])) * 60",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "재시도/분",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Worker 재시도 상세",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "선택 구간에 Restart 또는 OOMKilled가 발생한 Pod만 표시합니다. 정확한 애플리케이션 예외 본문은 OpenSearch 로그에서 같은 Pod와 시간으로 확인합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      },
+      "id": 602,
+      "options": {
+        "cellHeight": "sm",
+        "enablePagination": true,
+        "frozenColumns": 1,
+        "showColumnFilter": true,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace((sum by(pod,container) (increase(kube_pod_container_status_restarts_total{namespace=\"apps\",container=\"transcode\"}[$__range])) > 0), \"cause\", \"Restart\", \"__name__\", \".*\") or label_replace((max by(pod,container,reason) (max_over_time(kube_pod_container_status_last_terminated_reason{namespace=\"apps\",container=\"transcode\",reason=\"OOMKilled\"}[$__range])) > 0), \"cause\", \"OOMKilled\", \"__name__\", \".*\")",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{cause}} · {{pod}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Transcode Pod Restart·OOM 원인 상세",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "namespace": true,
+              "reason": true
+            },
+            "indexByName": {
+              "Value": 3,
+              "cause": 2,
+              "container": 1,
+              "pod": 0
+            },
+            "renameByName": {
+              "Value": "발생 횟수 / 신호",
+              "cause": "이상 유형",
+              "container": "Container",
+              "pod": "Pod"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Transcode 처리에 최종 실패해 DLQ에 남아 있는 메시지 수입니다. 0이면 현재 누적된 실패 메시지가 없습니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 65
+      },
+      "id": 603,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max(cantaloupe:aws_sqs_messages_visible{\r\n  queue_name=\"cntlp-aws-queue-transcode-dlq\"\r\n}) or vector(0)",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "DLQ 대기",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Transcode DLQ 실패 메시지 누적량",
+      "type": "timeseries"
+    }
+  ],
+  "preload": false,
+  "refresh": "30s",
+  "schemaVersion": 42,
+  "tags": [
+    "cantaloupe",
+    "audio",
+    "finops",
+    "scalability",
+    "rightsizing",
+    "portfolio"
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Audio Service FinOps & Scalability Validation",
+  "uid": "cantaloupe-audio-finops-portfolio",
+  "version": 1
+}

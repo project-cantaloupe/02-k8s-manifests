@@ -101,6 +101,51 @@ configMapGenerator:
       annotations:
         grafana-folder: Cantaloupe
 
+  - name: cantaloupe-v1-s3-lifecycle-finops
+    namespace: monitoring
+    files:
+      - cantaloupe-v1-s3-lifecycle-finops.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+        app: grafana
+        area: monitoring
+        platform: gcp
+        cost-allocation: shared
+      annotations:
+        grafana-folder: Cantaloupe
+
+  - name: cantaloupe-audio-finops-portfolio
+    namespace: monitoring
+    files:
+      - cantaloupe-audio-finops-portfolio.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+        app: grafana
+        area: monitoring
+        platform: gcp
+        cost-allocation: shared
+      annotations:
+        grafana-folder: Cantaloupe
+
+  - name: cantaloupe-kubernetes-finops
+    namespace: monitoring
+    files:
+      - cantaloupe-kubernetes-finops.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+        app: grafana
+        area: monitoring
+        platform: gcp
+        cost-allocation: shared
+      annotations:
+        grafana-folder: Cantaloupe
+
   # Platform Security Controls는 Grafana API에 수동 적용하지 않고 대시보드
   # sidecar가 이 ConfigMap을 읽어 모든 사용자가 보는 공용 대시보드로 배포한다.
   - name: cantaloupe-platform-security-overview

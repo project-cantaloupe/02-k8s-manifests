@@ -1,0 +1,2987 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 503,
+      "title": "1. S3 비용 요약",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 파일과 S3 Versioning으로 남은 이전 버전을 모두 포함한 실제 저장량입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 1
+      },
+      "id": 101,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(cantaloupe_s3_actual_size_bytes)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "전체 저장 용량",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 Current/Previous 용량을 Storage Class별 단가로 계산한 월 환산 저장비 합계입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "purple",
+            "mode": "fixed"
+          },
+          "decimals": 6,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 1
+      },
+      "id": 102,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "((sum(cantaloupe_s3_actual_size_bytes{storage_type=\"StandardStorage\"}) or vector(0)) / 1024^3 * $standard_price) + ((sum(cantaloupe_s3_actual_size_bytes{storage_type=\"StandardIAStorage\"}) or vector(0)) / 1024^3 * $standard_ia_price) + ((sum(cantaloupe_s3_actual_size_bytes{storage_type=\"GlacierInstantRetrievalStorage\"}) or vector(0)) / 1024^3 * $glacier_ir_price)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "전체 저장비 월 Run-rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Lifecycle 적용 대상인 원본 파일의 현재 용량입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 10,
+        "y": 1
+      },
+      "id": 103,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(sum(cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-quarantine\",version_state=\"current\"}) or vector(0))",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Quarantine 현재 파일",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "변환 결과로 현재 사용 중인 파일의 용량입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 15,
+        "y": 1
+      },
+      "id": 104,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-transcode\",version_state=\"current\"})",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Transcode 현재 파일",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "두 Audio Bucket에서 Versioning으로 남아 있는 덮어쓰기·삭제 전 버전의 합계입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "orange",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "id": 105,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\"}) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "전체 이전 버전 저장 용량",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "id": 504,
+      "title": "2. Bucket별 전체 과금 용량과 Storage Class",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 파일과 이전 버전을 모두 포함한 실제 과금 용량의 Storage Class 구성입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#73BF69",
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 7
+      },
+      "id": 201,
+      "options": {
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "overflow": "ellipsis",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "sort": "desc",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by(storage_type) (cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-quarantine\"})",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "{{storage_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Quarantine 전체 Class 비중",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "전체 과금 용량을 Current/Previous와 Storage Class 조합으로 분리합니다. 단가 미등록 Class는 용량은 표시되지만 Run-rate는 비어 있으며 상단 가격 적용률이 100% 미만으로 내려갑니다.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": [
+                "sum"
+              ]
+            },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "버전 상태 / Storage Class"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "current / GlacierInstantRetrievalStorage": {
+                        "text": "Current / Glacier IR"
+                      },
+                      "current / StandardIAStorage": {
+                        "text": "Current / Standard-IA"
+                      },
+                      "current / StandardStorage": {
+                        "text": "Current / Standard"
+                      },
+                      "noncurrent / GlacierInstantRetrievalStorage": {
+                        "text": "Previous / Glacier IR"
+                      },
+                      "noncurrent / StandardIAStorage": {
+                        "text": "Previous / Standard-IA"
+                      },
+                      "noncurrent / StandardStorage": {
+                        "text": "Previous / Standard"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "전체 과금 용량"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "월 환산 Run-rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 6
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 7
+      },
+      "id": 202,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "label_join(cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-quarantine\"}, \"class_row\", \" / \", \"version_state\", \"storage_type\")",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "label_join(((cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-quarantine\",storage_type=\"StandardStorage\"} / 1024^3) * $standard_price) or ((cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-quarantine\",storage_type=\"StandardIAStorage\"} / 1024^3) * $standard_ia_price) or ((cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-quarantine\",storage_type=\"GlacierInstantRetrievalStorage\"} / 1024^3) * $glacier_ir_price), \"class_row\", \" / \", \"version_state\", \"storage_type\")",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Quarantine Current / Previous 상세",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "class_row",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "bucket_name": true,
+              "container": true,
+              "endpoint": true,
+              "instance": true,
+              "job": true,
+              "namespace": true,
+              "pod": true,
+              "service": true,
+              "storage_type": true
+            },
+            "indexByName": {
+              "Value #A": 1,
+              "Value #B": 2,
+              "class_row": 0
+            },
+            "renameByName": {
+              "Value #A": "전체 과금 용량",
+              "Value #B": "월 환산 Run-rate",
+              "class_row": "버전 상태 / Storage Class"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "버전 상태 / Storage Class",
+                "전체 과금 용량",
+                "월 환산 Run-rate"
+              ]
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 파일과 이전 버전을 모두 포함한 실제 과금 용량의 Storage Class 구성입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#73BF69",
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 7
+      },
+      "id": 203,
+      "options": {
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "overflow": "ellipsis",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "sort": "desc",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by(storage_type) (cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-transcode\"})",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "{{storage_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Transcode 전체 Class 비중",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "전체 과금 용량을 Current/Previous와 Storage Class 조합으로 분리합니다. 단가 미등록 Class는 용량은 표시되지만 Run-rate는 비어 있으며 상단 가격 적용률이 100% 미만으로 내려갑니다.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": [
+                "sum"
+              ]
+            },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "버전 상태 / Storage Class"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "current / GlacierInstantRetrievalStorage": {
+                        "text": "Current / Glacier IR"
+                      },
+                      "current / StandardIAStorage": {
+                        "text": "Current / Standard-IA"
+                      },
+                      "current / StandardStorage": {
+                        "text": "Current / Standard"
+                      },
+                      "noncurrent / GlacierInstantRetrievalStorage": {
+                        "text": "Previous / Glacier IR"
+                      },
+                      "noncurrent / StandardIAStorage": {
+                        "text": "Previous / Standard-IA"
+                      },
+                      "noncurrent / StandardStorage": {
+                        "text": "Previous / Standard"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "전체 과금 용량"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "월 환산 Run-rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 6
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 7
+      },
+      "id": 204,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "label_join(cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-transcode\"}, \"class_row\", \" / \", \"version_state\", \"storage_type\")",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "label_join(((cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-transcode\",storage_type=\"StandardStorage\"} / 1024^3) * $standard_price) or ((cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-transcode\",storage_type=\"StandardIAStorage\"} / 1024^3) * $standard_ia_price) or ((cantaloupe_s3_actual_size_bytes{bucket_name=\"cntlp-aws-transcode\",storage_type=\"GlacierInstantRetrievalStorage\"} / 1024^3) * $glacier_ir_price), \"class_row\", \" / \", \"version_state\", \"storage_type\")",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Transcode Current / Previous 상세",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "class_row",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "bucket_name": true,
+              "container": true,
+              "endpoint": true,
+              "instance": true,
+              "job": true,
+              "namespace": true,
+              "pod": true,
+              "service": true,
+              "storage_type": true
+            },
+            "indexByName": {
+              "Value #A": 1,
+              "Value #B": 2,
+              "class_row": 0
+            },
+            "renameByName": {
+              "Value #A": "전체 과금 용량",
+              "Value #B": "월 환산 Run-rate",
+              "class_row": "버전 상태 / Storage Class"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "버전 상태 / Storage Class",
+                "전체 과금 용량",
+                "월 환산 Run-rate"
+              ]
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "6시간마다 S3 API로 수집한 현재 파일 실측값입니다. 이전 버전은 아래 표에서 별도로 확인합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 205,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "enableFacetedFilter": false,
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_actual_size_bytes{version_state=\"current\"}",
+          "format": "time_series",
+          "interval": "5m",
+          "legendFormat": "{{bucket_name}} / {{storage_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "현재 파일 Bucket / Storage Class 용량 추이",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 505,
+      "title": "3. Audio S3 Lifecycle 정책 통합 현황",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Audio 서비스 수집 대상으로 명시된 S3 Bucket 수입니다. AWS 계정 전체를 자동 탐색하지 않습니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 23
+      },
+      "id": 301,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count(cantaloupe_s3_bucket_lifecycle_enabled)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "관리 Bucket",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Enabled Lifecycle Rule이 하나 이상 있는 Audio Bucket 수입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 23
+      },
+      "id": 302,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(cantaloupe_s3_bucket_lifecycle_enabled)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Lifecycle 적용 Bucket",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Enabled 상태로 현재 객체를 다른 Storage Class로 전환하는 Rule이 없는 Audio Bucket 수입니다. 반드시 문제라는 뜻은 아니며 검토 대상입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "orange",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 10,
+        "y": 23
+      },
+      "id": 303,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count(cantaloupe_s3_bucket_lifecycle_enabled) - count(count by(bucket_name) (cantaloupe_s3_bucket_lifecycle_transition_days{status=\"Enabled\"}))",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "현재 객체 전환 미설정 Bucket",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Versioning이 켜진 Bucket 중 Enabled 상태의 이전 버전 만료 Rule이 없는 수입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "orange",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 15,
+        "y": 23
+      },
+      "id": 304,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count(cantaloupe_s3_bucket_versioning_enabled == 1) - count(count by(bucket_name) (cantaloupe_s3_bucket_noncurrent_expiration_days{status=\"Enabled\"}))",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "이전 버전 자동 삭제 미설정 Bucket",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "설정은 남아 있지만 실행되지 않는 Disabled Lifecycle Rule 수입니다. Rule 목록과 동작 상세에도 상태와 함께 표시됩니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "yellow",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 23
+      },
+      "id": 305,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(sum(cantaloupe_s3_bucket_lifecycle_rule_count{status=\"all\"}) - sum(cantaloupe_s3_bucket_lifecycle_rule_count{status=\"enabled\"})) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Disabled Rule",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "버킷이 늘어나면 자동으로 행이 추가됩니다. Rule의 활성 상태와 적용 범위를 먼저 확인합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 0,
+        "y": 28
+      },
+      "id": 306,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_bucket_lifecycle_rule_info",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "버킷별 Lifecycle Rule 목록",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "container": true,
+              "endpoint": true,
+              "instance": true,
+              "job": true,
+              "namespace": true,
+              "pod": true,
+              "service": true
+            },
+            "indexByName": {
+              "bucket_name": 0,
+              "rule_id": 1,
+              "scope": 3,
+              "status": 2
+            },
+            "renameByName": {
+              "bucket_name": "Bucket",
+              "rule_id": "Rule",
+              "scope": "적용 범위",
+              "status": "상태"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Bucket",
+                "Rule",
+                "상태",
+                "적용 범위"
+              ]
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "각 Rule이 어느 객체를 며칠 후 어떤 Storage Class로 옮기거나 삭제하는지 보여줍니다.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 14,
+        "x": 10,
+        "y": 28
+      },
+      "id": 307,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(label_replace(label_replace(cantaloupe_s3_bucket_lifecycle_transition_days{days!=\"\",storage_type=\"StandardStorage\"}, \"object_state\", \"현재 객체\", \"\", \"\"), \"operation\", \"${1}일 후 → Standard\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_lifecycle_transition_days{days!=\"\",storage_type=\"StandardIAStorage\"}, \"object_state\", \"현재 객체\", \"\", \"\"), \"operation\", \"${1}일 후 → Standard-IA\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_lifecycle_transition_days{days!=\"\",storage_type=\"OneZoneIAStorage\"}, \"object_state\", \"현재 객체\", \"\", \"\"), \"operation\", \"${1}일 후 → One Zone-IA\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_lifecycle_transition_days{days!=\"\",storage_type=\"IntelligentTieringStorage\"}, \"object_state\", \"현재 객체\", \"\", \"\"), \"operation\", \"${1}일 후 → Intelligent-Tiering\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_lifecycle_transition_days{days!=\"\",storage_type=\"GlacierInstantRetrievalStorage\"}, \"object_state\", \"현재 객체\", \"\", \"\"), \"operation\", \"${1}일 후 → Glacier IR\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_lifecycle_transition_days{days!=\"\",storage_type=\"GlacierStorage\"}, \"object_state\", \"현재 객체\", \"\", \"\"), \"operation\", \"${1}일 후 → Glacier Flexible\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_lifecycle_transition_days{days!=\"\",storage_type=\"DeepArchiveStorage\"}, \"object_state\", \"현재 객체\", \"\", \"\"), \"operation\", \"${1}일 후 → Deep Archive\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_noncurrent_transition_days{days!=\"\",storage_type=\"StandardStorage\"}, \"object_state\", \"이전 버전\", \"\", \"\"), \"operation\", \"${1}일 후 → Standard\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_noncurrent_transition_days{days!=\"\",storage_type=\"StandardIAStorage\"}, \"object_state\", \"이전 버전\", \"\", \"\"), \"operation\", \"${1}일 후 → Standard-IA\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_noncurrent_transition_days{days!=\"\",storage_type=\"OneZoneIAStorage\"}, \"object_state\", \"이전 버전\", \"\", \"\"), \"operation\", \"${1}일 후 → One Zone-IA\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_noncurrent_transition_days{days!=\"\",storage_type=\"IntelligentTieringStorage\"}, \"object_state\", \"이전 버전\", \"\", \"\"), \"operation\", \"${1}일 후 → Intelligent-Tiering\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_noncurrent_transition_days{days!=\"\",storage_type=\"GlacierInstantRetrievalStorage\"}, \"object_state\", \"이전 버전\", \"\", \"\"), \"operation\", \"${1}일 후 → Glacier IR\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_noncurrent_transition_days{days!=\"\",storage_type=\"GlacierStorage\"}, \"object_state\", \"이전 버전\", \"\", \"\"), \"operation\", \"${1}일 후 → Glacier Flexible\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_noncurrent_transition_days{days!=\"\",storage_type=\"DeepArchiveStorage\"}, \"object_state\", \"이전 버전\", \"\", \"\"), \"operation\", \"${1}일 후 → Deep Archive\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_current_expiration_days{days!=\"\"}, \"object_state\", \"현재 객체\", \"\", \"\"), \"operation\", \"${1}일 후 → 영구 삭제\", \"days\", \"(.*)\")) or (label_replace(label_replace(cantaloupe_s3_bucket_noncurrent_expiration_days{days!=\"\"}, \"object_state\", \"이전 버전\", \"\", \"\"), \"operation\", \"${1}일 후 → 영구 삭제\", \"days\", \"(.*)\"))",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Lifecycle 동작 상세",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "Value #A": true,
+              "__name__": true,
+              "container": true,
+              "days": true,
+              "endpoint": true,
+              "group": true,
+              "instance": true,
+              "job": true,
+              "namespace": true,
+              "pod": true,
+              "service": true,
+              "storage_type": true
+            },
+            "indexByName": {
+              "bucket_name": 0,
+              "object_state": 4,
+              "operation": 5,
+              "rule_id": 1,
+              "scope": 3,
+              "status": 2
+            },
+            "renameByName": {
+              "bucket_name": "Bucket",
+              "object_state": "대상",
+              "operation": "설정된 동작",
+              "rule_id": "Rule",
+              "scope": "적용 범위",
+              "status": "상태"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "id": 506,
+      "title": "4. Lifecycle 비용 효과 — 현재 파일 전환 + 이전 버전 삭제",
+      "type": "row"
+    },
+    {
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "id": 417,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "### A. Current 파일 — 30/60일 Storage Class 전환 효과\r\n\r\n**Quarantine 현재 파일**을 기준으로, 미적용(Standard 유지)과 30일 Standard-IA → 60일 Glacier IR 적용 시의 누적 저장비를 비교합니다.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [],
+      "title": "",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 Quarantine 용량과 같은 파일 묶음을 120일 내내 Standard로 보관한 저장비입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "decimals": 6,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 40
+      },
+      "id": 401,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_cumulative_cost_usd{bucket_name=\"cntlp-aws-quarantine\",policy=\"disabled\",horizon_days=\"120\",cost_scope=\"storage-only\"}",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "120일 Lifecycle 미적용 누적비용",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "같은 파일 묶음에 실제 30일 IA, 60일 Glacier IR 정책을 적용한 120일 누적 저장비입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "purple",
+            "mode": "fixed"
+          },
+          "decimals": 6,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 40
+      },
+      "id": 402,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_cumulative_cost_usd{bucket_name=\"cntlp-aws-quarantine\",policy=\"enabled\",horizon_days=\"120\",cost_scope=\"storage-only\"}",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "120일 Lifecycle 누적비용",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "120일 미적용 누적비용에서 Lifecycle 적용 누적비용을 뺀 값입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "fixed"
+          },
+          "decimals": 6,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 40
+      },
+      "id": 403,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_cumulative_savings_usd{bucket_name=\"cntlp-aws-quarantine\",horizon_days=\"120\",cost_scope=\"storage-only\"}",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "120일 누적 절감액",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "120일 미적용 누적비용 대비 누적 절감액의 비율입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "fixed"
+          },
+          "decimals": 1,
+          "max": 100,
+          "min": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 40
+      },
+      "id": 404,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * cantaloupe_s3_whatif_cumulative_savings_ratio{bucket_name=\"cntlp-aws-quarantine\",horizon_days=\"120\",cost_scope=\"storage-only\"}",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "120일 누적 절감률",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "오늘의 Quarantine 파일 용량을 하나의 가상 묶음으로 보고, 모두 오늘 생성되어 삭제 없이 유지된다고 가정한 누적 저장비입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "미적용 누적비용"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 6
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Lifecycle 적용 누적비용"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 6
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "누적 절감액"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 6
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "누적 절감률"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "id": 405,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_cumulative_cost_usd{bucket_name=\"cntlp-aws-quarantine\",cost_scope=\"storage-only\",policy=\"disabled\",horizon_days=~\"30|60|120|180\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_cumulative_cost_usd{bucket_name=\"cntlp-aws-quarantine\",cost_scope=\"storage-only\",policy=\"enabled\",horizon_days=~\"30|60|120|180\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_cumulative_savings_usd{bucket_name=\"cntlp-aws-quarantine\",cost_scope=\"storage-only\",horizon_days=~\"30|60|120|180\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * (cantaloupe_s3_whatif_cumulative_savings_ratio{bucket_name=\"cntlp-aws-quarantine\",cost_scope=\"storage-only\",horizon_days=~\"30|60|120|180\"})",
+          "format": "table",
+          "instant": true,
+          "refId": "D"
+        }
+      ],
+      "title": "동일 용량의 누적 저장비와 절감 효과",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "horizon_days",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "horizon_days"
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "Value #A": 1,
+              "Value #B": 2,
+              "Value #C": 3,
+              "Value #D": 4,
+              "horizon_days": 0
+            },
+            "renameByName": {
+              "Value #A": "미적용 누적비용",
+              "Value #B": "Lifecycle 적용 누적비용",
+              "Value #C": "누적 절감액",
+              "Value #D": "누적 절감률",
+              "horizon_days": "경과 일수"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "경과 일수",
+                "미적용 누적비용",
+                "Lifecycle 적용 누적비용",
+                "누적 절감액",
+                "누적 절감률"
+              ]
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "desc": false,
+                "field": "경과 일수"
+              }
+            ]
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "누적비용이 아니라, 동일 파일 묶음을 각 Storage Class에서 한 달 유지할 때의 월 저장비 비교입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 6,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 45
+      },
+      "id": 406,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "overflow": "ellipsis",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_monthly_cost_usd{bucket_name=\"cntlp-aws-quarantine\",policy=\"disabled\",horizon_days=\"0\"}",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "Standard",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_monthly_cost_usd{bucket_name=\"cntlp-aws-quarantine\",policy=\"enabled\",horizon_days=\"30\"}",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "Standard-IA",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "cantaloupe_s3_whatif_monthly_cost_usd{bucket_name=\"cntlp-aws-quarantine\",policy=\"enabled\",horizon_days=\"60\"}",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "Glacier IR",
+          "refId": "C"
+        }
+      ],
+      "title": "각 단계의 월 저장비 Run-rate",
+      "type": "bargauge"
+    },
+    {
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "id": 407,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "- 대상: 수집 시점의 **Quarantine 현재 파일과 동일한 용량·객체 크기 분포**를 가진 가상 묶음\n- 미적용: 전 기간 Standard / 적용: 0–29일 Standard → 30–59일 Standard-IA → 60일 이후 Glacier IR\n- Standard-IA와 Glacier IR의 128 KiB 최소 과금 객체 크기는 반영\n- **저장비만 포함**하며 전환 요청·조회·복원·전송·조기 삭제 비용은 제외\n- 계산용 지표만 생성하며 실제 S3 객체와 Lifecycle 정책은 변경하지 않음",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [],
+      "title": "계산 기준과 포함 범위",
+      "type": "text"
+    },
+    {
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
+      "id": 414,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "### B. Previous 파일 — 7일 후 삭제 효과\r\n\r\n\r\n**현재 Previous 실측 용량**을 기준으로, 삭제 없이 30일 보관하는 경우와 현재 정책대로 7일 후 영구 삭제하는 경우의 저장비를 비교합니다.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [],
+      "title": "",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 두 Audio Bucket에 실제로 남아 있는 이전 버전 저장량입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "orange",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 62
+      },
+      "id": 408,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\"}) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "현재 Previous 용량",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 Previous 용량과 Class 구성이 30일 유지될 때의 저장비입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "decimals": 6,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 62
+      },
+      "id": 409,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardStorage\"}) or vector(0)) / 1024^3 * $standard_price) + ((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardIAStorage\"}) or vector(0)) / 1024^3 * $standard_ia_price) + ((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"GlacierInstantRetrievalStorage\"}) or vector(0)) / 1024^3 * $glacier_ir_price)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "삭제 없음 · 30일 저장비",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "동일한 Previous 묶음을 7일 보관한 뒤 삭제할 때의 저장비입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "purple",
+            "mode": "fixed"
+          },
+          "decimals": 6,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 10,
+        "y": 62
+      },
+      "id": 410,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardStorage\"}) or vector(0)) / 1024^3 * $standard_price) + ((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardIAStorage\"}) or vector(0)) / 1024^3 * $standard_ia_price) + ((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"GlacierInstantRetrievalStorage\"}) or vector(0)) / 1024^3 * $glacier_ir_price)) * 7 / 30",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "7일 후 삭제 저장비",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "삭제하지 않고 30일 보관하는 경우와 비교한 7일 삭제 정책의 저장비 절감액입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "fixed"
+          },
+          "decimals": 6,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 15,
+        "y": 62
+      },
+      "id": 411,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardStorage\"}) or vector(0)) / 1024^3 * $standard_price) + ((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardIAStorage\"}) or vector(0)) / 1024^3 * $standard_ia_price) + ((sum(cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"GlacierInstantRetrievalStorage\"}) or vector(0)) / 1024^3 * $glacier_ir_price)) * 23 / 30",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "30일 기준 절감액",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Enabled 상태의 이전 버전 7일 만료 정책이 적용된 Audio Bucket 수입니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "fixed"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 62
+      },
+      "id": 413,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count(count by(bucket_name) (cantaloupe_s3_bucket_noncurrent_expiration_days{status=\"Enabled\",days=\"7\"}))",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "7일 삭제 적용 Bucket",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "현재 실제 이전 버전 용량을 동일한 묶음으로 고정해, 30일 유지와 7일 후 삭제의 저장비를 Bucket별로 비교합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "현재 Previous 용량"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "삭제 없음 · 30일"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 6
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "7일 후 삭제"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 6
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "30일 기준 절감액"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 6
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 67
+      },
+      "id": 415,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by(bucket_name) (cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\"})",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by(bucket_name) ((cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardStorage\"} / 1024^3 * $standard_price) or (cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardIAStorage\"} / 1024^3 * $standard_ia_price) or (cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"GlacierInstantRetrievalStorage\"} / 1024^3 * $glacier_ir_price))",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(sum by(bucket_name) ((cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardStorage\"} / 1024^3 * $standard_price) or (cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardIAStorage\"} / 1024^3 * $standard_ia_price) or (cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"GlacierInstantRetrievalStorage\"} / 1024^3 * $glacier_ir_price))) * 7 / 30",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(sum by(bucket_name) ((cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardStorage\"} / 1024^3 * $standard_price) or (cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"StandardIAStorage\"} / 1024^3 * $standard_ia_price) or (cantaloupe_s3_actual_size_bytes{version_state=\"noncurrent\",storage_type=\"GlacierInstantRetrievalStorage\"} / 1024^3 * $glacier_ir_price))) * 23 / 30",
+          "format": "table",
+          "instant": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Bucket별 이전 버전 7일 삭제 효과",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "bucket_name",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "Value #A": 1,
+              "Value #B": 2,
+              "Value #C": 3,
+              "Value #D": 4,
+              "bucket_name": 0
+            },
+            "renameByName": {
+              "Value #A": "현재 Previous 용량",
+              "Value #B": "삭제 없음 · 30일",
+              "Value #C": "7일 후 삭제",
+              "Value #D": "30일 기준 절감액",
+              "bucket_name": "Bucket"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "Bucket",
+                "현재 Previous 용량",
+                "삭제 없음 · 30일",
+                "7일 후 삭제",
+                "30일 기준 절감액"
+              ]
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 67
+      },
+      "id": 416,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "- 용량은 **현재 실측**, 비용은 현재 용량을 고정한 **정책 비교값**\n- 실제 생성 시점과 이후 증가량을 모르므로 AWS 청구 예측은 아님\n- 저장비만 포함하며 실제 객체와 정책은 변경하지 않음",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [],
+      "title": "해석 기준",
+      "type": "text"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 75
+      },
+      "id": 507,
+      "title": "5. 데이터 수집 상태 — 문제가 있을 때만 확인",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "1이면 마지막 6시간 S3 집계가 성공했고 모든 목록 페이지를 끝까지 읽었습니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 76
+      },
+      "id": 501,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "min(cantaloupe_s3_inventory_collection_success) * min(cantaloupe_s3_inventory_complete) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "수집 상태",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "정상 범위는 0~6시간입니다. 7시간을 넘으면 수집기 또는 IAM을 확인합니다.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 7
+              }
+            ]
+          },
+          "unit": "h"
+        }
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 76
+      },
+      "id": 502,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(time() - max(cantaloupe_s3_inventory_collection_timestamp_seconds)) / 3600",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "마지막 수집 후 경과시간",
+      "type": "stat"
+    }
+  ],
+  "preload": false,
+  "refresh": "30s",
+  "schemaVersion": 42,
+  "tags": [
+    "cantaloupe",
+    "audio",
+    "lifecycle",
+    "s3"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "0.025",
+          "value": "0.025"
+        },
+        "hide": 2,
+        "name": "standard_price",
+        "query": "0.025",
+        "skipUrlSync": true,
+        "type": "constant"
+      },
+      {
+        "current": {
+          "text": "0.0138",
+          "value": "0.0138"
+        },
+        "hide": 2,
+        "name": "standard_ia_price",
+        "query": "0.0138",
+        "skipUrlSync": true,
+        "type": "constant"
+      },
+      {
+        "current": {
+          "text": "0.005",
+          "value": "0.005"
+        },
+        "hide": 2,
+        "name": "glacier_ir_price",
+        "query": "0.005",
+        "skipUrlSync": true,
+        "type": "constant"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Audio S3 Lifecycle FinOps",
+  "uid": "cantaloupe-v1-s3-lifecycle-finops",
+  "version": 1
+}
