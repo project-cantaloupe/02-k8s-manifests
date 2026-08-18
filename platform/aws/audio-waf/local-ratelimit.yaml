@@ -80,7 +80,30 @@ spec:
               filter_enforced:
                 # enabled 만 100 이고 enforced 가 0 이면 **세기만 하고 통과시킨다.**
                 runtime_key: local_rate_limit_enforced
-                default_value: { numerator: 100, denominator: HUNDRED }
+                #
+                # ⚠️⚠️ 임시 해제 중 (2026-08-18) — 원복 대상이다 ⚠️⚠️
+                #
+                # numerator: 100 → 0. FinOps 부하 테스트가 이 버킷에 전멸했다.
+                # `audio-finops-baseline-20260818-010833` 실측 —
+                # HTTP Error 429 가 298건, requested 150 중 submitted 10 ·
+                # upload_errors 149 · READY 1.
+                #
+                # 부하 테스트 Job 이 게이트웨이를 통과하도록 설정돼 있다
+                # (CronJob env `AUDIO_API_URL=http://audio-ingress.audio-ingress.svc.cluster.local`).
+                # runner.py 의 기본값은 클러스터 내부 Service 라서 파일만 읽으면
+                # 경로 밖으로 보인다 — 판단은 배포된 env 로 한다.
+                #
+                # **enabled 는 100 그대로 둔다.** 필터는 계속 돌고 카운터도 살아
+                # 있어서 해제 기간에 "몇 건이 막혔을 뻔했나"를 나중에 되찾을 수
+                # 있다. 필터 자체를 떼면 그 관측을 같이 잃는다.
+                #
+                # 원복: numerator 를 100 으로 되돌리고 커밋한다. ArgoCD 가
+                # selfHeal 이라 `kubectl edit` 은 몇 초 뒤 덮인다.
+                #
+                # 해제 상태의 대가 — 게이트웨이가 플러드에 무방비다.
+                # 데모 시나리오 11(`tools/demo/secops-take2/11-ratelimit.sh`)의
+                # 429 검사가 이 기간 동안 실패한다. 필터 체인 존재 검사는 통과한다.
+                default_value: { numerator: 0, denominator: HUNDRED }
 
               # 데모 증거용. 09 가 "본문 0바이트"로 Istio RBAC 을 증명하듯,
               # 이 헤더가 "429 를 낸 것이 이 필터"라는 증거가 된다.
