@@ -82,8 +82,6 @@ spec:
             requests:
               cpu: 50m
               memory: 64Mi
-            limits:
-              memory: 256Mi
       volumes:
         - name: cloudfront-key
           secret:
